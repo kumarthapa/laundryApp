@@ -1,0 +1,64 @@
+# PHPUnit cache files
+/.phpunit.cache
+.phpunit.result.cache
+
+# Node modules and package files
+/node_modules
+/package-lock.json
+/yarn.lock
+package-lock.log
+
+# Public asset builds and hot reload
+/public/build
+/public/hot
+/public/storage
+/public/css
+/public/js
+/public/mix-manifest.json
+
+# But allow files under public/assets except commented folders
+!/public/assets/*
+# /public/assets/js
+# /public/assets/css
+# /public/assets/vendor
+
+# Storage keys
+/storage/*.key
+
+# Vendor dependencies
+/vendor
+
+# Environment and config files
+.env
+.env.backup
+.env.production
+
+# Docker compose overrides
+docker-compose.override.yml
+
+# Homestead configurations
+Homestead.json
+Homestead.yaml
+
+# Logs
+npm-debug.log
+yarn-error.log
+
+# IDEs and editors
+/.idea
+/.vscode
+
+# Composer lock file (usually should be committed but kept here as per original)
+composer.lock
+
+# Operating system junk files (added for completeness)
+.DS_Store
+Thumbs.db
+
+# Optional: Ignore user uploads and cache folders if needed
+/storage/debugbar
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+/storage/logs
+

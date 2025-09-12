@@ -1,0 +1,30 @@
+/* Hide buttons for top and bottom click */
+#menu-inner-list::-webkit-scrollbar {
+  width: 6px;
+  /* height: 12px; */
+}
+
+#menu-inner-list::-webkit-scrollbar-button {
+  display: none; /* Hide the buttons for top and bottom click */
+}
+
+/* Style the track (background of scrollbar) */
+#menu-inner-list::-webkit-scrollbar-track {
+  background-color: #ffffff; /* Light almost white color */
+  border-radius: 10px;
+}
+
+/* Style the thumb (scroll handle) */
+#menu-inner-list::-webkit-scrollbar-thumb {
+  background-color: #e5e5e5; /* Thumb color */
+  border-radius: 10px;
+}
+
+/* Show the scrollbar when hovering over the parent div */
+#menu-inner-list:hover::-webkit-scrollbar {
+  display: block;
+}
+
+#menu-inner-list::-webkit-scrollbar {
+  display: none; /* Hide scrollbar by default */
+}

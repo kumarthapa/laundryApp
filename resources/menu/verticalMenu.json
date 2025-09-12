@@ -1,0 +1,252 @@
+{
+  "menu": [
+    {
+      "url": "/",
+      "name": "Dashboards",
+      "user_type": "employees",
+      "icon": "menu-icon tf-icons bx bx-home-circle",
+      "permission": "view.dashboard_admin",
+      "slug": "dashboard",
+      "module_id": "dashboard"
+    },
+    {
+      "url": "supplier/dashboard",
+      "name": "Suppliers Dashboard",
+      "user_type": "suppliers",
+      "icon": "menu-icon tf-icons bx bxs-user-badge",
+      "permission": "view.dashboard_supplier",
+      "slug": "dashboard",
+      "module_id": "dashboard"
+    },
+    {
+      "url": "tours",
+      "user_type": "employees",
+      "name": "Tours",
+      "icon": "menu-icon tf-icons bx bx-calendar-check",
+      "permission": "view.tours",
+      "slug": "tours",
+      "module_id": "tours"
+    },
+    {
+      "url": "my-tours",
+      "user_type": "employees",
+      "name": "My Tours",
+      "icon": "menu-icon tf-icons bx bx-calendar-check",
+      "permission": "view.tours",
+      "slug": "my-tours",
+      "module_id": "poc_permissions"
+    },
+    {
+      "url": "trips",
+      "user_type": "employees",
+      "name": "Trips",
+      "icon": "menu-icon tf-icons bx bx-trip",
+      "permission": "view.trips",
+      "slug": "trips",
+      "module_id": "trips"
+    },
+    {
+      "url": "suppliers",
+      "user_type": "employees",
+      "name": "Suppliers",
+      "icon": "menu-icon tf-icons bx bxs-user-badge",
+      "permission": "view.suppliers",
+      "slug": "suppliers",
+      "module_id": "suppliers"
+    },
+    {
+      "url": "vendor-ratecards",
+      "user_type": "employees",
+      "name": "Vendor Ratecard",
+      "icon": "menu-icon bx bxs-credit-card-front",
+      "slug": "vendor_ratecards",
+      "permission": "view.vendor_ratecards",
+      "module_id": "ratecards"
+    },
+    {
+      "url": "supplier-registrations",
+      "user_type": "employees",
+      "name": "Supplier Registration",
+      "icon": "menu-icon tf-icons bx bx-list-check",
+      "permission": "view.supplier-registration",
+      "slug": "supplier-registrations",
+      "module_id": "supplier-registration"
+    },
+    {
+      "url": "customers",
+      "permission": "view.customers",
+      "name": "Customers",
+      "icon": "menu-icon tf-icons bx bx-user",
+      "user_type": "employees",
+      "slug": "customers",
+      "module_id": "customers"
+    },
+    {
+      "url": "employees",
+      "name": "Employees",
+      "icon": "menu-icon tf-icons bx bx-layout",
+      "user_type": "employees",
+      "slug": "employees",
+      "permission": "view.employees",
+      "module_id": "employees"
+    },
+    {
+      "url": "trips-requirements",
+      "user_type": "employees",
+      "name": "Open Requirements",
+      "icon": "menu-icon tf-icons bx bx-list-check",
+      "permission": "view.trip_requirement",
+      "slug": "trips-requirements",
+      "module_id": "trip_requirement"
+    },
+    {
+      "name": "Rate Cards",
+      "icon": "menu-icon tf-icons bx bx-layout",
+      "user_type": "employees",
+      "slug": "ratecards",
+      "permission": "view.ratecards_type",
+      "url": "ratecards/types",
+      "module_id": "ratecards"
+    },
+    {
+      "url": "invoice",
+      "permission": "view.invoice",
+      "user_type": "employees",
+      "name": "Invoice",
+      "icon": "menu-icon tf-icons bx bx-food-menu",
+      "slug": "invoice",
+      "module_id": "invoice"
+    },
+    {
+      "name": "Roles & Permission",
+      "icon": "menu-icon tf-icons bx bx-check-shield",
+      "permission": "view.roles",
+      "user_type": "employees",
+      "slug": "roles",
+      "url": "roles",
+      "module_id": "roles"
+    },
+    {
+      "url": "users",
+      "permission": "view.users",
+      "user_type": "employees",
+      "name": "Users",
+      "icon": "menu-icon tf-icons bx bx-user",
+      "slug": "users",
+      "module_id": "users"
+    },
+    {
+      "url": "customer/analytics",
+      "name": "Customers Dashboard",
+      "user_type": "customers",
+      "icon": "menu-icon tf-icons bx bxs-user-badge",
+      "permission": "view.dashboard_customer",
+      "slug": "dashboard",
+      "module_id": "dashboard"
+    },
+    {
+      "name": "Vehicle",
+      "user_type": "suppliers",
+      "icon": "menu-icon tf-icons bx bx-layout",
+      "permission": "view.vehicles",
+      "slug": "vehicle",
+      "submenu": [
+        {
+          "url": "category/list",
+          "permission": "view.vehicles",
+          "name": "Category",
+          "slug": "vehicle",
+          "module_id": "vehicle"
+        },
+        {
+          "url": "vehicles/type",
+          "permission": "view.vehicles",
+          "name": "Vehicle Type",
+          "slug": "vehicle-type-list",
+          "module_id": "vehicle-type-list"
+        }
+      ]
+    },
+    {
+      "url": "vehicles",
+      "permission": "list.vehicles",
+      "name": "Vehicles",
+      "user_type": "employees",
+      "icon": "menu-icon tf-icons bx bxs-truck",
+      "slug": "vehicles",
+      "module_id": "vehicles"
+    },
+    {
+      "url": "supplier/vehicles",
+      "permission": "list.vehicles",
+      "name": "Vehicles",
+      "user_type": "suppliers",
+      "icon": "menu-icon tf-icons bx bxs-truck",
+      "slug": "vehicles",
+      "module_id": "vehicles"
+    },
+    {
+      "url": "drivers",
+      "permission": "list.drivers",
+      "name": "Drivers",
+      "user_type": "employees",
+      "icon": "menu-icon tf-icons bx bx-user-circle",
+      "slug": "drivers",
+      "module_id": "drivers"
+    },
+    {
+      "url": "supplier/drivers",
+      "permission": "list.drivers",
+      "name": "Drivers",
+      "user_type": "suppliers",
+      "icon": "menu-icon tf-icons bx bx-user-circle",
+      "slug": "drivers",
+      "module_id": "drivers"
+    },
+    {
+      "url": "customer/locations",
+      "permission": "view.customer_locations",
+      "name": "Customer Location",
+      "user_type": "customers",
+      "icon": "menu-icon tf-icons bx bxs-map",
+      "slug": "customer_locations",
+      "module_id": "customer_locations"
+    },
+    {
+      "url": "locations",
+      "permission": "view.customer_locations",
+      "name": "Customer Location",
+      "user_type": "employees",
+      "icon": "menu-icon tf-icons bx bxs-map",
+      "slug": "customer_locations",
+      "module_id": "customer_locations"
+    },
+    {
+      "url": "settings",
+      "permission": "view.config_settings",
+      "name": "Config Settings",
+      "icon": "menu-icon tf-icons bx bxs-cog",
+      "user_type": "employees",
+      "slug": "settings",
+      "module_id": "config_settings"
+    },
+    {
+      "url": "vehicles-indent",
+      "permission": "view.vehicles_indent",
+      "name": "Vehicles Indent",
+      "icon": "menu-icon bx bxs-credit-card-front",
+      "user_type": "employees",
+      "slug": "vehicles-indent",
+      "module_id": "vehicles_indent"
+    },
+    {
+      "url": "bpcl",
+      "permission": "view.bpcl",
+      "name": "BPCL",
+      "icon": "menu-icon bx bxs-credit-card-front",
+      "user_type": "employees",
+      "slug": "bpcl",
+      "module_id": "bpcl"
+    }
+  ]
+}
