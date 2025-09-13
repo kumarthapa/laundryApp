@@ -9,6 +9,7 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\UtilityHelper;
 use Illuminate\Support\Facades\Auth;
 use App\Models\products\Products;
+use App\Models\products\ProductProcessHistory;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductExport;
 
@@ -58,6 +59,7 @@ class ReportsController extends Controller
             ['rfid_tag' => 'RFID Tag'],
             ['quantity' => 'Quantity'],
             ['qc_status' => 'QC Status'],
+            ['current_stage' => 'Current Stage'],
             ['actions' => 'Actions']
         ];
         //     $headers = [
@@ -85,19 +87,25 @@ class ReportsController extends Controller
         $edit = route('edit.products', ["id" => $row->id]);
         $delete = route('delete.products', ["id" => $row->id]);
 
+ $history = ProductProcessHistory::where('product_id', $row->id)->first();
+        // -------------- QC Status ---------------
         $statusHTML = '';
-        switch ($row->qc_status) {
+        switch ($history->status ?? $row->qc_status) {
             case 'PASS':
-                $statusHTML = '<span class="badge rounded bg-label-success " title="Active">PASS</span>';
+                $statusHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
                 break;
             case 'FAILED':
-                $statusHTML = '<span class="badge rounded bg-label-danger " title="Active">FAILED</span>';
+                $statusHTML = '<span class="badge rounded bg-label-danger " title="Active"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>FAILED</span>';
                 break;
             default:
-                $statusHTML = '<span class="badge rounded bg-label-primary" title="PENDING">PENDING</span>';
+                $statusHTML = '<span class="badge rounded bg-label-primary" title="PENDING"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PENDING</span>';
                 break;
         }
-
+        // -------------- QC Status ---------------
+        // -------------- product stage ---------------
+        $current_stage=$history->stage??$row->current_stage;
+        $stageHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . $current_stage . '</span>';
+        // -------------- product stages ---------------
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] = $row->product_name;
         $data['sku'] = $row->sku;
@@ -105,6 +113,7 @@ class ReportsController extends Controller
         $data['rfid_tag'] = $row->rfid_tag;
         $data['quantity'] = $row->quantity;
         $data['qc_status'] = $statusHTML;
+        $data['current_stage'] =  $stageHTML;
 
         $data['actions'] = '<div class="d-inline-block">
         <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
@@ -157,6 +166,7 @@ class ReportsController extends Controller
                     ['rfid_tag' => 'RFID Tag'],
                     ['quantity' => 'Quantity'],
                     ['qc_status' => 'QC Status'],
+                    ['current_stage' => 'Current Stage'],
                     ['actions' => 'Actions']
                 ];
                 foreach ($headers as $header) {
@@ -178,6 +188,7 @@ class ReportsController extends Controller
                     ['sku' =>  'SKU'],
                     ['quantity' => 'Quantity'],
                     ['qc_status' => 'QC Status'],
+                    ['current_stage' => 'Current Stage'],
                 ];
                 foreach ($headers as $header) {
                     foreach ($header as $data => $title) {
@@ -185,11 +196,13 @@ class ReportsController extends Controller
                     }
                 }
                 foreach ($searchData as $row) {
+                    $history = ProductProcessHistory::where('product_id', $row->id)->first();
                     $data_rows[] = [
                         'product_name' => $row->product_name,
                         'sku' => $row->sku,
                         'quantity' => $row->quantity,
-                        'qc_status' => $row->qc_status,
+                        'qc_status' => $history ? $history->status : $row->qc_status,
+                        'current_stage' => $history ? $history->stage : $row->current_stage,
                     ];
                 }
                 break;
@@ -206,6 +219,7 @@ class ReportsController extends Controller
                     ['rfid_tag' => 'RFID Tag'],
                     ['quantity' => 'Quantity'],
                     ['qc_status' => 'QC Status'],
+                    ['current_stage' => 'Current Stage'],
                     ['actions' => 'Actions']
                 ];
                 foreach ($headers as $header) {
@@ -245,11 +259,13 @@ class ReportsController extends Controller
         $rows = $query->get();
 
         return $rows->map(function ($item) {
+            $history = ProductProcessHistory::where('product_id', $item->id)->first();
             return [
                 'product_name' => $item->product_name,
                 'sku' => $item->sku,
                 'quantity' => $item->quantity,
-                'qc_status' => $item->qc_status,
+                'qc_status' => $history ? $history->status : $item->qc_status,
+                'current_stage' => $history ? $history->stage : $item->current_stage,
             ];
         })->toArray();
     }
@@ -292,6 +308,7 @@ class ReportsController extends Controller
             'RFID Tag',
             'Quantity',
             'QC Status',
+            'Current Stage',
             'QC Confirmed At',
             'Created At',
             'Updated At',

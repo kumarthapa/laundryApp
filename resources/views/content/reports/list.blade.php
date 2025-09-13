@@ -1,15 +1,15 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", " Reports")
-@section("page-style")
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
+@section('title', ' Reports')
+@section('page-style')
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
     <style>
         .form-control-sm {
             padding: 0px !important;
         }
     </style>
 @endsection
-@section("content")
+@section('content')
     <div class="row g-6">
         <!-- Card Border Shadow -->
         <div class="col-lg-4 col-sm-8 mb-3">
@@ -166,7 +166,7 @@
                     {{-- <h6>Search By Filters</h6> --}}
 
                     <div class="row pt-3" id="filter-container">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <select id="filterQcStatus" class="form-select filter-selected-data">
                                 <option value="">All QC Status</option>
                                 <option value="PASS">PASS</option>
@@ -175,7 +175,22 @@
                             </select>
 
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-3">
+                            <select id="filterCurrentStage" class="form-select filter-selected-data">
+                                <option value="">All Current Stages</option>
+                                <option value="Bonding">Bonding</option>
+                                <option value="Tapedge">Tapedge</option>
+                                <option value="Zip Cover">Zip Cover</option>
+                                <option value="QC">QC</option>
+                                <option value="Packing">Packing</option>
+                                <option value="Ready for Shipment">Ready for Shipment</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Returned">Returned</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+
+                        </div>
+                        <div class="col-md-6">
                             <div class="input-group date">
                                 <input class="form-control filter-selected-data" type="text"
                                     name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />
@@ -199,17 +214,20 @@
 @php
     $is_export = 1;
 @endphp
-@section("page-script")
+@section('page-script')
     {{-- @include("content.reports.reportsDatatable") --}}
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "masterTableDaterangePicker",
-        "default_days" => 0,
+    @include('content.common.scripts.daterangePicker', [
+        'float' => 'right',
+        'name' => 'masterTableDaterangePicker',
+        'default_days' => 0,
     ])
     <script>
         let currentReportType = 'stock_report'; // default report on page load
         $(document).ready(function() {
             $("#filterQcStatus").select2({
+                allowClear: true
+            })
+            $("#filterCurrentStage").select2({
                 allowClear: true
             })
             // Load default report data initially
@@ -260,7 +278,7 @@
             currentReportType = reportType || currentReportType;
 
             $.ajax({
-                url: "{{ route("reports.list") }}",
+                url: "{{ route('reports.list') }}",
                 method: "POST",
                 data: {
                     _token: '{{ csrf_token() }}',

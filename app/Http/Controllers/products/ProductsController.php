@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Response;
 
 use App\Exports\ProductExport;
 use App\Models\products\Products;
+use App\Models\products\ProductProcessHistory;
 
 class ProductsController extends Controller
 {
@@ -82,9 +83,10 @@ class ProductsController extends Controller
         $view = route('view.products', ["code" => $row->id]);
         $edit = route('edit.products', ["id" => $row->id]);
         $delete = route('delete.products', ["id" => $row->id]);
+        $history = ProductProcessHistory::where('product_id', $row->id)->first();
         // -------------- QC Status ---------------
         $statusHTML = '';
-        switch ($row->qc_status) {
+        switch ($history->status ?? $row->qc_status) {
             case 'PASS':
                 $statusHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
                 break;
@@ -97,7 +99,8 @@ class ProductsController extends Controller
         }
         // -------------- QC Status ---------------
         // -------------- product stage ---------------
-        $stageHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . $row->current_stage . '</span>';
+        $current_stage=$history->stage??$row->current_stage;
+        $stageHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . $current_stage . '</span>';
         // -------------- product stages ---------------
         $data['created_at'] =  LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] =  $row->product_name;
@@ -279,35 +282,56 @@ class ProductsController extends Controller
 
 
     /* ------------------  Delete selected Items ----------------------- */
-    public function delete(Request $request, $id = '')
-    {
-        $delete_id = ($id) ? $id : $request->input('id');
-        $Model = Products::find($delete_id);
-        if (!$Model) {
-            return response()->json(['success' => false, 'message' => 'Delete  Failed!', 'bg_color' => 'bg-danger']);
-        }
-        try {
-            $Model->delete();
-            // Insert user activity -------------------- START ---------------------
-            $user = Auth::user();
-            $this->UserActivityLog(
-                $request,
-                [
-                    'module' => 'products',
-                    'activity_type' => 'delete',
-                    'message' => 'Delete products by : ' . $user->fullname,
-                    'application' => 'web',
-                    'data' => ['sku' => $Model->sku, 'rfid_tag' => $Model->rfid_tag]
-                ]
-            );
-            // Insert user activity -------------------- END ------------------------
-            return response()->json(['success' => TRUE, 'message' => 'Record deleted successfully', 'bg_color' => 'bg-success']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => FALSE, 'message' => 'Delete  Failed!' . ' ' . $e->getMessage()]);
-        }
-    }
+        public function delete(Request $request, $id = '')
+        {
+            $delete_id = $id ?: $request->input('id');
+            $Model = Products::find($delete_id);
 
+            if (!$Model) {
+                return response()->json([
+                    'success'   => false,
+                    'message'   => 'Delete Failed! Product not found.',
+                    'bg_color'  => 'bg-danger'
+                ]);
+            }
 
+            try {
+                // Delete child process histories first
+                $Model->processHistory()->delete();
+
+                // Delete parent product
+                $Model->delete();
+
+                // Insert user activity -------------------- START ---------------------
+                $user = Auth::user();
+                $this->UserActivityLog(
+                    $request,
+                    [
+                        'module'        => 'products',
+                        'activity_type' => 'delete',
+                        'message'       => 'Deleted product by : ' . $user->fullname,
+                        'application'   => 'web',
+                        'data'          => [
+                            'sku'      => $Model->sku,
+                            'rfid_tag' => $Model->rfid_tag
+                        ]
+                    ]
+                );
+                // Insert user activity -------------------- END ------------------------
+
+                return response()->json([
+                    'success'   => true,
+                    'message'   => 'Record and related histories deleted successfully',
+                    'bg_color'  => 'bg-success'
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success'   => false,
+                    'message'   => 'Delete Failed! ' . $e->getMessage(),
+                    'bg_color'  => 'bg-danger'
+                ]);
+            }
+        }
 
     //------------------------ Download customer import format ---------------------------
     public function productImportFormat(Request $request)
@@ -403,7 +427,7 @@ class ProductsController extends Controller
                     $quantity = isset($row['Quantity']) ? (int)$row['Quantity'] : 0;
 
                     // Validate mandatory fields
-                    if (empty($productName) || empty($sku) || empty($size)) {
+                    if (empty($productName) || empty($sku) || empty($rfidTag) || empty($size)) {
                         return response()->json([
                             'success' => false,
                             'message' => "Missing required fields at row " . ($rowIndex + 1) . ". Product Name, SKU, and Size are mandatory."
@@ -539,9 +563,10 @@ class ProductsController extends Controller
         ];
 
         // Retrieve your products data rows as arrays matching headers order
-        $products = Products::all();
-
+        $products = Products::with('processHistory')->get();
         $dataRows = $products->map(function ($product) {
+            $latestStage = $product->processHistory->last()->stage ?? $product->current_stage;
+            $latestStatus = $product->processHistory->last()->status ?? $product->qc_status;
             return [
                 $product->product_name,
                 $product->sku,
@@ -549,12 +574,14 @@ class ProductsController extends Controller
                 $product->size,
                 $product->rfid_tag,
                 $product->quantity,
-                $product->qc_status,
-                $product->qc_confirmed_at ? $product->qc_confirmed_at->format('Y-m-d H:i:s') : '',
-                $product->created_at->format('Y-m-d H:i:s'),
-                $product->updated_at->format('Y-m-d H:i:s'),
+                $latestStatus,
+                $latestStage, // from history if available, else current_stage
+                $product->qc_confirmed_at ? LocaleHelper::formatDateWithTime($product->qc_confirmed_at) : '',
+                LocaleHelper::formatDateWithTime($product->created_at),
+                LocaleHelper::formatDateWithTime($product->updated_at),
             ];
         })->toArray();
+
 
         $headers = [
             'Product Name',
@@ -564,6 +591,7 @@ class ProductsController extends Controller
             'RFID Tag',
             'Quantity',
             'QC Status',
+            'Current Stage',
             'QC Confirmed At',
             'Created At',
             'Updated At',
