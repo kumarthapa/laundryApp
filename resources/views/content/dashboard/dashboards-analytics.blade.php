@@ -1,26 +1,26 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", "Dashboard - Analytics")
+@section('title', 'Dashboard - Analytics')
 
-@section("vendor-style")
-    <link rel="stylesheet" href="{{ asset("assets/vendor/libs/apex-charts/apex-charts.css") }}">
+@section('vendor-style')
+    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css') }}">
 @endsection
 
-@section("vendor-script")
-    <script src="{{ asset("assets/vendor/libs/apex-charts/apexcharts.js") }}"></script>
+@section('vendor-script')
+    <script src="{{ asset('assets/vendor/libs/apex-charts/apexcharts.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 @endsection
 
-@section("page-script")
+@section('page-script')
     <script>
         // Data passed from server
-        let metrics = @json($metrics ?? (isset($totalProducts) ? compact("totalProducts") : []));
+        let metrics = @json($metrics ?? (isset($totalProducts) ? compact('totalProducts') : []));
     </script>
-    @include("content.dashboard.script")
+    @include('content.dashboard.script')
     {{-- <script src="{{ asset("assets/js/dashboard-mattress.js") }}"></script> --}}
 @endsection
 
-@section("content")
+@section('content')
     <div class="row">
         <!-- KPI cards -->
         <div class="col-sm-6 col-lg-3 mb-4">
@@ -50,7 +50,7 @@
                                     class="icon-base bx bx-cube icon-lg"></i></span>
                         </div> Total Products
                     </h6>
-                    <h3 id="kpi-total-products">{{ $metrics["totalProducts"] ?? 0 }}</h3>
+                    <h3 id="kpi-total-products">{{ $metrics['totalProducts'] ?? 0 }}</h3>
                     <small class="text-muted">Floor stock</small>
                 </div>
             </div>
@@ -67,7 +67,7 @@
                         </div> Items in Production
                     </h6>
                     <h3 id="kpi-in-production">
-                        {{ array_sum(array_filter($metrics["stageCounts"] ?? [], function ($k) {return true;})) -(($metrics["stageCounts"]["Shipped"] ?? 0) + ($metrics["stageCounts"]["Ready for Shipment"] ?? 0)) }}
+                        {{ array_sum(array_filter($metrics['stageCounts'] ?? [], function ($k) {return true;})) -(($metrics['stageCounts']['Shipped'] ?? 0) + ($metrics['stageCounts']['Ready for Shipment'] ?? 0)) }}
                     </h3>
                     <small class="text-muted">Excludes shipped/ready</small>
                 </div>
@@ -84,7 +84,7 @@
                                     class="icon-base bx bx-check-circle icon-lg"></i></span>
                         </div> QC Pass Rate
                     </h6>
-                    <h3 id="kpi-qc-pass">{{ $metrics["qcPassRate"] !== null ? $metrics["qcPassRate"] . "%" : "N/A" }}</h3>
+                    <h3 id="kpi-qc-pass">{{ $metrics['qcPassRate'] !== null ? $metrics['qcPassRate'] . '%' : 'N/A' }}</h3>
                     <small class="text-muted">Across QC events</small>
                 </div>
             </div>
@@ -100,7 +100,7 @@
                         </div> Shipped
                     </h6>
                     {{-- <h6>Shipped</h6> --}}
-                    <h3 id="kpi-shipped">{{ $metrics["stageCounts"]["Shipped"] ?? 0 }}</h3>
+                    <h3 id="kpi-shipped">{{ $metrics['stageCounts']['Shipped'] ?? 0 }}</h3>
                     <small class="text-muted">Total shipped</small>
                 </div>
             </div>
@@ -119,7 +119,7 @@
                     <div class="mt-3">
                         <h6>Average minutes per stage</h6>
                         <ul>
-                            @foreach ($metrics["avgStageTimes"] ?? [] as $stage => $mins)
+                            @foreach ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
                                 <li><strong>{{ $stage }}</strong>: {{ $mins }} minutes</li>
                             @endforeach
                         </ul>
@@ -157,14 +157,14 @@
                 </div>
                 <div class="card-body">
                     <ul class="list-group">
-                        @foreach ($metrics["stuckItems"] as $s)
+                        @foreach ($metrics['stuckItems'] as $s)
                             <li class="list-group-item">
                                 <div><strong>{{ $s->sku }}</strong> — {{ $s->product_name }}</div>
                                 <small>{{ $s->current_stage }} • updated
                                     {{ \Carbon\Carbon::parse($s->updated_at)->diffForHumans() }}</small>
                             </li>
                         @endforeach
-                        @if (count($metrics["stuckItems"]) == 0)
+                        @if (count($metrics['stuckItems']) == 0)
                             <li class="list-group-item">None</li>
                         @endif
                     </ul>
@@ -184,24 +184,24 @@
                     <table class="table-striped table">
                         <thead>
                             <tr>
-                                <th>Time</th>
+                                <th>Updated Date</th>
                                 <th>SKU</th>
                                 <th>RFID</th>
                                 <th>Stage</th>
                                 <th>Status</th>
-                                <th>Machine/By</th>
+                                {{-- <th>Machine/By</th> --}}
                                 <th>Comments</th>
                             </tr>
                         </thead>
                         <tbody id="recent-activity-body">
-                            @foreach ($metrics["recentActivities"] as $act)
+                            @foreach ($metrics['recentActivities'] as $act)
                                 <tr>
                                     <td>{{ \Carbon\Carbon::parse($act->changed_at)->toDateTimeString() }}</td>
                                     <td>{{ $act->sku }}</td>
                                     <td>{{ $act->rfid_tag }}</td>
                                     <td>{{ $act->stage }}</td>
                                     <td>{{ $act->status }}</td>
-                                    <td>{{ $act->machine_no }} / {{ $act->changed_by }}</td>
+                                    {{-- <td>{{ $act->machine_no }} / {{ $act->changed_by }}</td> --}}
                                     <td>{{ Str::limit($act->comments, 80) }}</td>
                                 </tr>
                             @endforeach

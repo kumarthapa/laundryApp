@@ -31,10 +31,13 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/products/get-product-details-by-tag-id', [RFIDtagDetailsApiController::class, 'getProductDetailsByTagId'])
     ->name('products.getProductDetailsByTagId');
 
-    // New route for updating product stage
+    // Updating product stage
 Route::post('/products/update-product-stage', [RFIDtagDetailsApiController::class, 'updateProductStage'])
     ->name('products.updateProductStage');
 
+    // Route for fetching product stages and status
+Route::post('/products/get-stages-and-status', [ProductsApiController::class, 'getStagesAndStatus'])
+    ->name('products.getStagesAndStatus');
 });
 
 

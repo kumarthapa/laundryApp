@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\UtilityHelper;
 
 class ProductsApiController extends Controller
 {
@@ -134,4 +135,51 @@ class ProductsApiController extends Controller
             ], 500);
         }
     }
+        // Fetch product stages and status
+    // public function getStagesAndStatus(Request $request)
+    // {
+    //     Log::info("getStagesAndStatus: ".json_encode($request->all()));
+    //     try {
+    //         $data = UtilityHelper::getProductStagesAndStatus();
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Product stages and status fetched successfully',
+    //             'data' => $data,
+    //         ]);
+    //     } catch (Exception $e) {
+    //         Log::error("Error fetching product stages and status: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to fetch product stages and status',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+public function getStagesAndStatus(Request $request)
+{
+    Log::info("getStagesAndStatus: " . json_encode($request->all()));
+
+    try {
+        $currentStage = $request->get('current_stage'); // Android sends
+        $currentStatus = $request->get('current_status'); // Android sends QC status if any
+
+        $data = UtilityHelper::getProductStagesAndStatus($currentStage, $currentStatus);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product stages and status fetched successfully',
+            'data' => $data,
+        ]);
+    } catch (Exception $e) {
+        Log::error("Error fetching product stages and status: " . $e->getMessage(), [
+            'trace' => $e->getTraceAsString()
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to fetch product stages and status',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 }

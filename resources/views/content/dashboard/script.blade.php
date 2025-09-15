@@ -120,7 +120,6 @@
                                 <td>${act.rfid_tag || ''}</td>
                                 <td>${act.stage}</td>
                                 <td>${act.status}</td>
-                                <td>${act.machine_no || ''} / ${act.changed_by || ''}</td>
                                 <td>${(act.comments||'').substring(0,80)}</td>`;
                     body.appendChild(tr);
                 });
