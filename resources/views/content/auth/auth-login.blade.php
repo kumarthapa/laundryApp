@@ -87,7 +87,7 @@
                                         <span class="text-heading">Download RFID APP</span>
                                     </td>
                                     <td class="text-truncate">
-                                        <a class="btn btn-primary" href="{{ asset('assets/apk/rfidapp/RFIDapp.apk') }}">
+                                        <a class="btn btn-primary" href="{{ asset('assets/apk/rfidapp/app-debug.apk') }}">
                                             <span>Download</span>
                                         </a>
                                     </td>

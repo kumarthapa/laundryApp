@@ -87,7 +87,9 @@ class ReportsController extends Controller
         $edit = route('edit.products', ["id" => $row->id]);
         $delete = route('delete.products', ["id" => $row->id]);
 
- $history = ProductProcessHistory::where('product_id', $row->id)->first();
+         $history = ProductProcessHistory::where('product_id', $row->id)
+            ->latest('changed_at')
+            ->first();
         // -------------- QC Status ---------------
         $statusHTML = '';
         switch ($history->status ?? $row->qc_status) {

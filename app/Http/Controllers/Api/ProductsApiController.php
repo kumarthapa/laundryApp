@@ -78,6 +78,7 @@ class ProductsApiController extends Controller
 
             // Format response data
             $formattedProducts = $products->map(function ($product) {
+                $latestHistory = $product->processHistory()->orderBy('changed_at', 'desc')->first();
                 return [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
@@ -85,7 +86,8 @@ class ProductsApiController extends Controller
                     'size' => $product->size,
                     'tag_id' => $product->rfid_tag,
                     'quantity' => $product->quantity,
-                    'qc_status' => $product->qc_status,
+                    'qc_status' => isset($latestHistory) ? $latestHistory->status : $product->qc_status,
+                    'current_stage' => isset($latestHistory) ? $latestHistory->stage : $product->current_stage,
                     'created_at' => $product->created_at->toDateTimeString(),
                 ];
             });

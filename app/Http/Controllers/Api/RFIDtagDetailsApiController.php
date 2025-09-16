@@ -65,7 +65,6 @@ public function getProductDetailsByTagId(Request $request)
             'qc_status' => $product->qc_status,
             'latest_stage' => $latestHistory->stage ?? null,
             'latest_status' => $latestHistory->status ?? null,
-            'latest_machine_no' => $latestHistory->machine_no ?? null,
             'latest_comments' => $latestHistory->comments ?? null,
             'created_at' => $product->created_at->toDateTimeString(),
             'tag_id' => $product->rfid_tag,
@@ -99,7 +98,6 @@ public function updateProductStage(Request $request)
             'tag_id' => 'required|string',
             'stage' => 'required|string',  // e.g., Bonding, Tapedge, Zip Cover, QC, Packing
             'qc_status' => 'nullable|string|in:PASS,FAILED,PENDING',
-            'machine_no' => 'nullable|string',
             'comments' => 'nullable|string',
         ]);
 
@@ -114,7 +112,6 @@ public function updateProductStage(Request $request)
         $tagId = $request->input('tag_id');
         $stage = $request->input('stage');
         $qcStatus = $request->input('qc_status', 'PENDING');
-        $machineNo = $request->input('machine_no');
         $comments = $request->input('comments');
 
         // Find product by RFID tag
@@ -138,7 +135,6 @@ public function updateProductStage(Request $request)
         $product->processHistory()->create([
             'stage' => $stage,
             'status' => $qcStatus,
-            'machine_no' => $machineNo,
             'comments' => $comments,
             'changed_by' => auth()->id() ?? null,
             'changed_at' => now(),
