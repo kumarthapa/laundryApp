@@ -1,5 +1,4 @@
-<form method="POST" action="{{ route("products.bulkBondingPlanUpload") }}" enctype="multipart/form-data"
-    id="productsImport">
+<form method="POST" action="{{ route("bonding.bulkBondingPlanUpload") }}" enctype="multipart/form-data" id="bondingImport">
     @csrf
     <div class="modal fade" id="bulkProductImportModal" tabindex="-1" aria-modal="true" role="dialog">
         <div class="modal-dialog modal-dialog-centered modal-md">
@@ -22,7 +21,7 @@
                             <div class="form-check form-check-inline mt-4">
                                 <input class="form-check-input" type="radio" name="action_type" id="action_upload_new"
                                     value="upload_new" checked>
-                                <label class="form-check-label" for="action_upload_new">Upload New Products</label>
+                                <label class="form-check-label" for="action_upload_new">Upload New Bonding</label>
                             </div>
 
                             <div class="form-check form-check-inline">
@@ -49,7 +48,7 @@
 
 <script>
     $(document).ready(function() {
-        $("#productsImport").validate({
+        $("#bondingImport").validate({
             submitHandler: function(form) {
                 // Disable button and show loading text
                 $("#submit-button").attr('disabled', true).html('Uploading...');
@@ -104,7 +103,7 @@
                             $("#submit-button").attr('disabled', true).html('Uploaded');
                             setTimeout(function() {
                                 window.location.href =
-                                    "{{ route("products") }}";
+                                    "{{ route("bonding") }}";
                             }, 2000);
                         }
                     },
@@ -124,7 +123,7 @@
         });
 
         $("#import-format").click(function() {
-            window.location.href = "{{ route("products.bondingPlanImportFormat") }}";
+            window.location.href = "{{ route("bonding.bondingPlanImportFormat") }}";
         });
     });
 </script>

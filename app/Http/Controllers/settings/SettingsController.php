@@ -12,7 +12,7 @@ use App\Models\user_management\GrantsPermission;
 use App\Models\customers\Customers;
 use App\Helpers\TableHelper;
 use App\Helpers\LocaleHelper;
-use App\Helpers\S3Helper;
+use App\Helpers\StorageHelper;
 use App\Helpers\ConfigHelper;
 use App\Helpers\UtilityHelper;
 use Exception;
@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 use App\Models\invoice\DynamicField;
 
@@ -30,32 +31,41 @@ class SettingsController extends Controller
   {
     $this->roles = new Role;
   }
-public function index(Request $request)
-{
+  public function index(Request $request)
+  {
     // ---------------- Product Process Stages ----------------
     $product_process_stages = [];
     $config = UtilityHelper::getConfig('product_process_stages');
     if (!empty($config->value)) {
-        $product_process_stages = json_decode($config->value, true);
+      $product_process_stages = json_decode($config->value, true);
+    }
+    // ---------------- Product Process Stages ----------------
+    $product_defect_points = [];
+    $config1 = UtilityHelper::getConfig('product_defect_points');
+    if (!empty($config1->value)) {
+      $product_defect_points = json_decode($config1->value, true);
     }
 
     // ---------------- Product Status ----------------
     $product_status = [];
     $config_status = UtilityHelper::getConfig('product_status');
     if (!empty($config_status->value)) {
-        $product_status = json_decode($config_status->value, true);
+      $product_status = json_decode($config_status->value, true);
     }
-
     // ---------------- Pass to view ----------------
+    // $productConfig = UtilityHelper::getProductStagesAndDefectPoints();
+    // print_r($productConfig);
+    // exit;
     $data = [];
     $data['product_process_stages'] = $product_process_stages;
+    $data['product_defect_points'] = $product_defect_points;
     $data['product_status'] = $product_status;
     $data['module_name_array'] = LocaleHelper::getModuleNames();
     $data['company_code'] = UtilityHelper::get_company_code();
     $data['UtilityHelper'] = new UtilityHelper;
 
     return view('content.settings.list', $data);
-}
+  }
 
 
   public function save(Request $request)
@@ -79,13 +89,19 @@ public function index(Request $request)
         $config_data = $result['form_data'];
         break;
 
-        case 'save_product_process_stages':
+      case 'save_product_process_stages':
         $result = $this->save_product_process_stages($request);
         if (!$result['success']) return response()->json(['success' => FALSE, 'message' => $result['error_msg']]);
         $config_data = $result['form_data'];
         break;
 
-        case 'save_product_status':
+      case 'save_product_defect_points':
+        $result = $this->save_product_defect_points($request);
+        if (!$result['success']) return response()->json(['success' => FALSE, 'message' => $result['error_msg']]);
+        $config_data = $result['form_data'];
+        break;
+
+      case 'save_product_status':
         $result = $this->save_product_status($request);
         if (!$result['success']) return response()->json(['success' => FALSE, 'message' => $result['error_msg']]);
         $config_data = $result['form_data'];
@@ -116,7 +132,7 @@ public function index(Request $request)
         // Insert or update each config setting
         // Using updateOrInsert to avoid duplicates based on 'key' and 'name'
         Log::info("config_data :" . json_encode($config_data));
-        
+
         foreach ($config_data as $data) {
           Configsetting::updateOrInsert(
             ['key' => $data['key'], 'name' => $data['name']], // where clause for update
@@ -169,48 +185,52 @@ public function index(Request $request)
   public function save_company_details($request)
   {
     $user_id = UtilityHelper::getLoginUserInfo()->id;
-    $post_data = [];
     $post_data = $request->all();
     $form_data = [];
     $response = [];
-    unset($post_data['_token']);
-    unset($post_data['submit_form_name']);
-    // Upload company logo and brand logo
-    if (!empty($post_data['logo_upload'])) {
+
+    // Remove unnecessary fields
+    unset($post_data['_token'], $post_data['submit_form_name']);
+
+    // Upload company logos if provided
+    if (!empty($post_data['logo_upload']) && is_array($post_data['logo_upload'])) {
       foreach ($post_data['logo_upload'] as $key_name => $file_data) {
         if (in_array($key_name, ['company_logo', 'company_brand_logo'])) {
-          $result = S3Helper::storeFile($file_data, $key_name);
-          if ($result['success']) {
-            $post_data[$key_name] = $result['path'];
-          } else {
+          try {
+            $result = StorageHelper::storeLogoFile($file_data, $key_name);
+            if ($result['success']) {
+              $post_data[$key_name] = $result['path'];
+            } else {
+              unset($post_data[$key_name]);
+            }
+          } catch (\Exception $e) {
+            Log::error("Failed to store {$key_name}: " . $e->getMessage());
             unset($post_data[$key_name]);
           }
         }
       }
     }
     unset($post_data['logo_upload']);
-    //Uload company logo ------------------ END -----------------------
 
-    foreach ($post_data as $_key => $_value) {
-      $key_name = __('settings.' . $_key);
-      $key = $_key;
-      $name = $key_name;
-      $value = $_value;
-      if ($_value) {
+    // Prepare form data for saving
+    foreach ($post_data as $key => $value) {
+      // Skip null or empty string values (allows 0 or '0')
+      if ($value !== null && $value !== '') {
         $form_data[] = [
-          'key' => $key,
-          'name' => $name,
-          'value' => $value,
+          'key'     => $key,
+          'name'    => __('settings.' . $key),
+          'value'   => $value,
           'user_id' => $user_id
         ];
       }
     }
-    // print_r($form_data);
-    // exit;
+
     $response['form_data'] = $form_data;
     $response['success'] = true;
+
     return $response;
   }
+
   /* ------------------  SAVE ratecard_fields ----------------------- */
   public function save_ratecard_fields($request)
   {
@@ -366,7 +386,53 @@ public function index(Request $request)
     }
     return $response;
   }
-public function save_product_process_stages($request)
+  public function save_product_defect_points($request)
+  {
+    $user_id = UtilityHelper::getLoginUserInfo()->id;
+    $post_data = $request->all();
+    $response = [];
+    $form_data = [];
+
+    unset($post_data['_token'], $post_data['submit_form_name']);
+
+    if (!empty($post_data)) {
+      $setting_key = $post_data['setting_key'];
+      $setting_key_name = $post_data['setting_key_name'];
+      $post_values = [];
+
+      if (!empty($post_data['product_defect_points'])) {
+        foreach ($post_data['product_defect_points'] as $stage_name => $stage_points) {
+          $stage_key = $stage_name;
+          foreach ($stage_points as $_value) {
+            // print_r($_value['name']);
+            // exit;
+            $post_values[$stage_key][] = [
+              'name'  => $_value['name'],
+              'value' => $_value['value'],
+            ];
+          }
+        }
+      }
+
+      $form_data[] = [
+        'key'     => $setting_key,
+        'name'    => $setting_key_name,
+        'value'   => json_encode($post_values),
+        'user_id' => $user_id
+      ];
+      // print_r($form_data);
+      // exit;
+      $response['form_data'] = $form_data;
+      $response['success']   = true;
+      return $response;
+    } else {
+      $response['success'] = false;
+      $response['error_msg'] = 'Save Failed! Something went wrong.';
+      return $response;
+    }
+  }
+
+  public function save_product_process_stages($request)
   {
     $user_id = UtilityHelper::getLoginUserInfo()->id;
     $post_data = [];
@@ -386,7 +452,6 @@ public function save_product_process_stages($request)
             'name' =>  $_value['name'],
             'value' => $_value['value'],
           ];
-
         }
       }
       $form_data[] = [
@@ -407,8 +472,8 @@ public function save_product_process_stages($request)
       return $response;
     }
   }
-public function save_product_status($request)
-{
+  public function save_product_status($request)
+  {
     $user_id = UtilityHelper::getLoginUserInfo()->id;
     $post_data = $request->all();
     $response = [];
@@ -418,35 +483,35 @@ public function save_product_status($request)
     unset($post_data['submit_form_name']);
 
     if (!empty($post_data)) {
-        $setting_key = $post_data['setting_key']; // expected: 'product_status'
-        $setting_key_name = $post_data['setting_key_name']; // expected: 'Product Status'
-        $post_values = [];
+      $setting_key = $post_data['setting_key']; // expected: 'product_status'
+      $setting_key_name = $post_data['setting_key_name']; // expected: 'Product Status'
+      $post_values = [];
 
-        if (!empty($post_data['product_status'])) {
-            foreach ($post_data['product_status'] as $_key => $_value) {
-                $post_values[] = [
-                    'name'  => $_value['name'],
-                    'value' => $_value['value'],
-                ];
-            }
+      if (!empty($post_data['product_status'])) {
+        foreach ($post_data['product_status'] as $_key => $_value) {
+          $post_values[] = [
+            'name'  => $_value['name'],
+            'value' => $_value['value'],
+          ];
         }
+      }
 
-        $form_data[] = [
-            'key'     => $setting_key,
-            'name'    => $setting_key_name,
-            'value'   => json_encode($post_values),
-            'user_id' => $user_id,
-        ];
+      $form_data[] = [
+        'key'     => $setting_key,
+        'name'    => $setting_key_name,
+        'value'   => json_encode($post_values),
+        'user_id' => $user_id,
+      ];
 
-        $response['form_data'] = $form_data;
-        $response['success'] = true;
-        return $response;
+      $response['form_data'] = $form_data;
+      $response['success'] = true;
+      return $response;
     } else {
-        $response['success'] = false;
-        $response['error_msg'] = 'Save Failed! Something went wrong.';
-        return $response;
+      $response['success'] = false;
+      $response['error_msg'] = 'Save Failed! Something went wrong.';
+      return $response;
     }
-}
+  }
 
   public function save_designation_details($request)
   {
@@ -505,8 +570,8 @@ public function save_product_status($request)
         'user_id' => $user_id
       ];
     }
-          print_r($form_data);
-      exit;
+    print_r($form_data);
+    exit;
     $response['form_data'] = $form_data;
     $response['success'] = true;
     return $response;

@@ -1,69 +1,4 @@
 <script type="text/javascript">
-    $(document).ready(function() {
-
-        // ------------------------- Operation Type ---------- START ------------------------ //
-        $(".operation_type_input_div #operation_type_fieldname").on('input', function() {
-            let value = $(this).val().trim();
-            let fieldName = value.replace(/ /g, "_").toLowerCase();
-            $(".operation_type_input_div #operation_type_keyname").val(fieldName);
-        });
-
-        $(".operation_type_input_div #add_new_operation_type").click(function() {
-            let field_name = $(".operation_type_input_div #operation_type_fieldname").val().trim() ||
-                '';
-            let key_name = $(".operation_type_input_div #operation_type_keyname").val().trim() || '';
-
-            if (!field_name || field_name.length < 1) {
-                alert("Field name is required and must be at least 2 characters long.");
-                return false;
-            }
-            let this_form_name = $("#save_operation_type");
-            let index = this_form_name.find(".operation_type_table_body tr").length;
-            console.log("index " + index)
-            // Check if a row with the same key already exists
-            let exists = false;
-            $("#save_operation_type .operation_type_table_body tr").each(function() {
-                let existingKey = $(this).find('input.operation_type_keyname').val();
-                if (existingKey === key_name) {
-                    exists = true;
-                    return false; // Break out of the loop
-                }
-            });
-
-            if (exists) {
-                alert(`A field with the key "${key_name}" already exists.`);
-                return false;
-            }
-
-            // Add the new row if no duplicate was found
-            let html = `<tr>
-                    <td class="text-nowrap">
-                        <input type="text" class="form-control" value="${field_name}" name="trip_details_fields[${index}][name]">
-                    </td>
-                    <td class="text-nowrap">
-                        <input type="text" class="form-control bg-label-primary operation_type_keyname" value="${key_name}" name="trip_details_fields[${index}][value]">
-                    </td>
-                    <td class="text-nowrap">
-                        <button class="btn btn-sm btn-danger btn-icon mx-2 mb-1 px-2 delete_row"><i class="bx bx-trash"></i></button>
-                    </td>
-                </tr>`;
-            $("#save_operation_type .operation_type_table_body").prepend(html);
-
-            // Clear the input fields
-            $(".operation_type_input_div #operation_type_fieldname").val('');
-            $(".operation_type_input_div #operation_type_keyname").val('');
-        });
-
-        // Event delegation for delete button
-        $("#save_operation_type").on('click', '.delete_row', function() {
-            $(this).closest('tr').remove();
-        });
-        // ------------------------- Operation Type ---------- END ------------------------ //
-
-
-    });
-    // Trips scripts code  ----------------------------------------------- END ---------------
-
     // ----------------------------------- Designation scripts code ------------------------------- START ---------------
     $(document).ready(function() {
         function reindexRows(selector, inputName) {
@@ -145,7 +80,15 @@
         // ------------------------- Product Stages --------------------------- //
         $("#add_new_stage_label").click(function() {
             let field_name = $("#product_stage_labelname").val().trim() || "";
-            let key_name = field_name;
+
+            // Convert to snake_case
+            let key_name = field_name
+                .toLowerCase()
+                .replace(/\s+/g, '_') // spaces → underscore
+                .replace(/[^a-z0-9_]/g, ''); // remove special chars
+
+            console.log(key_name);
+
 
             if (!field_name || field_name.length < 2) {
                 alert("Stage name is required and must be at least 2 characters long.");
@@ -259,6 +202,74 @@
             });
         }
 
+
+
+        // ------------------------- Product Defect Points Start--------------------------- //
+        // Add new defect point
+        $(document).on("click", ".add_new_defect_label", function() {
+            let stageBlock = $(this).closest(".stage-block");
+            let stageKey = stageBlock.data("stage"); // bonding_qc, tapaging_qc, etc.
+            let labelInput = stageBlock.find(".product_defect_points_labelname");
+            let labelName = $.trim(labelInput.val());
+
+            if (labelName === "") {
+                alert("Please enter a defect point name");
+                return;
+            }
+
+            // Convert to snake_case
+            let key_name = labelName
+                .toLowerCase()
+                .replace(/\s+/g, '_') // spaces → underscore
+                .replace(/[^a-z0-9_]/g, ''); // remove special chars
+
+            console.log(key_name);
+
+
+            // prevent duplicates
+            let exists = false;
+            stageBlock.find(".product_defect_points_table_body tr input[type=text]").each(function() {
+                if ($(this).val().toLowerCase() === labelName.toLowerCase()) {
+                    exists = true;
+                    return false;
+                }
+            });
+            if (exists) {
+                alert(`Defect point "${labelName}" already exists in this stage.`);
+                return;
+            }
+
+            let rowIndex = stageBlock.find(".product_defect_points_table_body tr").length;
+
+            let newRow = `
+        <tr>
+            <td class="text-nowrap">
+                <input type="text" class="form-control"
+                       value="${labelName}"
+                       name="product_defect_points[${stageKey}][${rowIndex}][name]">
+                <input type="hidden" class="product_defect_points" 
+                   value="${key_name}"
+                   name="product_defect_points[${stageKey}][${rowIndex}][value]">
+            </td>
+            <td class="text-nowrap">
+                <button type="button" class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2">
+                    <i class="bx bx-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+
+            stageBlock.find(".product_defect_points_table_body").append(newRow);
+            labelInput.val("");
+        });
+
+        // Delete defect point
+        $(document).on("click", ".delete_row", function() {
+            $(this).closest("tr").remove();
+        });
+
+
     });
-    // Trips scripts code  ----------------------------------------------- END ---------------
+    // ---------------------------- Product Defect Points End--------------------------- //
+    // scripts code  ----------------------------------------------- END ---------------
 </script>

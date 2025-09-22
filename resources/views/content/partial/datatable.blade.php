@@ -1,5 +1,6 @@
 <script type="text/javascript">
     function getDataTableS(options, filterData = {}, tableHeaders, getStats = null) {
+        console.log(options.url)
         // Generate Select2 filters
         getFilterDropdownButtons(filterData);
 
@@ -61,6 +62,7 @@
                     getStats(response);
                 }
             }
+
         });
         $('div.head-label').html('<h4 class="card-title mb-0">' + (options?.title ?? ' ') + '</h4>');
         // Apply filter based on Select2 dropdown changes

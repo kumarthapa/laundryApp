@@ -57,45 +57,6 @@ class SendEmailJob implements ShouldQueue
     ### Generic method to send email default laravel way , picking smtp config from env variables
     $email = new $this->details['mailclass']($this->obj, $this->details);
 
-
-    // $host =  env('MAIL_HOST');
-    // $port = env('MAIL_PORT');
-    // $encryption = env('MAIL_ENCRYPTION');
-    // $smtp_user = env('MAIL_USERNAME');
-    // $smtp_pass =  env('MAIL_PASSWORD');
-    // $from_address =  env('mail_from_address');
-    // $from_name = env('MAIL_FROM_NAME');
-
-
-    // $email_config = $Appconfig->get('email_config', $retailerId);
-    // Log::info("Email Enabled " . $email_config);
-    // $smtpDetails = null;
-    // if ($email_config) {
-    //   Log::info("Email Enabled");
-    //   $host = $Appconfig->get('smtp_host', $retailerId);
-    //   $port = $Appconfig->get('smtp_port', $retailerId);
-    //   $encryption = $Appconfig->get('smtp_crypto', $retailerId);
-    //   $smtp_user = $Appconfig->get('smtp_user', $retailerId);
-    //   $smtp_pass = $Appconfig->get('smtp_pass', $retailerId);
-    //   $from_address = $Appconfig->get('smtp_from_address', $retailerId);
-    //   $from_name = $Appconfig->get('smtp_sender_name', $retailerId);
-    //   Log::info("config " . $host . "-" . $port . "-" . $encryption . "-" . $smtp_user . "-" . $smtp_pass . "-" . $from_address . "-" . $from_name);
-    // }
-
-    // if (
-    //   $host && $port && $encryption && $smtp_user && $smtp_pass && $from_address
-    // ) {
-    //   $smtpDetails = [
-    //     'host' => $host,
-    //     'port' =>  $port,
-    //     'encryption' => $encryption,
-    //     'username' => $smtp_user,
-    //     'password' => $smtp_pass,
-    //     'from_address' => $from_address,
-    //     'from_name' => $from_name
-    //   ];
-    // }
-
     $smtpDetails = ConfigHelper::getSMPTDetails();
 
     try {

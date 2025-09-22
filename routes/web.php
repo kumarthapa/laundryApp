@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\dashboard\DashboardController;
 use App\Http\Controllers\user_management\Users;
 use App\Http\Controllers\products\ProductsController;
+use App\Http\Controllers\products\ProductSettingsController;
 
 $controller_path = 'App\Http\Controllers';
 
@@ -86,7 +87,32 @@ Route::get('/products/export-products', $controller_path . '\products\ProductsCo
 Route::post('/products/save/{id?}', $controller_path . '\products\ProductsController@save')->name('products.save')->middleware('permission:products,create.products');
 Route::post('/products/delete/{id?}', $controller_path . '\products\ProductsController@delete')->name('delete.products')->middleware('permission:products,delete.products');
 
+//bulkBondingPlanUpload routes
+Route::get('/products/bondingPlanImportFormat', $controller_path . '\products\ProductsController@bondingPlanImportFormat')->name('products.bondingPlanImportFormat');
+Route::post('/products/bulkBondingPlanUpload', $controller_path . '\products\ProductsController@bulkBondingPlanUpload')->name('products.bulkBondingPlanUpload')->middleware('permission:products,create.products');;
+
+
 // ================================= ALL TYPES OF REPORTS ROUTES ================================ //
 Route::get('/reports', $controller_path . '\reports\ReportsController@index')->name('reports');
 Route::post('/reports/list', $controller_path . '\reports\ReportsController@list')->name('reports.list');
 // Route::post('/reports/list', $controller_path . '\reports\ReportsController@list')->name('reports.list');
+
+
+// ================================= BONDING PRODUCTS ROUTES ================================ //
+
+Route::get('/bonding', $controller_path . '\products\BondingPlanProductController@index')->name('bonding')->middleware('permission:bonding,view.bonding');
+Route::get('/bonding/list', $controller_path . '\products\BondingPlanProductController@list')->name('bonding.list')->middleware('permission:bonding,view.bonding');
+Route::get('/bonding/create/{id?}', $controller_path . '\products\BondingPlanProductController@create')->name('create.bonding')->middleware('permission:bonding,create.bonding');
+Route::get('/bonding/edit/{id?}', $controller_path . '\products\BondingPlanProductController@edit')->name('edit.bonding')->middleware('permission:bonding,edit.bonding');
+Route::get('/bonding/view/{code?}', $controller_path . '\products\BondingPlanProductController@view')->name('view.bonding')->middleware('permission:bonding,view.bonding');
+Route::post('/bonding/bulk-product-upload', $controller_path . '\products\BondingPlanProductController@bulkProductUpload')->name('bonding.bulkProductUpload')->middleware('permission:bonding,create.bonding');;
+Route::get('/bonding/productImportFormat', $controller_path . '\products\BondingPlanProductController@productImportFormat')->name('bonding.productImportFormat');
+Route::get('/bonding/export-bonding', $controller_path . '\products\BondingPlanProductController@exportBonding')->name('bonding.exportBonding');
+
+// AJAX routes
+Route::post('/bonding/save/{id?}', $controller_path . '\products\BondingPlanProductController@save')->name('bonding.save')->middleware('permission:bonding,create.bonding');
+Route::post('/bonding/delete/{id?}', $controller_path . '\products\BondingPlanProductController@delete')->name('delete.bonding')->middleware('permission:bonding,delete.bonding');
+
+//bulkBondingPlanUpload routes
+Route::get('/bonding/bondingPlanImportFormat', $controller_path . '\products\BondingPlanProductController@bondingPlanImportFormat')->name('bonding.bondingPlanImportFormat');
+Route::post('/bonding/bulkBondingPlanUpload', $controller_path . '\products\BondingPlanProductController@bulkBondingPlanUpload')->name('bonding.bulkBondingPlanUpload')->middleware('permission:bonding,create.bonding');;

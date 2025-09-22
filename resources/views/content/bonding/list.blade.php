@@ -1,6 +1,6 @@
 @extends("layouts/contentNavbarLayout")
 
-@section("title", "Products")
+@section("title", "Bonding Plan Products List")
 @section("page-style")
     <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
 @endsection
@@ -107,30 +107,25 @@
     $is_export = 1;
 @endphp
 @section("page-script")
-    @include("content.products.modal.bulkProductImport")
+    @include("content.bonding.modal.bulkProductImport")
     @include("content.partial.datatable")
     @include("content.common.scripts.daterangePicker", [
         "float" => "right",
         "name" => "masterTableDaterangePicker",
     ])
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "ToursExportDaterangePicker",
-        "default_days" => 180,
-    ])
     <script>
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
             var options1 = {
-                url: "{{ route("products.list") }}",
-                createUrl: '{{ route("create.products") }}',
+                url: "{{ route("bonding.list") }}",
+                createUrl: '{{ route("create.bonding") }}',
                 createPermissions: "{{ $createPermissions ?? "" }}",
                 fetchId: "FetchData",
-                title: "Products",
+                title: "Bonding Plan Products",
                 createTitle: "Manually Create",
                 displayLength: 100,
-                is_import: "Upload Products",
-                importUrl: "{{ route("create.products") }}",
+                is_import: "Upload Models",
+                importUrl: "{{ route("create.bonding") }}",
                 is_export: "Export",
             };
 
@@ -191,10 +186,10 @@
             }
 
             $(".addNewRecordBtn").click(function() {
-                window.location.href = '{{ route("create.products") }}';
+                window.location.href = '{{ route("create.bonding") }}';
             });
 
-            let exportUrl = "{{ route("products.exportProducts") }}";
+            let exportUrl = "{{ route("bonding.exportBonding") }}";
             $(".exportBtn").click(function() {
                 window.location.href = exportUrl;
             });

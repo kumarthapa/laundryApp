@@ -44,7 +44,7 @@ class DashboardApiController extends Controller
             $totalMonth = (int) $this->products->whereBetween('created_at', [$monthStart, $monthEnd])->count();
 
             $defectsToday = (int) $this->products->whereBetween('created_at', [$todayStart, $todayEnd])
-                ->where('qc_status', 'FAILED')->count();
+                ->where('qc_status', 'FAIL')->count();
 
             $goodToday = (int) $this->products->whereBetween('created_at', [$todayStart, $todayEnd])
                 ->where('qc_status', 'PASS')->count();
@@ -61,7 +61,9 @@ class DashboardApiController extends Controller
                 ->orderBy('cnt', 'desc')
                 ->get()
                 ->pluck('cnt', 'current_stage')
-                ->map(function ($v) { return (int)$v; })
+                ->map(function ($v) {
+                    return (int)$v;
+                })
                 ->toArray();
 
             // Recent activities from process history (latest 20)
@@ -115,7 +117,9 @@ class DashboardApiController extends Controller
             ->orderBy('cnt', 'desc')
             ->get()
             ->pluck('cnt', 'current_stage')
-            ->map(function ($v) { return (int)$v; })
+            ->map(function ($v) {
+                return (int)$v;
+            })
             ->toArray();
 
         return response()->json([

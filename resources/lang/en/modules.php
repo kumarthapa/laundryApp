@@ -27,6 +27,7 @@ return [
     'employee_location' => 'Employee Location',
     'bpcl' => 'BPCL',
     'vendor_advance' => 'Vendor Advance',
-    'products' => 'Bonding Plan',
+    'products' => 'Products',
+    'bonding' => 'Bonding',
     'reports' => 'Reports',
 ];

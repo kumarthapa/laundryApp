@@ -27,16 +27,16 @@ use App\Models\products\Products;
 use App\Models\products\ProductProcessHistory;
 use App\Models\products\BondingPlanProduct;
 
-class ProductsController extends Controller
+class BondingPlanProductController extends Controller
 {
-    protected $products;
+    protected $bondingPlanProduct;
     protected $stageMap = [];
     protected $defectPointMap = [];
     protected $statusMap = [];
 
     public function __construct()
     {
-        $this->products = new Products();
+        $this->bondingPlanProduct = new BondingPlanProduct();
 
         // Load config maps once for reuse (value => label)
         $configData = UtilityHelper::getProductStagesAndDefectPoints() ?? [];
@@ -81,12 +81,15 @@ class ProductsController extends Controller
         $headers = [
             ['created_at' => 'Created Date'],
             ['product_name' => 'Product Name'],
+            ['model' => 'Model'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
+            ['qa_code' => 'QA Code'],
             ['rfid_tag' => 'RFID Tag'],
-            ['quantity' => 'Quantity'],
-            ['qc_status' => 'QC Status'],
-            ['current_stage' => 'Current Stage'],
+            ['is_write' => 'Is Write'],
+            // ['quantity' => 'Quantity'],
+            // ['qc_status' => 'QC Status'],
+            // ['current_stage' => 'Current Stage'],
             ['actions' => 'Actions']
         ];
 
@@ -104,12 +107,12 @@ class ProductsController extends Controller
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper();
-        $createPermissions = $UtilityHelper::CheckModulePermissions('products', 'create.products');
+        $createPermissions = $UtilityHelper::CheckModulePermissions('bonding', 'create.bonding');
         $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
 
         $configData = UtilityHelper::getProductStagesAndDefectPoints();
 
-        return view('content.products.list')
+        return view('content.bonding.list')
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
@@ -126,9 +129,9 @@ class ProductsController extends Controller
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        $view = route('view.products', ["code" => $row->id]);
-        $edit = route('edit.products', ["id" => $row->id]);
-        $delete = route('delete.products', ["id" => $row->id]);
+        $view = route('view.bonding', ["code" => $row->id]);
+        $edit = route('edit.bonding', ["id" => $row->id]);
+        $delete = route('delete.bonding', ["id" => $row->id]);
 
         // get latest history if present
         $history = ProductProcessHistory::where('product_id', $row->id)
@@ -162,7 +165,7 @@ class ProductsController extends Controller
         }
 
         // Stage name: prefer history.stages (value), map to friendly name if available
-        $stageValue = $history->stages ?? ($row->current_stage ?? null);
+        $stageValue = $history->stages ?? 'BONDING';
         $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
         $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . e($stageLabel) . '</span>' : '';
 
@@ -191,12 +194,15 @@ class ProductsController extends Controller
 
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] = $row->product_name;
+        $data['model'] = $row->model ?? 'N/A';
         $data['sku'] = $row->sku;
         $data['size'] = $row->size;
-        $data['rfid_tag'] = $row->rfid_tag;
-        $data['quantity'] = $row->quantity;
-        $data['qc_status'] = $statusHTML;
-        $data['current_stage'] = $stageHTML . ($defectsHtml ? '<div class="mt-1">' . $defectsHtml . '</div>' : '');
+        $data['qa_code'] = $row->qa_code;
+        $data['rfid_tag'] = $row->rfid_tag ?? 'N/A';
+        $data['is_write'] = $row->is_write == 0 ? 'PENDING' : 'WRITTEN';
+        // $data['quantity'] = $row->quantity;
+        // $data['qc_status'] = $statusHTML;
+        // $data['current_stage'] = $stageHTML . ($defectsHtml ? '<div class="mt-1">' . $defectsHtml . '</div>' : '');
 
         $data['actions'] = '<div class="d-inline-block">
             <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
@@ -252,8 +258,8 @@ class ProductsController extends Controller
             $filters['end_date'] = $daterange['end_date'] ?? '';
         }
 
-        $searchData = $this->products->search($search, $filters, $limit, $offset, $sort, $order);
-        $total_rows = $this->products->get_found_rows($search, $filters);
+        $searchData = $this->bondingPlanProduct->search($search, $filters, $limit, $offset, $sort, $order);
+        $total_rows = $this->bondingPlanProduct->get_found_rows($search, $filters);
 
         $data_rows = [];
         foreach ($searchData as $row) {
@@ -271,16 +277,16 @@ class ProductsController extends Controller
 
     public function create(Request $request)
     {
-        return view('content.products.create', []);
+        return view('content.bonding.create', []);
     }
 
     public function edit(Request $request, $id)
     {
-        $product = Products::find($id);
+        $product = BondingPlanProduct::find($id);
         if (!$product) {
             return view('content.miscellaneous.no-data');
         }
-        return view('content.products.edit', ['product' => $product]);
+        return view('content.bonding.edit', ['product' => $product]);
     }
 
     public function save(Request $request, $id = null)
@@ -297,11 +303,11 @@ class ProductsController extends Controller
 
         // Unique rules
         if ($id) {
-            $rules['sku'] .= '|unique:products,sku,' . intval($id);
-            $rules['rfid_tag'] .= '|unique:products,rfid_tag,' . intval($id);
+            $rules['sku'] .= '|unique:bonding,sku,' . intval($id);
+            $rules['rfid_tag'] .= '|unique:bonding,rfid_tag,' . intval($id);
         } else {
-            $rules['sku'] .= '|unique:products,sku';
-            $rules['rfid_tag'] .= '|unique:products,rfid_tag';
+            $rules['sku'] .= '|unique:bonding,sku';
+            $rules['rfid_tag'] .= '|unique:bonding,rfid_tag';
         }
 
         $messages = [
@@ -333,17 +339,17 @@ class ProductsController extends Controller
         DB::beginTransaction();
         try {
             if ($id) {
-                $product = Products::findOrFail($id);
+                $product = BondingPlanProduct::findOrFail($id);
                 $product->update($data);
                 $action = 'update';
             } else {
-                $product = Products::create($data);
+                $product = BondingPlanProduct::create($data);
                 $action = 'create';
             }
 
             // Log activity
             $this->UserActivityLog($request, [
-                'module' => 'products',
+                'module' => 'bonding',
                 'activity_type' => $action,
                 'message' => ucfirst($action) . "d product: " . $product->product_name,
                 'application' => 'web',
@@ -355,7 +361,7 @@ class ProductsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Product successfully " . ($action === 'create' ? "created" : "updated") . ".",
-                'return_url' => route('products'),
+                'return_url' => route('bonding'),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -372,7 +378,7 @@ class ProductsController extends Controller
     public function delete(Request $request, $id = '')
     {
         $delete_id = $id ?: $request->input('id');
-        $Model = Products::find($delete_id);
+        $Model = BondingPlanProduct::find($delete_id);
         if (!$Model) {
             return response()->json([
                 'success' => false,
@@ -388,7 +394,7 @@ class ProductsController extends Controller
 
             $user = Auth::user();
             $this->UserActivityLog($request, [
-                'module' => 'products',
+                'module' => 'bonding',
                 'activity_type' => 'delete',
                 'message' => 'Deleted product by : ' . ($user->fullname ?? 'Unknown'),
                 'application' => 'web',
@@ -411,163 +417,10 @@ class ProductsController extends Controller
             ]);
         }
     }
-
-    /* Product import format (same as before) */
-    public function productImportFormat(Request $request)
-    {
-        $data = [];
-        try {
-            $header = [
-                'SKU',
-                'Product Name',
-                'Size',
-                'Quantity',
-                'RFID Tag',
-                'Reference Code',
-            ];
-            $data[] = $header;
-            $data[] = [];
-
-            return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
-                protected $data;
-                public function __construct(array $data)
-                {
-                    $this->data = $data;
-                }
-                public function array(): array
-                {
-                    return $this->data;
-                }
-            }, 'productImportFormat.xlsx');
-        } catch (\Exception $e) {
-            return back()->with('error', 'There was an error generating the report: ' . $e->getMessage());
-        }
-    }
-
-    /* Bulk upload - simplified & robust */
-    public function bulkProductUpload(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|mimes:xlsx,xls',
-            'action_type' => 'required|in:upload_new,update_existing',
-        ]);
-
-        if ($validator->fails()) {
-            Log::error("Product bulk upload failed: " . $validator->errors());
-            return response()->json(['success' => false, 'errors' => $validator->errors(), 'message' => 'Invalid format for upload file or action type.']);
-        }
-
-        $actionType = $request->input('action_type');
-        $file = $request->file('file');
-
-        DB::beginTransaction();
-        try {
-            $formattedData = FileImportHelper::getFileData($file);
-            if (!$formattedData || !isset($formattedData['header']) || !isset($formattedData['body']) || count($formattedData['body']) < 1) {
-                return response()->json(['success' => false, 'message' => 'No product data found to upload.']);
-            }
-
-            $actualHeaders = $formattedData['header'];
-            $missingHeaders = array_diff(['Product Name', 'SKU', 'Size'], $actualHeaders);
-            if (count($missingHeaders) > 0) {
-                return response()->json(['success' => false, 'message' => 'Missing mandatory header(s): ' . implode(', ', $missingHeaders)]);
-            }
-
-            // Preload existing keys
-            $existingSkus = Products::pluck('sku')->toArray();
-            $existingRfids = Products::pluck('rfid_tag')->toArray();
-
-            $fileSkus = [];
-            $fileRfids = [];
-            $importData = [];
-
-            foreach ($formattedData['body'] as $rowIndex => $row) {
-                if (empty($row) || (count(array_filter($row)) === 0)) {
-                    continue; // skip empty rows
-                }
-                $productName = trim($row['Product Name'] ?? '');
-                $sku = trim($row['SKU'] ?? '');
-                $size = trim($row['Size'] ?? '');
-                $rfidTag = trim($row['RFID Tag'] ?? '');
-                $referenceCode = $row['Reference Code'] ?? null;
-                $quantity = isset($row['Quantity']) ? (int)$row['Quantity'] : 0;
-
-                if (empty($productName) || empty($sku) || empty($size)) {
-                    return response()->json(['success' => false, 'message' => "Missing required fields at row " . ($rowIndex + 1) . ". Product Name, SKU, and Size are mandatory."]);
-                }
-
-                if ($actionType === 'upload_new') {
-                    if (in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row " . ($rowIndex + 1) . " already exists in database."]);
-                    }
-                    if ($rfidTag !== '' && in_array($rfidTag, $existingRfids)) {
-                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row " . ($rowIndex + 1) . " already exists in database."]);
-                    }
-                    if (in_array($sku, $fileSkus)) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row " . ($rowIndex + 1) . " is duplicated in the upload file."]);
-                    }
-                    if ($rfidTag !== '' && in_array($rfidTag, $fileRfids)) {
-                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row " . ($rowIndex + 1) . " is duplicated in the upload file."]);
-                    }
-
-                    $fileSkus[] = $sku;
-                    if ($rfidTag !== '') $fileRfids[] = $rfidTag;
-                } elseif ($actionType === 'update_existing') {
-                    if (!Products::where('sku', $sku)->exists()) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row " . ($rowIndex + 1) . " does not exist for update."]);
-                    }
-                }
-
-                $productData = [
-                    'product_name' => $productName,
-                    'sku' => $sku,
-                    'reference_code' => $referenceCode,
-                    'size' => $size,
-                    'rfid_tag' => $rfidTag ?: null,
-                    'quantity' => $quantity,
-                    'qc_confirmed_at' => null,
-                    'qc_status_updated_by' => null,
-                    'updated_at' => now(),
-                ];
-
-                if ($actionType === 'upload_new') $productData['created_at'] = now();
-
-                $importData[] = $productData;
-            }
-
-            // Persist
-            if (!empty($importData)) {
-                if ($actionType === 'upload_new') {
-                    Products::insert($importData);
-                } else {
-                    foreach ($importData as $p) {
-                        Products::where('sku', $p['sku'])->update($p);
-                    }
-                }
-
-                $this->UserActivityLog($request, [
-                    'module' => 'products',
-                    'activity_type' => $actionType === 'upload_new' ? 'bulk_upload_new' : 'bulk_update_existing',
-                    'message' => $actionType === 'upload_new' ? 'Bulk upload of new products completed' : 'Bulk update of existing products completed',
-                    'application' => 'web',
-                    'data' => $importData,
-                ]);
-            }
-
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Product data processed successfully.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("Product bulk upload error: " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Bulk upload failed: ' . $e->getMessage()]);
-        }
-    }
-
-    public function exportProducts(Request $request)
+    public function exportBonding(Request $request)
     {
         $user = Auth::user();
-        $daterange = $request->input('productsDaterangePicker');
+        $daterange = $request->input('bondingDaterangePicker');
 
         $metaInfo = [
             'date_range' => $daterange ?: 'All time',
@@ -575,7 +428,7 @@ class ProductsController extends Controller
         ];
 
         // Eager load latestHistory (we store stages/status as strings)
-        $products = Products::with('latestHistory')->get();
+        $products = BondingPlanProduct::with('latestHistory')->get();
 
         $dataRows = $products->map(function ($product) {
             $latest = $product->latestHistory;
@@ -614,7 +467,7 @@ class ProductsController extends Controller
             'Updated At',
         ];
 
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_' . now()->format('Ymd_His') . '.xlsx');
+        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'bonding_export_' . now()->format('Ymd_His') . '.xlsx');
     }
 
     // ============================ Bonding section ==========================
