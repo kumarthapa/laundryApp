@@ -2,41 +2,34 @@
 
 namespace App\Http\Controllers\products;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Session;
-use App\Models\user_management\Role;
-
-use App\Helpers\TableHelper;
-use App\Helpers\LocaleHelper;
+use App\Exports\ProductExport;
 use App\Helpers\FileImportHelper;
+use App\Helpers\LocaleHelper;
+use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
-use App\Helpers\ConfigHelper;
-
-use Exception;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Controller;
+use App\Models\products\BondingPlanProduct;
+use App\Models\products\ProductProcessHistory;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-
-use App\Models\user_management\UsersModel;
-use App\Exports\ProductExport;
-
-use App\Models\products\Products;
-use App\Models\products\ProductProcessHistory;
-use App\Models\products\BondingPlanProduct;
+use Maatwebsite\Excel\Facades\Excel;
 
 class BondingPlanProductController extends Controller
 {
     protected $bondingPlanProduct;
+
     protected $stageMap = [];
+
     protected $defectPointMap = [];
+
     protected $statusMap = [];
 
     public function __construct()
     {
-        $this->bondingPlanProduct = new BondingPlanProduct();
+        $this->bondingPlanProduct = new BondingPlanProduct;
 
         // Load config maps once for reuse (value => label)
         $configData = UtilityHelper::getProductStagesAndDefectPoints() ?? [];
@@ -45,6 +38,7 @@ class BondingPlanProductController extends Controller
         $stages = $configData['stages'] ?? [];
         $this->stageMap = collect($stages)->mapWithKeys(function ($s) {
             $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
+
             return [$s['value'] => $label];
         })->toArray();
 
@@ -56,6 +50,7 @@ class BondingPlanProductController extends Controller
         } else {
             $this->statusMap = collect($status)->mapWithKeys(function ($s) {
                 $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
+
                 return [$s['value'] => $label];
             })->toArray();
         }
@@ -65,11 +60,15 @@ class BondingPlanProductController extends Controller
         $flatDefects = [];
         if (is_array($defects)) {
             foreach ($defects as $stageKey => $points) {
-                if (!is_array($points)) continue;
+                if (! is_array($points)) {
+                    continue;
+                }
                 foreach ($points as $p) {
                     $val = $p['value'] ?? null;
                     $name = $p['name'] ?? ($p['label'] ?? $val);
-                    if ($val) $flatDefects[$val] = $name;
+                    if ($val) {
+                        $flatDefects[$val] = $name;
+                    }
                 }
             }
         }
@@ -90,23 +89,23 @@ class BondingPlanProductController extends Controller
             // ['quantity' => 'Quantity'],
             // ['qc_status' => 'QC Status'],
             // ['current_stage' => 'Current Stage'],
-            ['actions' => 'Actions']
+            ['actions' => 'Actions'],
         ];
 
         $productsOverview = LocaleHelper::getProductSummaryCounts();
 
         $productsOverview = [
-            'total_products'         => $productsOverview['total_products'] ?? 0,
-            'total_tags'             => $productsOverview['total_rfid_tags'] ?? 0,
-            'total_pass_products'    => $productsOverview['total_pass'] ?? 0,
-            'total_failed_products'  => $productsOverview['total_failed'] ?? 0,
-            'total_rework_products'  => $productsOverview['total_rework'] ?? 0,
+            'total_products' => $productsOverview['total_products'] ?? 0,
+            'total_tags' => $productsOverview['total_rfid_tags'] ?? 0,
+            'total_pass_products' => $productsOverview['total_pass'] ?? 0,
+            'total_failed_products' => $productsOverview['total_failed'] ?? 0,
+            'total_rework_products' => $productsOverview['total_rework'] ?? 0,
             'total_pending_products' => $productsOverview['total_pending'] ?? 0,
         ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
-        $UtilityHelper = new UtilityHelper();
+        $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('bonding', 'create.bonding');
         $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
 
@@ -129,9 +128,9 @@ class BondingPlanProductController extends Controller
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        $view = route('view.bonding', ["code" => $row->id]);
-        $edit = route('edit.bonding', ["id" => $row->id]);
-        $delete = route('delete.bonding', ["id" => $row->id]);
+        $view = route('view.bonding', ['code' => $row->id]);
+        $edit = route('edit.bonding', ['id' => $row->id]);
+        $delete = route('delete.bonding', ['id' => $row->id]);
 
         // get latest history if present
         $history = ProductProcessHistory::where('product_id', $row->id)
@@ -140,7 +139,7 @@ class BondingPlanProductController extends Controller
 
         // QC status: prefer history.status, fallback to DB column (if exists)
         $statusRaw = $history->status ?? ($row->qc_status ?? null);
-        $statusNormalized = strtoupper(trim((string)($statusRaw ?? '')));
+        $statusNormalized = strtoupper(trim((string) ($statusRaw ?? '')));
 
         // normalize failed term variations
         if ($statusNormalized === 'FAILED') {
@@ -167,13 +166,13 @@ class BondingPlanProductController extends Controller
         // Stage name: prefer history.stages (value), map to friendly name if available
         $stageValue = $history->stages ?? 'BONDING';
         $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
-        $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . e($stageLabel) . '</span>' : '';
+        $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
 
         // Defect points (history.defects_points stored JSON array) -> display small badges or count
         $defectsHtml = '';
         $defectsCount = 0;
         $defectsRaw = $history->defects_points ?? null;
-        if (!empty($defectsRaw)) {
+        if (! empty($defectsRaw)) {
             // try decode JSON safely
             $decoded = null;
             if (is_string($defectsRaw)) {
@@ -186,7 +185,7 @@ class BondingPlanProductController extends Controller
                 $pieces = [];
                 foreach ($decoded as $d) {
                     $label = $this->defectPointMap[$d] ?? $d;
-                    $pieces[] = '<span class="badge rounded bg-label-info me-1" title="' . e($label) . '">' . e($label) . '</span>';
+                    $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
                 }
                 $defectsHtml = implode(' ', $pieces);
             }
@@ -207,9 +206,9 @@ class BondingPlanProductController extends Controller
         $data['actions'] = '<div class="d-inline-block">
             <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a href="' . $view . '" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-                <li><a href="' . $edit . '" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
-                <li><a href="javascript:;" onclick="deleteRow(\'' . $delete . '\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
+                <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
+                <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
+                <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
             <div class="dropdown-divider"></div>
             </ul>
         </div>';
@@ -244,7 +243,7 @@ class BondingPlanProductController extends Controller
         }
 
         // If defect points sent as comma-separated string (from multi-select), convert to array
-        if (!empty($filters['defects_points']) && is_string($filters['defects_points']) && strpos($filters['defects_points'], ',') !== false) {
+        if (! empty($filters['defects_points']) && is_string($filters['defects_points']) && strpos($filters['defects_points'], ',') !== false) {
             // trim values
             $arr = array_filter(array_map('trim', explode(',', $filters['defects_points'])));
             $filters['defects_points'] = array_values($arr);
@@ -283,9 +282,10 @@ class BondingPlanProductController extends Controller
     public function edit(Request $request, $id)
     {
         $product = BondingPlanProduct::find($id);
-        if (!$product) {
+        if (! $product) {
             return view('content.miscellaneous.no-data');
         }
+
         return view('content.bonding.edit', ['product' => $product]);
     }
 
@@ -303,8 +303,8 @@ class BondingPlanProductController extends Controller
 
         // Unique rules
         if ($id) {
-            $rules['sku'] .= '|unique:bonding,sku,' . intval($id);
-            $rules['rfid_tag'] .= '|unique:bonding,rfid_tag,' . intval($id);
+            $rules['sku'] .= '|unique:bonding,sku,'.intval($id);
+            $rules['rfid_tag'] .= '|unique:bonding,rfid_tag,'.intval($id);
         } else {
             $rules['sku'] .= '|unique:bonding,sku';
             $rules['rfid_tag'] .= '|unique:bonding,rfid_tag';
@@ -320,7 +320,7 @@ class BondingPlanProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -351,7 +351,7 @@ class BondingPlanProductController extends Controller
             $this->UserActivityLog($request, [
                 'module' => 'bonding',
                 'activity_type' => $action,
-                'message' => ucfirst($action) . "d product: " . $product->product_name,
+                'message' => ucfirst($action).'d product: '.$product->product_name,
                 'application' => 'web',
                 'data' => $data,
             ]);
@@ -360,16 +360,16 @@ class BondingPlanProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Product successfully " . ($action === 'create' ? "created" : "updated") . ".",
+                'message' => 'Product successfully '.($action === 'create' ? 'created' : 'updated').'.',
                 'return_url' => route('bonding'),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Product ' . ($id ? 'update' : 'create') . ' error: ' . $e->getMessage());
+            Log::error('Product '.($id ? 'update' : 'create').' error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred: ' . $e->getMessage(),
+                'message' => 'An error occurred: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -378,45 +378,68 @@ class BondingPlanProductController extends Controller
     public function delete(Request $request, $id = '')
     {
         $delete_id = $id ?: $request->input('id');
-        $Model = BondingPlanProduct::find($delete_id);
-        if (!$Model) {
+        Log::info("Delete request for bonding_plan_product ID: $delete_id");
+
+        $Model = BondingPlanProduct::with('products')->find($delete_id);
+        if (! $Model) {
+            Log::warning("BondingPlanProduct not found for ID: $delete_id");
+
             return response()->json([
                 'success' => false,
                 'message' => 'Delete Failed! Product not found.',
-                'bg_color' => 'bg-danger'
+                'bg_color' => 'bg-danger',
             ]);
         }
 
+        Log::info('Found BondingPlanProduct: ', ['id' => $Model->id, 'products_count' => $Model->products->count()]);
+
         try {
-            // remove related histories and then product
-            $Model->processHistory()->delete();
+            foreach ($Model->products as $product) {
+                // Delete related product process history explicitly (optional, cascade works if DB ON DELETE CASCADE is set)
+                if (method_exists($product, 'processHistory')) {
+                    $product->processHistory()->delete();
+                    Log::info("Deleted process history for product ID: {$product->id}");
+                }
+            }
+
+            // Delete related products
+            $Model->products()->delete();
+            Log::info('Related products deleted.');
+
+            // Delete the bonding plan product record
             $Model->delete();
+            Log::info('BondingPlanProduct deleted.');
+
+            // Optional: log user activity here (uncomment and implement UserActivityLog)
 
             $user = Auth::user();
             $this->UserActivityLog($request, [
                 'module' => 'bonding',
                 'activity_type' => 'delete',
-                'message' => 'Deleted product by : ' . ($user->fullname ?? 'Unknown'),
+                'message' => 'Deleted product by : '.($user->fullname ?? 'Unknown'),
                 'application' => 'web',
                 'data' => [
                     'sku' => $Model->sku,
-                    'rfid_tag' => $Model->rfid_tag
-                ]
+                    'rfid_tag' => $Model->rfid_tag ?? 'N/A',
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Record and related histories deleted successfully',
-                'bg_color' => 'bg-success'
+                'bg_color' => 'bg-success',
             ]);
         } catch (\Exception $e) {
+            Log::error('Delete exception: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Delete Failed! ' . $e->getMessage(),
-                'bg_color' => 'bg-danger'
+                'message' => 'Delete Failed! '.$e->getMessage(),
+                'bg_color' => 'bg-danger',
             ]);
         }
     }
+
     public function exportBonding(Request $request)
     {
         $user = Auth::user();
@@ -428,46 +451,37 @@ class BondingPlanProductController extends Controller
         ];
 
         // Eager load latestHistory (we store stages/status as strings)
-        $products = BondingPlanProduct::with('latestHistory')->get();
+        $bondingProducts = BondingPlanProduct::with('products')->get();
 
-        $dataRows = $products->map(function ($product) {
-            $latest = $product->latestHistory;
-            $latestStage = $latest ? ($latest->stages ?? '') : ($product->current_stage ?? '');
-            $latestStatus = $latest ? ($latest->status ?? '') : ($product->qc_status ?? '');
-            // normalize FAILED -> FAIL in export as well
-            $latestStatusNormalized = strtoupper(trim((string)$latestStatus));
-            if ($latestStatusNormalized === 'FAILED') $latestStatusNormalized = 'FAIL';
-
+        $dataRows = $bondingProducts->map(function ($product) {
             return [
-                $product->product_name,
                 $product->sku,
-                $product->reference_code,
+                $product->product_name,
+                $product->model,
                 $product->size,
+                $product->qa_code,
                 $product->rfid_tag,
-                $product->quantity,
-                $latestStatusNormalized,
-                $latestStage,
-                $product->qc_confirmed_at ? LocaleHelper::formatDateWithTime($product->qc_confirmed_at) : '',
+                $product->is_write,
+                $product->reference_code,
                 LocaleHelper::formatDateWithTime($product->created_at),
                 LocaleHelper::formatDateWithTime($product->updated_at),
             ];
         })->toArray();
 
         $headers = [
-            'Product Name',
             'SKU',
-            'Reference Code',
+            'Product Name',
+            'Model',
             'Size',
+            'QA Code',
             'RFID Tag',
-            'Quantity',
-            'QC Status',
-            'Current Stage',
-            'QC Confirmed At',
+            'Is Write',
+            'Reference Code',
             'Created At',
             'Updated At',
         ];
 
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'bonding_export_' . now()->format('Ymd_His') . '.xlsx');
+        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'bonding_export_'.now()->format('Ymd_His').'.xlsx');
     }
 
     // ============================ Bonding section ==========================
@@ -484,12 +498,15 @@ class BondingPlanProductController extends Controller
             $data = [$header, []];
 
             return Excel::download(
-                new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
+                new class($data) implements \Maatwebsite\Excel\Concerns\FromArray
+                {
                     protected $data;
+
                     public function __construct(array $data)
                     {
                         $this->data = $data;
                     }
+
                     public function array(): array
                     {
                         return $this->data;
@@ -498,7 +515,7 @@ class BondingPlanProductController extends Controller
                 'bondingFormat.xlsx'
             );
         } catch (\Exception $e) {
-            return back()->with('error', 'Error generating format: ' . $e->getMessage());
+            return back()->with('error', 'Error generating format: '.$e->getMessage());
         }
     }
 
@@ -513,7 +530,7 @@ class BondingPlanProductController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
-                'message' => 'Invalid file or action type.'
+                'message' => 'Invalid file or action type.',
             ]);
         }
 
@@ -524,9 +541,9 @@ class BondingPlanProductController extends Controller
         try {
             $formattedData = FileImportHelper::getFileData($file);
             if (
-                !$formattedData ||
-                !isset($formattedData['header']) ||
-                !isset($formattedData['body']) ||
+                ! $formattedData ||
+                ! isset($formattedData['header']) ||
+                ! isset($formattedData['body']) ||
                 count($formattedData['body']) < 1
             ) {
                 return response()->json(['success' => false, 'message' => 'No data found in file.']);
@@ -535,7 +552,7 @@ class BondingPlanProductController extends Controller
             $actualHeaders = $formattedData['header'];
             $missingHeaders = array_diff(['Product Name', 'SKU', 'Size'], $actualHeaders);
             if (count($missingHeaders) > 0) {
-                return response()->json(['success' => false, 'message' => 'Missing headers: ' . implode(', ', $missingHeaders)]);
+                return response()->json(['success' => false, 'message' => 'Missing headers: '.implode(', ', $missingHeaders)]);
             }
 
             // Existing DB values
@@ -548,50 +565,50 @@ class BondingPlanProductController extends Controller
                     continue; // skip empty rows
                 }
                 if (empty(trim($row['Product Name'] ?? '')) || empty(trim($row['Size'] ?? ''))) {
-                    return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": Missing required fields. Product Name and Size are mandatory."]);
+                    return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).': Missing required fields. Product Name and Size are mandatory.']);
                 }
 
-                $productName   = trim($row['Product Name'] ?? '');
-                $sku           = trim($row['SKU'] ?? '') ?: null; // now nullable
-                $size          = trim($row['Size'] ?? '');
+                $productName = trim($row['Product Name'] ?? '');
+                $sku = trim($row['SKU'] ?? '') ?: null; // now nullable
+                $size = trim($row['Size'] ?? '');
                 $referenceCode = $row['Reference Code'] ?? null;
-                $Model         = $row['Model'] ?? ($sku ?? 'N/A');
+                // $Model         = $row['Model'] ?? ($sku ?? 'N/A');
 
                 if ($actionType === 'upload_new') {
                     if ($sku && in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": SKU '{$sku}' already exists."]);
+                        return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).": SKU '{$sku}' already exists."]);
                     }
                     if ($sku && in_array($sku, $fileSkus)) {
-                        return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": Duplicate SKU '{$sku}' in file."]);
+                        return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).": Duplicate SKU '{$sku}' in file."]);
                     }
                     if ($sku) {
                         $fileSkus[] = $sku;
                     }
                 } elseif ($actionType === 'update_existing') {
-                    if ($sku && !BondingPlanProduct::where('sku', $sku)->exists()) {
-                        return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": SKU '{$sku}' does not exist for update."]);
+                    if ($sku && ! BondingPlanProduct::where('sku', $sku)->exists()) {
+                        return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).": SKU '{$sku}' does not exist for update."]);
                     }
                 }
 
                 // Example QA code generator
                 $modelCode = $this->getModelFromProductName($productName);
-                $date  = (int)date('d');
-                $month = (int)date('m');
-                $year  = (int)date('y');
+                $date = (int) date('d');
+                $month = (int) date('m');
+                $year = (int) date('y');
                 $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
 
                 $productData = [
-                    'product_name'   => $productName,
-                    'sku'            => $sku,
+                    'product_name' => $productName,
+                    'sku' => $sku,
                     'reference_code' => $referenceCode,
-                    'size'           => $size,
-                    'model'          => $Model,
-                    'qa_code'        => $qa_code,
-                    'date'           => $date,
-                    'month'          => $month,
-                    'year'           => $year,
-                    'serial_no'      => $row['Serial No'] ?? null,
-                    'bonding_name'   => $row['Bonding Name'] ?? null,
+                    'size' => $size,
+                    'model' => $modelCode,
+                    'qa_code' => $qa_code,
+                    'date' => $date,
+                    'month' => $month,
+                    'year' => $year,
+                    'serial_no' => $row['Serial No'] ?? null,
+                    'bonding_name' => $row['Bonding Name'] ?? null,
                 ];
 
                 if ($actionType === 'upload_new') {
@@ -601,8 +618,11 @@ class BondingPlanProductController extends Controller
                 $importData[] = $productData;
             }
 
+            // print_r($importData);
+            // exit;
+
             // Save to DB
-            if (!empty($importData)) {
+            if (! empty($importData)) {
                 if ($actionType === 'upload_new') {
                     BondingPlanProduct::insert($importData);
                 } else {
@@ -613,10 +633,12 @@ class BondingPlanProductController extends Controller
             }
 
             DB::commit();
+
             return response()->json(['success' => true, 'message' => 'Bonding plan product data processed successfully.']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Upload failed: ' . $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'Upload failed: '.$e->getMessage()]);
         }
     }
 
@@ -628,8 +650,11 @@ class BondingPlanProductController extends Controller
             if (ctype_alpha($word[0])) {
                 $model .= strtoupper($word[0]);
             }
-            if (strlen($model) >= 3) break;
+            if (strlen($model) >= 3) {
+                break;
+            }
         }
+
         return $model ?: 'N/A';
     }
 }

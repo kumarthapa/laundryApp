@@ -1,10 +1,10 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", "Products")
-@section("page-style")
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
+@section('title', 'Products List')
+@section('page-style')
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12">
             <div class="d-none mb-3" id="errorBox"></div>
@@ -17,7 +17,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_products"] ?? "0" }}
+                                            {{ $productsOverview['total_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">Total Products</p>
                                     </div>
@@ -32,7 +32,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_tags"] ?? "0" }}
+                                            {{ $productsOverview['total_tags'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">Total RFID Tags</p>
                                     </div>
@@ -47,7 +47,7 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_pass_products"] ?? "0" }}
+                                            {{ $productsOverview['total_pass_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">PASS Products</p>
                                     </div>
@@ -61,7 +61,7 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_fail_products"] ?? "0" }}
+                                            {{ $productsOverview['total_fail_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">FAIL Products</p>
                                     </div>
@@ -106,32 +106,28 @@
 @php
     $is_export = 1;
 @endphp
-@section("page-script")
-    @include("content.products.modal.bulkProductImport")
-    @include("content.partial.datatable")
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "masterTableDaterangePicker",
-    ])
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "ToursExportDaterangePicker",
-        "default_days" => 180,
+@section('page-script')
+    @include('content.products.modal.bulkProductImport')
+    @include('content.partial.datatable')
+    @include('content.common.scripts.daterangePicker', [
+        'float' => 'right',
+        'name' => 'masterTableDaterangePicker',
     ])
     <script>
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
             var options1 = {
-                url: "{{ route("products.list") }}",
-                createUrl: '{{ route("create.products") }}',
-                createPermissions: "{{ $createPermissions ?? "" }}",
+                url: "{{ route('products.list') }}",
+                createUrl: '{{ route('create.products') }}',
+                createPermissions: "{{ $createPermissions ?? '' }}",
                 fetchId: "FetchData",
-                title: "Products",
+                title: "Products List",
                 createTitle: "Manually Create",
                 displayLength: 100,
-                is_import: "Upload Products",
-                importUrl: "{{ route("create.products") }}",
+                // is_import: "Upload Products",
+                importUrl: "{{ route('create.products') }}",
                 is_export: "Export",
+                manuall_create: false,
             };
 
             // Get Blade JSON
@@ -191,10 +187,10 @@
             }
 
             $(".addNewRecordBtn").click(function() {
-                window.location.href = '{{ route("create.products") }}';
+                window.location.href = '{{ route('create.products') }}';
             });
 
-            let exportUrl = "{{ route("products.exportProducts") }}";
+            let exportUrl = "{{ route('products.exportProducts') }}";
             $(".exportBtn").click(function() {
                 window.location.href = exportUrl;
             });

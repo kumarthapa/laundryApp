@@ -1,10 +1,10 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", "Bonding Plan Products List")
-@section("page-style")
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
+@section('title', 'Bonding Plan Products List')
+@section('page-style')
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12">
             <div class="d-none mb-3" id="errorBox"></div>
@@ -17,7 +17,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_products"] ?? "0" }}
+                                            {{ $productsOverview['total_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">Total Products</p>
                                     </div>
@@ -32,7 +32,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_tags"] ?? "0" }}
+                                            {{ $productsOverview['total_tags'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">Total RFID Tags</p>
                                     </div>
@@ -47,7 +47,7 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_pass_products"] ?? "0" }}
+                                            {{ $productsOverview['total_pass_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">PASS Products</p>
                                     </div>
@@ -61,7 +61,7 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview["total_fail_products"] ?? "0" }}
+                                            {{ $productsOverview['total_fail_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">FAIL Products</p>
                                     </div>
@@ -106,27 +106,28 @@
 @php
     $is_export = 1;
 @endphp
-@section("page-script")
-    @include("content.bonding.modal.bulkProductImport")
-    @include("content.partial.datatable")
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "masterTableDaterangePicker",
+@section('page-script')
+    @include('content.bonding.modal.bulkProductImport')
+    @include('content.partial.datatable')
+    @include('content.common.scripts.daterangePicker', [
+        'float' => 'right',
+        'name' => 'masterTableDaterangePicker',
     ])
     <script>
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
             var options1 = {
-                url: "{{ route("bonding.list") }}",
-                createUrl: '{{ route("create.bonding") }}',
-                createPermissions: "{{ $createPermissions ?? "" }}",
+                url: "{{ route('bonding.list') }}",
+                createUrl: '{{ route('create.bonding') }}',
+                createPermissions: "{{ $createPermissions ?? '' }}",
                 fetchId: "FetchData",
                 title: "Bonding Plan Products",
                 createTitle: "Manually Create",
                 displayLength: 100,
                 is_import: "Upload Models",
-                importUrl: "{{ route("create.bonding") }}",
+                importUrl: "{{ route('create.bonding') }}",
                 is_export: "Export",
+                manuall_create: false,
             };
 
             // Get Blade JSON
@@ -186,10 +187,10 @@
             }
 
             $(".addNewRecordBtn").click(function() {
-                window.location.href = '{{ route("create.bonding") }}';
+                window.location.href = '{{ route('create.bonding') }}';
             });
 
-            let exportUrl = "{{ route("bonding.exportBonding") }}";
+            let exportUrl = "{{ route('bonding.exportBonding') }}";
             $(".exportBtn").click(function() {
                 window.location.href = exportUrl;
             });
@@ -201,6 +202,7 @@
 
         // Delete row
         function deleteRow(url) {
+            console.log("Delete URL:", url);
             if (!url) {
                 alert('Permission denied!');
                 return false;
@@ -217,7 +219,10 @@
                 success: function(response) {
                     toastr.success(response.message);
                     if (response.success) {
-                        window.location.reload();
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+
                     }
                 },
                 error: function(xhr, status, error) {

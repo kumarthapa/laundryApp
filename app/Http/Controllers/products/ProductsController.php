@@ -2,41 +2,35 @@
 
 namespace App\Http\Controllers\products;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Session;
-use App\Models\user_management\Role;
-
-use App\Helpers\TableHelper;
-use App\Helpers\LocaleHelper;
+use App\Exports\ProductExport;
 use App\Helpers\FileImportHelper;
+use App\Helpers\LocaleHelper;
+use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
-use App\Helpers\ConfigHelper;
-
-use Exception;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Controller;
+use App\Models\products\BondingPlanProduct;
+use App\Models\products\ProductProcessHistory;
+use App\Models\products\Products;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-
-use App\Models\user_management\UsersModel;
-use App\Exports\ProductExport;
-
-use App\Models\products\Products;
-use App\Models\products\ProductProcessHistory;
-use App\Models\products\BondingPlanProduct;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductsController extends Controller
 {
     protected $products;
+
     protected $stageMap = [];
+
     protected $defectPointMap = [];
+
     protected $statusMap = [];
 
     public function __construct()
     {
-        $this->products = new Products();
+        $this->products = new Products;
 
         // Load config maps once for reuse (value => label)
         $configData = UtilityHelper::getProductStagesAndDefectPoints() ?? [];
@@ -45,6 +39,7 @@ class ProductsController extends Controller
         $stages = $configData['stages'] ?? [];
         $this->stageMap = collect($stages)->mapWithKeys(function ($s) {
             $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
+
             return [$s['value'] => $label];
         })->toArray();
 
@@ -56,6 +51,7 @@ class ProductsController extends Controller
         } else {
             $this->statusMap = collect($status)->mapWithKeys(function ($s) {
                 $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
+
                 return [$s['value'] => $label];
             })->toArray();
         }
@@ -65,11 +61,15 @@ class ProductsController extends Controller
         $flatDefects = [];
         if (is_array($defects)) {
             foreach ($defects as $stageKey => $points) {
-                if (!is_array($points)) continue;
+                if (! is_array($points)) {
+                    continue;
+                }
                 foreach ($points as $p) {
                     $val = $p['value'] ?? null;
                     $name = $p['name'] ?? ($p['label'] ?? $val);
-                    if ($val) $flatDefects[$val] = $name;
+                    if ($val) {
+                        $flatDefects[$val] = $name;
+                    }
                 }
             }
         }
@@ -78,32 +78,36 @@ class ProductsController extends Controller
 
     public function index(Request $request)
     {
+        // $productsOverview = UtilityHelper::getProductStagesAndStatus();
+        // print_r($productsOverview);
+        // exit;
         $headers = [
             ['created_at' => 'Created Date'],
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
-            ['rfid_tag' => 'RFID Tag'],
+            // ['rfid_tag' => 'RFID Tag'],
+            ['qa_code' => 'QA Code'],
             ['quantity' => 'Quantity'],
             ['qc_status' => 'QC Status'],
             ['current_stage' => 'Current Stage'],
-            ['actions' => 'Actions']
+            ['actions' => 'Actions'],
         ];
 
         $productsOverview = LocaleHelper::getProductSummaryCounts();
 
         $productsOverview = [
-            'total_products'         => $productsOverview['total_products'] ?? 0,
-            'total_tags'             => $productsOverview['total_rfid_tags'] ?? 0,
-            'total_pass_products'    => $productsOverview['total_pass'] ?? 0,
-            'total_failed_products'  => $productsOverview['total_failed'] ?? 0,
-            'total_rework_products'  => $productsOverview['total_rework'] ?? 0,
+            'total_products' => $productsOverview['total_products'] ?? 0,
+            'total_tags' => $productsOverview['total_rfid_tags'] ?? 0,
+            'total_pass_products' => $productsOverview['total_pass'] ?? 0,
+            'total_failed_products' => $productsOverview['total_failed'] ?? 0,
+            'total_rework_products' => $productsOverview['total_rework'] ?? 0,
             'total_pending_products' => $productsOverview['total_pending'] ?? 0,
         ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
-        $UtilityHelper = new UtilityHelper();
+        $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('products', 'create.products');
         $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
 
@@ -126,9 +130,9 @@ class ProductsController extends Controller
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        $view = route('view.products', ["code" => $row->id]);
-        $edit = route('edit.products', ["id" => $row->id]);
-        $delete = route('delete.products', ["id" => $row->id]);
+        $view = route('view.products', ['code' => $row->id]);
+        $edit = route('edit.products', ['id' => $row->id]);
+        $delete = route('delete.products', ['id' => $row->id]);
 
         // get latest history if present
         $history = ProductProcessHistory::where('product_id', $row->id)
@@ -137,7 +141,7 @@ class ProductsController extends Controller
 
         // QC status: prefer history.status, fallback to DB column (if exists)
         $statusRaw = $history->status ?? ($row->qc_status ?? null);
-        $statusNormalized = strtoupper(trim((string)($statusRaw ?? '')));
+        $statusNormalized = strtoupper(trim((string) ($statusRaw ?? '')));
 
         // normalize failed term variations
         if ($statusNormalized === 'FAILED') {
@@ -164,13 +168,13 @@ class ProductsController extends Controller
         // Stage name: prefer history.stages (value), map to friendly name if available
         $stageValue = $history->stages ?? ($row->current_stage ?? null);
         $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
-        $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . e($stageLabel) . '</span>' : '';
+        $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
 
         // Defect points (history.defects_points stored JSON array) -> display small badges or count
         $defectsHtml = '';
         $defectsCount = 0;
         $defectsRaw = $history->defects_points ?? null;
-        if (!empty($defectsRaw)) {
+        if (! empty($defectsRaw)) {
             // try decode JSON safely
             $decoded = null;
             if (is_string($defectsRaw)) {
@@ -183,7 +187,7 @@ class ProductsController extends Controller
                 $pieces = [];
                 foreach ($decoded as $d) {
                     $label = $this->defectPointMap[$d] ?? $d;
-                    $pieces[] = '<span class="badge rounded bg-label-info me-1" title="' . e($label) . '">' . e($label) . '</span>';
+                    $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
                 }
                 $defectsHtml = implode(' ', $pieces);
             }
@@ -193,17 +197,17 @@ class ProductsController extends Controller
         $data['product_name'] = $row->product_name;
         $data['sku'] = $row->sku;
         $data['size'] = $row->size;
-        $data['rfid_tag'] = $row->rfid_tag;
+        $data['qa_code'] = $row->qa_code;
         $data['quantity'] = $row->quantity;
         $data['qc_status'] = $statusHTML;
-        $data['current_stage'] = $stageHTML . ($defectsHtml ? '<div class="mt-1">' . $defectsHtml . '</div>' : '');
+        $data['current_stage'] = $stageHTML.($defectsHtml ? '<div class="mt-1">'.$defectsHtml.'</div>' : '');
 
         $data['actions'] = '<div class="d-inline-block">
             <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a href="' . $view . '" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-                <li><a href="' . $edit . '" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
-                <li><a href="javascript:;" onclick="deleteRow(\'' . $delete . '\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
+                <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
+                <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
+                <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
             <div class="dropdown-divider"></div>
             </ul>
         </div>';
@@ -238,7 +242,7 @@ class ProductsController extends Controller
         }
 
         // If defect points sent as comma-separated string (from multi-select), convert to array
-        if (!empty($filters['defects_points']) && is_string($filters['defects_points']) && strpos($filters['defects_points'], ',') !== false) {
+        if (! empty($filters['defects_points']) && is_string($filters['defects_points']) && strpos($filters['defects_points'], ',') !== false) {
             // trim values
             $arr = array_filter(array_map('trim', explode(',', $filters['defects_points'])));
             $filters['defects_points'] = array_values($arr);
@@ -277,9 +281,10 @@ class ProductsController extends Controller
     public function edit(Request $request, $id)
     {
         $product = Products::find($id);
-        if (!$product) {
+        if (! $product) {
             return view('content.miscellaneous.no-data');
         }
+
         return view('content.products.edit', ['product' => $product]);
     }
 
@@ -297,8 +302,8 @@ class ProductsController extends Controller
 
         // Unique rules
         if ($id) {
-            $rules['sku'] .= '|unique:products,sku,' . intval($id);
-            $rules['rfid_tag'] .= '|unique:products,rfid_tag,' . intval($id);
+            $rules['sku'] .= '|unique:products,sku,'.intval($id);
+            $rules['rfid_tag'] .= '|unique:products,rfid_tag,'.intval($id);
         } else {
             $rules['sku'] .= '|unique:products,sku';
             $rules['rfid_tag'] .= '|unique:products,rfid_tag';
@@ -314,7 +319,7 @@ class ProductsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -345,7 +350,7 @@ class ProductsController extends Controller
             $this->UserActivityLog($request, [
                 'module' => 'products',
                 'activity_type' => $action,
-                'message' => ucfirst($action) . "d product: " . $product->product_name,
+                'message' => ucfirst($action).'d product: '.$product->product_name,
                 'application' => 'web',
                 'data' => $data,
             ]);
@@ -354,16 +359,16 @@ class ProductsController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Product successfully " . ($action === 'create' ? "created" : "updated") . ".",
+                'message' => 'Product successfully '.($action === 'create' ? 'created' : 'updated').'.',
                 'return_url' => route('products'),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Product ' . ($id ? 'update' : 'create') . ' error: ' . $e->getMessage());
+            Log::error('Product '.($id ? 'update' : 'create').' error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred: ' . $e->getMessage(),
+                'message' => 'An error occurred: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -373,41 +378,50 @@ class ProductsController extends Controller
     {
         $delete_id = $id ?: $request->input('id');
         $Model = Products::find($delete_id);
-        if (!$Model) {
+        if (! $Model) {
             return response()->json([
                 'success' => false,
                 'message' => 'Delete Failed! Product not found.',
-                'bg_color' => 'bg-danger'
+                'bg_color' => 'bg-danger',
             ]);
         }
 
         try {
             // remove related histories and then product
             $Model->processHistory()->delete();
+
+            // $bondingProduct = BondingPlanProduct::find($Model->bonding_plan_product_id);
+            // $bondingProduct->qa_code = ;
+            // $bondingProduct->quantity = 1;
+            // $bondingProduct->is_write = 1;
+            // $bondingProduct->write_by = $user->id ?? 0;
+            // $bondingProduct->write_date = now();
+            // $bondingProduct->update();
+
             $Model->delete();
 
             $user = Auth::user();
             $this->UserActivityLog($request, [
                 'module' => 'products',
                 'activity_type' => 'delete',
-                'message' => 'Deleted product by : ' . ($user->fullname ?? 'Unknown'),
+                'message' => 'Deleted product by : '.($user->fullname ?? 'Unknown'),
                 'application' => 'web',
                 'data' => [
                     'sku' => $Model->sku,
-                    'rfid_tag' => $Model->rfid_tag
-                ]
+                    'rfid_tag' => $Model->rfid_tag,
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Record and related histories deleted successfully',
-                'bg_color' => 'bg-success'
+                'bg_color' => 'bg-success',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Delete Failed! ' . $e->getMessage(),
-                'bg_color' => 'bg-danger'
+                'message' => 'Delete Failed! '.$e->getMessage(),
+                'bg_color' => 'bg-danger',
             ]);
         }
     }
@@ -428,19 +442,22 @@ class ProductsController extends Controller
             $data[] = $header;
             $data[] = [];
 
-            return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
+            return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromArray
+            {
                 protected $data;
+
                 public function __construct(array $data)
                 {
                     $this->data = $data;
                 }
+
                 public function array(): array
                 {
                     return $this->data;
                 }
             }, 'productImportFormat.xlsx');
         } catch (\Exception $e) {
-            return back()->with('error', 'There was an error generating the report: ' . $e->getMessage());
+            return back()->with('error', 'There was an error generating the report: '.$e->getMessage());
         }
     }
 
@@ -453,7 +470,8 @@ class ProductsController extends Controller
         ]);
 
         if ($validator->fails()) {
-            Log::error("Product bulk upload failed: " . $validator->errors());
+            Log::error('Product bulk upload failed: '.$validator->errors());
+
             return response()->json(['success' => false, 'errors' => $validator->errors(), 'message' => 'Invalid format for upload file or action type.']);
         }
 
@@ -463,14 +481,14 @@ class ProductsController extends Controller
         DB::beginTransaction();
         try {
             $formattedData = FileImportHelper::getFileData($file);
-            if (!$formattedData || !isset($formattedData['header']) || !isset($formattedData['body']) || count($formattedData['body']) < 1) {
+            if (! $formattedData || ! isset($formattedData['header']) || ! isset($formattedData['body']) || count($formattedData['body']) < 1) {
                 return response()->json(['success' => false, 'message' => 'No product data found to upload.']);
             }
 
             $actualHeaders = $formattedData['header'];
             $missingHeaders = array_diff(['Product Name', 'SKU', 'Size'], $actualHeaders);
             if (count($missingHeaders) > 0) {
-                return response()->json(['success' => false, 'message' => 'Missing mandatory header(s): ' . implode(', ', $missingHeaders)]);
+                return response()->json(['success' => false, 'message' => 'Missing mandatory header(s): '.implode(', ', $missingHeaders)]);
             }
 
             // Preload existing keys
@@ -490,31 +508,33 @@ class ProductsController extends Controller
                 $size = trim($row['Size'] ?? '');
                 $rfidTag = trim($row['RFID Tag'] ?? '');
                 $referenceCode = $row['Reference Code'] ?? null;
-                $quantity = isset($row['Quantity']) ? (int)$row['Quantity'] : 0;
+                $quantity = isset($row['Quantity']) ? (int) $row['Quantity'] : 0;
 
                 if (empty($productName) || empty($sku) || empty($size)) {
-                    return response()->json(['success' => false, 'message' => "Missing required fields at row " . ($rowIndex + 1) . ". Product Name, SKU, and Size are mandatory."]);
+                    return response()->json(['success' => false, 'message' => 'Missing required fields at row '.($rowIndex + 1).'. Product Name, SKU, and Size are mandatory.']);
                 }
 
                 if ($actionType === 'upload_new') {
                     if (in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row " . ($rowIndex + 1) . " already exists in database."]);
+                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row ".($rowIndex + 1).' already exists in database.']);
                     }
                     if ($rfidTag !== '' && in_array($rfidTag, $existingRfids)) {
-                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row " . ($rowIndex + 1) . " already exists in database."]);
+                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row ".($rowIndex + 1).' already exists in database.']);
                     }
                     if (in_array($sku, $fileSkus)) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row " . ($rowIndex + 1) . " is duplicated in the upload file."]);
+                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row ".($rowIndex + 1).' is duplicated in the upload file.']);
                     }
                     if ($rfidTag !== '' && in_array($rfidTag, $fileRfids)) {
-                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row " . ($rowIndex + 1) . " is duplicated in the upload file."]);
+                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row ".($rowIndex + 1).' is duplicated in the upload file.']);
                     }
 
                     $fileSkus[] = $sku;
-                    if ($rfidTag !== '') $fileRfids[] = $rfidTag;
+                    if ($rfidTag !== '') {
+                        $fileRfids[] = $rfidTag;
+                    }
                 } elseif ($actionType === 'update_existing') {
-                    if (!Products::where('sku', $sku)->exists()) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row " . ($rowIndex + 1) . " does not exist for update."]);
+                    if (! Products::where('sku', $sku)->exists()) {
+                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row ".($rowIndex + 1).' does not exist for update.']);
                     }
                 }
 
@@ -530,13 +550,15 @@ class ProductsController extends Controller
                     'updated_at' => now(),
                 ];
 
-                if ($actionType === 'upload_new') $productData['created_at'] = now();
+                if ($actionType === 'upload_new') {
+                    $productData['created_at'] = now();
+                }
 
                 $importData[] = $productData;
             }
 
             // Persist
-            if (!empty($importData)) {
+            if (! empty($importData)) {
                 if ($actionType === 'upload_new') {
                     Products::insert($importData);
                 } else {
@@ -559,8 +581,9 @@ class ProductsController extends Controller
             return response()->json(['success' => true, 'message' => 'Product data processed successfully.']);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Product bulk upload error: " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Bulk upload failed: ' . $e->getMessage()]);
+            Log::error('Product bulk upload error: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Bulk upload failed: '.$e->getMessage()]);
         }
     }
 
@@ -582,15 +605,17 @@ class ProductsController extends Controller
             $latestStage = $latest ? ($latest->stages ?? '') : ($product->current_stage ?? '');
             $latestStatus = $latest ? ($latest->status ?? '') : ($product->qc_status ?? '');
             // normalize FAILED -> FAIL in export as well
-            $latestStatusNormalized = strtoupper(trim((string)$latestStatus));
-            if ($latestStatusNormalized === 'FAILED') $latestStatusNormalized = 'FAIL';
+            $latestStatusNormalized = strtoupper(trim((string) $latestStatus));
+            if ($latestStatusNormalized === 'FAILED') {
+                $latestStatusNormalized = 'FAIL';
+            }
 
             return [
                 $product->product_name,
                 $product->sku,
                 $product->reference_code,
                 $product->size,
-                $product->rfid_tag,
+                $product->qa_code,
                 $product->quantity,
                 $latestStatusNormalized,
                 $latestStage,
@@ -605,7 +630,7 @@ class ProductsController extends Controller
             'SKU',
             'Reference Code',
             'Size',
-            'RFID Tag',
+            'QA Code',
             'Quantity',
             'QC Status',
             'Current Stage',
@@ -614,169 +639,6 @@ class ProductsController extends Controller
             'Updated At',
         ];
 
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_' . now()->format('Ymd_His') . '.xlsx');
-    }
-
-    // ============================ Bonding section ==========================
-    public function bondingPlanImportFormat(Request $request)
-    {
-        try {
-            $header = [
-                'SKU',
-                'Product Name',
-                'Size',
-                'Reference Code',
-            ];
-
-            $data = [$header, []];
-
-            return Excel::download(
-                new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
-                    protected $data;
-                    public function __construct(array $data)
-                    {
-                        $this->data = $data;
-                    }
-                    public function array(): array
-                    {
-                        return $this->data;
-                    }
-                },
-                'bondingFormat.xlsx'
-            );
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error generating format: ' . $e->getMessage());
-        }
-    }
-
-    public function bulkBondingPlanUpload(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|mimes:xlsx,xls',
-            'action_type' => 'required|in:upload_new,update_existing',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-                'message' => 'Invalid file or action type.'
-            ]);
-        }
-
-        $actionType = $request->input('action_type');
-        $file = $request->file('file');
-
-        DB::beginTransaction();
-        try {
-            $formattedData = FileImportHelper::getFileData($file);
-            if (
-                !$formattedData ||
-                !isset($formattedData['header']) ||
-                !isset($formattedData['body']) ||
-                count($formattedData['body']) < 1
-            ) {
-                return response()->json(['success' => false, 'message' => 'No data found in file.']);
-            }
-
-            $actualHeaders = $formattedData['header'];
-            $missingHeaders = array_diff(['Product Name', 'SKU', 'Size'], $actualHeaders);
-            if (count($missingHeaders) > 0) {
-                return response()->json(['success' => false, 'message' => 'Missing headers: ' . implode(', ', $missingHeaders)]);
-            }
-
-            // Existing DB values
-            $existingSkus = BondingPlanProduct::pluck('sku')->toArray();
-            $fileSkus = [];
-            $importData = [];
-
-            foreach ($formattedData['body'] as $rowIndex => $row) {
-                if (empty($row) || (count(array_filter($row)) === 0)) {
-                    continue; // skip empty rows
-                }
-                if (empty(trim($row['Product Name'] ?? '')) || empty(trim($row['Size'] ?? ''))) {
-                    return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": Missing required fields. Product Name and Size are mandatory."]);
-                }
-
-                $productName   = trim($row['Product Name'] ?? '');
-                $sku           = trim($row['SKU'] ?? '') ?: null; // now nullable
-                $size          = trim($row['Size'] ?? '');
-                $referenceCode = $row['Reference Code'] ?? null;
-                $Model         = $row['Model'] ?? ($sku ?? 'N/A');
-
-                if ($actionType === 'upload_new') {
-                    if ($sku && in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": SKU '{$sku}' already exists."]);
-                    }
-                    if ($sku && in_array($sku, $fileSkus)) {
-                        return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": Duplicate SKU '{$sku}' in file."]);
-                    }
-                    if ($sku) {
-                        $fileSkus[] = $sku;
-                    }
-                } elseif ($actionType === 'update_existing') {
-                    if ($sku && !BondingPlanProduct::where('sku', $sku)->exists()) {
-                        return response()->json(['success' => false, 'message' => "Row " . ($rowIndex + 1) . ": SKU '{$sku}' does not exist for update."]);
-                    }
-                }
-
-                // Example QA code generator
-                $modelCode = $this->getModelFromProductName($productName);
-                $date  = (int)date('d');
-                $month = (int)date('m');
-                $year  = (int)date('y');
-                $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
-
-                $productData = [
-                    'product_name'   => $productName,
-                    'sku'            => $sku,
-                    'reference_code' => $referenceCode,
-                    'size'           => $size,
-                    'model'          => $Model,
-                    'qa_code'        => $qa_code,
-                    'date'           => $date,
-                    'month'          => $month,
-                    'year'           => $year,
-                    'serial_no'      => $row['Serial No'] ?? null,
-                    'bonding_name'   => $row['Bonding Name'] ?? null,
-                ];
-
-                if ($actionType === 'upload_new') {
-                    $productData['created_at'] = now();
-                }
-
-                $importData[] = $productData;
-            }
-
-            // Save to DB
-            if (!empty($importData)) {
-                if ($actionType === 'upload_new') {
-                    BondingPlanProduct::insert($importData);
-                } else {
-                    foreach ($importData as $p) {
-                        BondingPlanProduct::where('sku', $p['sku'])->update($p);
-                    }
-                }
-            }
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'Bonding plan product data processed successfully.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Upload failed: ' . $e->getMessage()]);
-        }
-    }
-
-    public function getModelFromProductName($productName)
-    {
-        $words = preg_split('/\s+/', trim($productName));
-        $model = '';
-        foreach ($words as $word) {
-            if (ctype_alpha($word[0])) {
-                $model .= strtoupper($word[0]);
-            }
-            if (strlen($model) >= 3) break;
-        }
-        return $model ?: 'N/A';
+        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
     }
 }

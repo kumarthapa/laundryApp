@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Products;
+namespace App\Models\products;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +11,9 @@ class BondingPlanProduct extends Model
     use HasFactory;
 
     protected $table = 'bonding_plan_products';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -70,6 +72,7 @@ class BondingPlanProduct extends Model
             ->select(
                 'b.*',
                 'b.product_name',
+                'b.model',
                 'b.size',
                 'p.rfid_tag',
                 'h.status as qc_status',
@@ -80,7 +83,7 @@ class BondingPlanProduct extends Model
             );
 
         // Search filter
-        if (!empty($search)) {
+        if (! empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('b.qa_code', 'like', "%{$search}%")
                     ->orWhere('b.model', 'like', "%{$search}%")
@@ -96,26 +99,28 @@ class BondingPlanProduct extends Model
         }
 
         // Stage filter
-        if (!empty($filters['stages']) && $filters['stages'] !== 'all') {
+        if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
             $query->where('h.stages', $filters['stages']);
         }
 
         // QC / Status filter
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
-        if (!empty($statusFilter) && $statusFilter !== 'all') {
+        if (! empty($statusFilter) && $statusFilter !== 'all') {
             $filterQc = strtoupper($statusFilter);
-            if ($filterQc === 'FAILED') $filterQc = 'FAIL';
+            if ($filterQc === 'FAILED') {
+                $filterQc = 'FAIL';
+            }
             $query->where('h.status', $filterQc);
         }
 
         // Defects points filter
-        if (!empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
+        if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
             $jsonVal = json_encode($filters['defects_points']);
-            $query->whereRaw("JSON_CONTAINS(h.defects_points, ?)", [$jsonVal]);
+            $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
         }
 
         // Date range filter (bonding plan created_at)
-        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             $query->whereBetween('b.created_at', [$filters['start_date'], $filters['end_date']]);
         }
 
@@ -152,7 +157,7 @@ class BondingPlanProduct extends Model
             ->select('b.id');
 
         // Apply same filters as search
-        if (!empty($search)) {
+        if (! empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('b.qa_code', 'like', "%{$search}%")
                     ->orWhere('b.model', 'like', "%{$search}%")
@@ -167,23 +172,25 @@ class BondingPlanProduct extends Model
             });
         }
 
-        if (!empty($filters['stages']) && $filters['stages'] !== 'all') {
+        if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
             $query->where('h.stages', $filters['stages']);
         }
 
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
-        if (!empty($statusFilter) && $statusFilter !== 'all') {
+        if (! empty($statusFilter) && $statusFilter !== 'all') {
             $filterQc = strtoupper($statusFilter);
-            if ($filterQc === 'FAILED') $filterQc = 'FAIL';
+            if ($filterQc === 'FAILED') {
+                $filterQc = 'FAIL';
+            }
             $query->where('h.status', $filterQc);
         }
 
-        if (!empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
+        if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
             $jsonVal = json_encode($filters['defects_points']);
-            $query->whereRaw("JSON_CONTAINS(h.defects_points, ?)", [$jsonVal]);
+            $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
         }
 
-        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             $query->whereBetween('b.created_at', [$filters['start_date'], $filters['end_date']]);
         }
 
