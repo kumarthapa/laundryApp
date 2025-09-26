@@ -318,39 +318,53 @@ class LocaleHelper
 
     public static function getProductSummaryCounts()
     {
+        // Load stages & defect points from config
+        $config = UtilityHelper::getProductStagesAndDefectPoints();
+        $stages = collect($config['stages'] ?? []);
+        $defectPoints = collect($config['defect_points'] ?? []);
+
         $totalProducts = DB::table('products')->count();
-        $totalRfidTags = DB::table('products')->whereNotNull('rfid_tag')->count();
-        $totalPass = DB::table('products')->where('qc_status', 'PASS')->count();
-        $totalFailed = DB::table('products')->where('qc_status', 'FAILED')->count();
+
+        $totalRfidTags = DB::table('products')
+            ->whereNotNull('rfid_tag')
+            ->count();
+
+        // Subquery: latest QC + stage per product
+        $latestHistory = DB::table('product_process_history as h')
+            ->select('h.product_id', 'h.status', 'h.stages')
+            ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change 
+                         FROM product_process_history 
+                         GROUP BY product_id) latest'), function ($join) {
+                $join->on('h.product_id', '=', 'latest.product_id')
+                    ->on('h.changed_at', '=', 'latest.latest_change');
+            });
+
+        // Wrap subquery
+        $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
+            ->mergeBindings($latestHistory);
+
+        // QC status counts
+        $totalPass = (clone $latest)->where('t.status', 'PASS')->count();
+        $totalFailed = (clone $latest)->where('t.status', 'FAIL')->count();
+        $totalRework = (clone $latest)->where('t.status', 'REWORK')->count();
+        $totalPending = (clone $latest)->where('t.status', 'PENDING')->count();
+
+        // Stage-wise counts (from config mapping)
+        $stageCounts = [];
+        foreach ($stages as $stage) {
+            $stageCounts[$stage['value']] = (clone $latest)
+                ->where('t.stages', $stage['value'])
+                ->count();
+        }
 
         return [
-            'total_products' => $totalProducts,
-            'total_rfid_tags' => $totalRfidTags,
-            'total_pass' => $totalPass,
-            'total_failed' => $totalFailed
+            'total_products'   => $totalProducts,
+            'total_rfid_tags'  => $totalRfidTags,
+            'total_pass'       => $totalPass,
+            'total_failed'     => $totalFailed,
+            'total_rework'     => $totalRework,
+            'total_pending'    => $totalPending,
+            'stage_counts'     => $stageCounts, // optional: stage breakdown
         ];
     }
-public static function getProductStageAndStatus()
-{
-    $data = [];
-
-    // Hardcoded keys
-    $status_key = 'product_status';
-    $stages_key = 'product_process_stages';
-
-    // Fetch and decode product status
-    $status_config = UtilityHelper::getConfig($status_key);
-    $data['product_status'] = ($status_config && !empty($status_config->value))
-        ? json_decode($status_config->value, true)
-        : [];
-
-    // Fetch and decode product process stages
-    $stages_config = UtilityHelper::getConfig($stages_key);
-    $data['product_process_stages'] = ($stages_config && !empty($stages_config->value))
-        ? json_decode($stages_config->value, true)
-        : [];
-
-    return $data;
-}
-
 }

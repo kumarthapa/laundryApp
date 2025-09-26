@@ -1,12 +1,10 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", " Products")
-@section("page-style")
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
-    <style>
-    </style>
+@section('title', 'Products List')
+@section('page-style')
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12">
             <div class="d-none mb-3" id="errorBox"></div>
@@ -19,7 +17,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($productsOverview["total_products"]) ? $productsOverview["total_products"] : "0" }}
+                                            {{ $productsOverview['total_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">Total Products</p>
                                     </div>
@@ -34,12 +32,12 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($productsOverview["total_tags"]) ? $productsOverview["total_tags"] : "0" }}
+                                            {{ $productsOverview['total_tags'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">Total RFID Tags</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
-                                        <i class="bx bx bx-crown bx-sm"></i>
+                                        <i class="bx bx-crown bx-sm"></i>
                                     </span>
                                 </div>
                                 <hr class="d-none d-sm-block d-lg-none">
@@ -49,7 +47,7 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($productsOverview["total_pass_products"]) ? $productsOverview["total_pass_products"] : "0" }}
+                                            {{ $productsOverview['total_pass_products'] ?? '0' }}
                                         </h3>
                                         <p class="mb-0">PASS Products</p>
                                     </div>
@@ -63,9 +61,9 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($productsOverview["total_failed_products"]) ? $productsOverview["total_failed_products"] : "0" }}
+                                            {{ $productsOverview['total_fail_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">FAILED Products</p>
+                                        <p class="mb-0">FAIL Products</p>
                                     </div>
                                     <span class="badge bg-label-danger me-sm-4 rounded p-2">
                                         <i class="bx bx-error bx-sm"></i>
@@ -108,87 +106,106 @@
 @php
     $is_export = 1;
 @endphp
-@section("page-script")
-    @include("content.products.modal.bulkProductImport")
-    @include("content.partial.datatable")
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "masterTableDaterangePicker",
-    ])
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "right",
-        "name" => "ToursExportDaterangePicker",
-        "default_days" => 180, // "0" Means today's record will be show (default is 180 days)
+@section('page-script')
+    @include('content.products.modal.bulkProductImport')
+    @include('content.partial.datatable')
+    @include('content.common.scripts.daterangePicker', [
+        'float' => 'right',
+        'name' => 'masterTableDaterangePicker',
     ])
     <script>
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
             var options1 = {
-                url: "{{ route("products.list") }}",
-                createUrl: '{{ route("create.products") }}',
-                createPermissions: "{{ isset($createPermissions) ? $createPermissions : "" }}",
+                url: "{{ route('products.list') }}",
+                createUrl: '{{ route('create.products') }}',
+                createPermissions: "{{ $createPermissions ?? '' }}",
                 fetchId: "FetchData",
-                title: "Planning Products list",
+                title: "Products List",
                 createTitle: "Manually Create",
                 displayLength: 100,
-                is_import: "Products Upload",
-                importUrl: "{{ route("create.products") }}",
+                // is_import: "Upload Products",
+                importUrl: "{{ route('create.products') }}",
                 is_export: "Export",
+                manuall_create: false,
             };
+
+            // Get Blade JSON
+            var statusData = @json($status ?? []);
+            var stageData = @json($stages ?? []);
+            var defectPointsData = @json($defect_points ?? []);
+
+            // Convert array of {name,value} to key:value object
+            function arrayToKeyValue(arr) {
+                var obj = {
+                    'ALL': 'ALL'
+                };
+                if (Array.isArray(arr)) {
+                    arr.forEach(function(item) {
+                        obj[item.value] = item.name;
+                    });
+                }
+                return obj;
+            }
+
+            // Convert defect points (object of arrays) to flattened key:value object
+            function defectPointsToKeyValue(obj) {
+                var result = {
+                    'ALL': 'ALL'
+                };
+                if (obj && typeof obj === 'object') {
+                    Object.values(obj).forEach(function(arr) {
+                        arr.forEach(function(item) {
+                            if (item.value && item.name) result[item.value] = item.name;
+                        });
+                    });
+                }
+                return result;
+            }
+
             var filterData = {
                 'qc_status': {
-                    'data': {
-                        'all': 'ALL',
-                        'PASS': 'PASS',
-                        'FAILED': 'FAILED',
-                        'PENDING': 'PENDING'
-                    },
+                    'data': arrayToKeyValue(statusData),
                     'filter_name': 'Filter By Status',
                 },
                 'current_stage': {
-                    'data': {
-                        'ALL': 'ALL',
-                        'Bonding': 'Bonding',
-                        'Tapedge': 'Tapedge',
-                        'Zip Cover': 'Zip Cover',
-                        'QC': 'QC',
-                        'Packing': 'Packing',
-                        'Ready for Shipment': 'Ready for Shipment',
-                        'Shipped': 'Shipped',
-                        'Returned': 'Returned',
-                        'Cancelled': 'Cancelled',
-                    },
+                    'data': arrayToKeyValue(stageData),
                     'filter_name': 'Filter By Stage',
+                },
+                'defect_points': {
+                    'data': defectPointsToKeyValue(defectPointsData),
+                    'filter_name': 'Filter By Defect Point',
                 },
             };
 
+            console.log("filterData:", filterData);
 
-            console.log(filterData)
             getDataTableS(options1, filterData, tableHeaders, getStats);
 
             function getStats(params) {
-                console.log("status;", params);
+                console.log("Applied filters:", params);
             }
-            $(".addNewRecordBtn").click(function() {
-                window.location.href = '{{ route("create.products") }}';
-            })
 
-            let exportUrl = "{{ route("products.exportProducts") }}";
+            $(".addNewRecordBtn").click(function() {
+                window.location.href = '{{ route('create.products') }}';
+            });
+
+            let exportUrl = "{{ route('products.exportProducts') }}";
             $(".exportBtn").click(function() {
                 window.location.href = exportUrl;
             });
+
             $(".bulkImportBtn").click(function() {
                 $("#bulkProductImportModal").modal('show');
-            })
+            });
         });
-        //Delete row
+
+        // Delete row
         function deleteRow(url) {
             if (!url) {
                 alert('Permission denied!');
                 return false;
             }
-            console.log("DELET URL: ", url)
-            // Display a confirmation dialog to the user
             if (!confirm("Are you sure you want to delete this item?")) {
                 return false;
             }
@@ -196,21 +213,21 @@
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
-                url: url, // URL for the AJAX call
+                url: url,
                 method: 'POST',
                 success: function(response) {
-                    console.log(response)
                     toastr.success(response.message);
                     if (response.success) {
                         window.location.reload();
                     }
                 },
                 error: function(xhr, status, error) {
-                    toastr.error(response.message, error);
+                    toastr.error("Error: " + error);
                 }
             });
-            // call your ajax here
         }
     </script>
+
+
 
 @endsection

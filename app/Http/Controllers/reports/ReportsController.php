@@ -58,8 +58,8 @@ class ReportsController extends Controller
             ['size' => 'Size'],
             ['rfid_tag' => 'RFID Tag'],
             ['quantity' => 'Quantity'],
-            ['qc_status' => 'QC Status'],
-            ['current_stage' => 'Current Stage'],
+            ['status' => 'QC Status'],
+            ['stage' => 'Current Stage'],
             ['actions' => 'Actions']
         ];
         //     $headers = [
@@ -87,12 +87,12 @@ class ReportsController extends Controller
         $edit = route('edit.products', ["id" => $row->id]);
         $delete = route('delete.products', ["id" => $row->id]);
 
-         $history = ProductProcessHistory::where('product_id', $row->id)
+        $history = ProductProcessHistory::where('product_id', $row->id)
             ->latest('changed_at')
             ->first();
         // -------------- QC Status ---------------
         $statusHTML = '';
-        switch ($history->status ?? $row->qc_status) {
+        switch ($history->status ?? $row->status) {
             case 'PASS':
                 $statusHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
                 break;
@@ -105,7 +105,7 @@ class ReportsController extends Controller
         }
         // -------------- QC Status ---------------
         // -------------- product stage ---------------
-        $current_stage=$history->stage??$row->current_stage;
+        $current_stage = $history->stage ?? 'Bonding';
         $stageHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . $current_stage . '</span>';
         // -------------- product stages ---------------
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
@@ -114,8 +114,8 @@ class ReportsController extends Controller
         $data['size'] = $row->size;
         $data['rfid_tag'] = $row->rfid_tag;
         $data['quantity'] = $row->quantity;
-        $data['qc_status'] = $statusHTML;
-        $data['current_stage'] =  $stageHTML;
+        $data['status'] = $statusHTML;
+        $data['stage'] =  $stageHTML;
 
         $data['actions'] = '<div class="d-inline-block">
         <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
@@ -167,7 +167,7 @@ class ReportsController extends Controller
                     ['size' => 'Size'],
                     ['rfid_tag' => 'RFID Tag'],
                     ['quantity' => 'Quantity'],
-                    ['qc_status' => 'QC Status'],
+                    ['status' => 'QC Status'],
                     ['current_stage' => 'Current Stage'],
                     ['actions' => 'Actions']
                 ];
@@ -189,7 +189,7 @@ class ReportsController extends Controller
                     ['product_name' => 'Product Name'],
                     ['sku' =>  'SKU'],
                     ['quantity' => 'Quantity'],
-                    ['qc_status' => 'QC Status'],
+                    ['status' => 'QC Status'],
                     ['current_stage' => 'Current Stage'],
                 ];
                 foreach ($headers as $header) {
@@ -203,7 +203,7 @@ class ReportsController extends Controller
                         'product_name' => $row->product_name,
                         'sku' => $row->sku,
                         'quantity' => $row->quantity,
-                        'qc_status' => $history ? $history->status : $row->qc_status,
+                        'status' => $history ? $history->status : $row->status,
                         'current_stage' => $history ? $history->stage : $row->current_stage,
                     ];
                 }
@@ -220,7 +220,7 @@ class ReportsController extends Controller
                     ['size' => 'Size'],
                     ['rfid_tag' => 'RFID Tag'],
                     ['quantity' => 'Quantity'],
-                    ['qc_status' => 'QC Status'],
+                    ['status' => 'QC Status'],
                     ['current_stage' => 'Current Stage'],
                     ['actions' => 'Actions']
                 ];
@@ -255,7 +255,7 @@ class ReportsController extends Controller
         }
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
-            $query->where('qc_status', $filters['status']);
+            $query->where('status', $filters['status']);
         }
 
         $rows = $query->get();
@@ -266,7 +266,7 @@ class ReportsController extends Controller
                 'product_name' => $item->product_name,
                 'sku' => $item->sku,
                 'quantity' => $item->quantity,
-                'qc_status' => $history ? $history->status : $item->qc_status,
+                'status' => $history ? $history->status : $item->status,
                 'current_stage' => $history ? $history->stage : $item->current_stage,
             ];
         })->toArray();
@@ -295,7 +295,7 @@ class ReportsController extends Controller
                 $product->size,
                 $product->rfid_tag,
                 $product->quantity,
-                $product->qc_status,
+                $product->status,
                 $product->qc_confirmed_at ? $product->qc_confirmed_at->format('Y-m-d H:i:s') : '',
                 $product->created_at->format('Y-m-d H:i:s'),
                 $product->updated_at->format('Y-m-d H:i:s'),
