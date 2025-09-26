@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\dashboard;
 
+use App\Helpers\LocaleHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\Products;
@@ -17,6 +18,7 @@ class DashboardController extends Controller
 
         return view('content.dashboard.dashboards-analytics', [
             'metrics' => $metrics,
+            'LocaleHelper' => new LocaleHelper,
         ]);
     }
 
@@ -107,7 +109,7 @@ class DashboardController extends Controller
                 DB::raw("DATE_FORMAT(h.changed_at, '%Y-%m-%d %H:%i:%s') as changed_at"),
                 'p.sku',
                 'p.product_name',
-                'p.rfid_tag',
+                'p.qa_code',
                 'h.stages as stage',
                 'h.status as status',
                 'h.remarks as comments'

@@ -117,7 +117,7 @@
                     const tr = document.createElement('tr');
                     tr.innerHTML = `<td>${act.changed_at}</td>
                                 <td>${act.sku}</td>
-                                <td>${act.rfid_tag || ''}</td>
+                                <td>${act.qc_code || ''}</td>
                                 <td>${act.stage}</td>
                                 <td>${act.status}</td>
                                 <td>${(act.comments||'').substring(0,80)}</td>`;

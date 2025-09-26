@@ -1,25 +1,25 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", "Dashboard - Analytics")
+@section('title', 'Dashboard - Analytics')
 
-@section("vendor-style")
-    <link rel="stylesheet" href="{{ asset("assets/vendor/libs/apex-charts/apex-charts.css") }}">
+@section('vendor-style')
+    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css') }}">
 @endsection
 
-@section("vendor-script")
-    <script src="{{ asset("assets/vendor/libs/apex-charts/apexcharts.js") }}"></script>
+@section('vendor-script')
+    <script src="{{ asset('assets/vendor/libs/apex-charts/apexcharts.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 @endsection
 
-@section("page-script")
+@section('page-script')
     <script>
         // Data passed from server for initial page load
         let metrics = @json($metrics);
     </script>
-    @include("content.dashboard.script")
+    @include('content.dashboard.script')
 @endsection
 
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-sm-6 col-lg-3 mb-4">
             <div class="card h-100">
@@ -30,7 +30,7 @@
                                     class="icon-base bx bx-cube icon-lg"></i></span>
                         </div> Total Products
                     </h6>
-                    <h3 id="kpi-total-products">{{ $metrics["totalProducts"] ?? 0 }}</h3>
+                    <h3 id="kpi-total-products">{{ $metrics['totalProducts'] ?? 0 }}</h3>
                     <small class="text-muted">Floor stock</small>
                 </div>
             </div>
@@ -47,10 +47,10 @@
                     </h6>
                     <h3 id="kpi-in-production">
                         @php
-                            $total = array_sum($metrics["stageCounts"] ?? []);
+                            $total = array_sum($metrics['stageCounts'] ?? []);
                             $shippedOrReady =
-                                ($metrics["stageCounts"]["Shipped"] ?? 0) +
-                                ($metrics["stageCounts"]["Ready for Shipment"] ?? 0);
+                                ($metrics['stageCounts']['Shipped'] ?? 0) +
+                                ($metrics['stageCounts']['Ready for Shipment'] ?? 0);
                             echo $total - $shippedOrReady;
                         @endphp
                     </h3>
@@ -68,7 +68,7 @@
                                     class="icon-base bx bx-check-circle icon-lg"></i></span>
                         </div> QC Pass Rate
                     </h6>
-                    <h3 id="kpi-qc-pass">{{ isset($metrics["qcPassRate"]) ? $metrics["qcPassRate"] . "%" : "N/A" }}</h3>
+                    <h3 id="kpi-qc-pass">{{ isset($metrics['qcPassRate']) ? $metrics['qcPassRate'] . '%' : 'N/A' }}</h3>
                     <small class="text-muted">Across QC events</small>
                 </div>
             </div>
@@ -83,7 +83,7 @@
                                     class="icon-base bx bxs-truck icon-lg"></i></span>
                         </div> Shipped
                     </h6>
-                    <h3 id="kpi-shipped">{{ $metrics["stageCounts"]["Shipped"] ?? 0 }}</h3>
+                    <h3 id="kpi-shipped">{{ $metrics['stageCounts']['Shipped'] ?? 0 }}</h3>
                     <small class="text-muted">Total shipped</small>
                 </div>
             </div>
@@ -102,7 +102,8 @@
                         <h6>Average minutes per stage</h6>
                         <ul>
                             @forelse ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
-                                <li><strong>{{ $stage }}</strong>: {{ $mins }} minutes</li>
+                                <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }} minutes
+                                </li>
                             @empty
                                 <li>No data available</li>
                             @endforelse
@@ -166,18 +167,18 @@
                             <tr>
                                 <th>Updated Date</th>
                                 <th>SKU</th>
-                                <th>RFID</th>
+                                <th>QA Code</th>
                                 <th>Stage</th>
                                 <th>Status</th>
                                 <th>Comments</th>
                             </tr>
                         </thead>
                         <tbody id="recent-activity-body">
-                            @foreach ($metrics["recentActivities"] as $act)
+                            @foreach ($metrics['recentActivities'] as $act)
                                 <tr>
                                     <td>{{ $act->changed_at }}</td>
                                     <td>{{ $act->sku }}</td>
-                                    <td>{{ $act->rfid_tag }}</td>
+                                    <td>{{ $act->qa_code }}</td>
                                     <td>{{ $act->stage }}</td>
                                     <td>{{ $act->status }}</td>
                                     <td>{{ Str::limit($act->comments, 80) }}</td>
