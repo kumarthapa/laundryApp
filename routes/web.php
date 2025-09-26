@@ -77,6 +77,7 @@ Route::get('/products/view/{code?}', $controller_path.'\products\ProductsControl
 Route::post('/products/bulk-product-upload', $controller_path.'\products\ProductsController@bulkProductUpload')->name('products.bulkProductUpload')->middleware('permission:products,create.products');
 Route::get('/products/productImportFormat', $controller_path.'\products\ProductsController@productImportFormat')->name('products.productImportFormat');
 Route::get('/products/export-products', $controller_path.'\products\ProductsController@exportProducts')->name('products.exportProducts');
+Route::get('/products/export-products-stagewise', $controller_path.'\products\ProductsController@exportProductsStageWise')->name('products.exportProductsStageWise');
 
 // AJAX routes
 Route::post('/products/save/{id?}', $controller_path.'\products\ProductsController@save')->name('products.save')->middleware('permission:products,create.products');

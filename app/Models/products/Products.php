@@ -88,9 +88,8 @@ class Products extends Model
             ->select(
                 'p.*',
                 // alias status to qc_status for backward compatibility (many places expect qc_status)
-                'h.status as qc_status',
                 'h.status as status',
-                'h.stages as current_stage',
+                'h.stages as stages',
                 'h.defects_points',
                 'h.changed_at as last_changed_at'
             );
@@ -117,7 +116,7 @@ class Products extends Model
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
         if (! empty($statusFilter) && $statusFilter !== 'all') {
             $filterQc = strtoupper($statusFilter);
-            if ($filterQc === 'FAILED') {
+            if ($filterQc === 'FAIL') {
                 $filterQc = 'FAIL';
             }
             $query->where('h.status', $filterQc);
@@ -191,7 +190,7 @@ class Products extends Model
         $statusFilter = $filters['qc_status'] ?? ($filters['status'] ?? null);
         if (! empty($statusFilter) && $statusFilter !== 'all') {
             $filterQc = strtoupper($statusFilter);
-            if ($filterQc === 'FAILED') {
+            if ($filterQc === 'FAIL') {
                 $filterQc = 'FAIL';
             }
             $query->where('h.status', $filterQc);
@@ -222,5 +221,98 @@ class Products extends Model
     public function getStockReportCount($search = '', $filters = [])
     {
         return $this->get_found_rows($search, $filters);
+    }
+
+    // ---------------------------- Report Search Result -------------------------------------//
+    /* ---------------------------
+     | Queries / Reports
+     |---------------------------*/
+
+    /**
+     * Search products with filters, pagination, and sorting.
+     * Uses latest entry from product_process_history (by changed_at) via a correlated subquery.
+     *
+     * @param  string  $search
+     * @param  array  $filters  (expects keys: 'status'|'qc_status', 'stages', 'defects_points', 'start_date', 'end_date')
+     * @param  int  $limit
+     * @param  int  $offset
+     * @param  string  $sort
+     * @param  string  $order
+     * @return \Illuminate\Support\Collection
+     */
+    public function report_search($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'p.created_at', $order = 'desc', $reportType = '')
+    {
+        // correlated subquery to get the latest changed_at per product
+        $subLatest = '(
+            SELECT MAX(ch2.changed_at)
+            FROM product_process_history ch2
+            WHERE ch2.product_id = p.id
+        )';
+
+        $query = DB::table('products as p')
+            ->leftJoin('product_process_history as h', function ($join) use ($subLatest) {
+                $join->on('h.product_id', '=', 'p.id')
+                    ->whereRaw("h.changed_at = {$subLatest}");
+            })
+            ->select(
+                'p.*',
+                // alias status to qc_status for backward compatibility (many places expect qc_status)
+                'h.status as status',
+                'h.stages as stages',
+                'h.defects_points',
+                'h.changed_at as last_changed_at'
+            );
+
+        // Search across product columns and history fields
+        if (! empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('p.product_name', 'like', "%{$search}%")
+                    ->orWhere('p.sku', 'like', "%{$search}%")
+                    ->orWhere('p.size', 'like', "%{$search}%")
+                    ->orWhere('p.qa_code', 'like', "%{$search}%")
+                    ->orWhere('h.status', 'like', "%{$search}%")
+                    ->orWhere('h.stages', 'like', "%{$search}%")
+                    ->orWhere('h.defects_points', 'like', "%{$search}%");
+            });
+        }
+
+        // Stage filter (match stages string from history)
+        if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
+            $query->where('h.stages', $filters['stages']);
+        }
+
+        // QC/Status filter — accept both 'status' and legacy 'qc_status' keys
+        $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
+        if (! empty($statusFilter) && $statusFilter !== 'all') {
+            $filterQc = strtoupper($statusFilter);
+            if ($filterQc === 'FAIL') {
+                $filterQc = 'FAIL';
+            }
+            $query->where('h.status', $filterQc);
+        }
+
+        // Defect points filter (stored as JSON array in h.defects_points)
+        if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
+            // Use binding with json_encode for safety. JSON_CONTAINS expects a JSON value,
+            // so json_encode('colour_issue') => "\"colour_issue\"" which is correct.
+            $jsonVal = json_encode($filters['defects_points']);
+            $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
+        }
+
+        // Date range filter (product created_at)
+        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
+            $query->whereBetween('p.created_at', [$filters['start_date'], $filters['end_date']]);
+        }
+
+        // Protect sort/order inputs a bit
+        $allowedOrders = ['asc', 'desc'];
+        $order = in_array(strtolower($order), $allowedOrders) ? $order : 'desc';
+
+        // Apply sort, limit, offset
+        $query->orderBy($sort, $order)
+            ->limit(intval($limit))
+            ->offset(intval($offset));
+
+        return $query->get();
     }
 }

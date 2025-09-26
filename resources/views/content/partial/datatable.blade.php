@@ -42,7 +42,11 @@
             displayLength: options?.displayLength ?? 10,
             lengthMenu: [7, 10, 25, 50, 75, 100],
             buttons: [{
-                    text: '<i class="bx bx-export me-1"></i>' + (options?.is_export ?? "Export"),
+                    text: '<i class="bx bx-export me-1"></i>' + (options?.is_export2 ?? options.is_export2),
+                    className: 'create-new btn btn-primary mx-2 exportBtn2 ' + (options.is_export2 ?
+                        'd-block' : 'd-none'),
+                }, {
+                    text: '<i class="bx bx-export me-1"></i>' + (options?.is_export ?? "Export All"),
                     className: 'create-new btn btn-primary mx-2 exportBtn ' + (options.is_export ?
                         'd-block' : 'd-none'),
                 },

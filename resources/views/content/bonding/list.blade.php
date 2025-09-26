@@ -17,9 +17,9 @@
                                     class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_products'] ?? '0' }}
+                                            {{ $productsOverview['total_model'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Products</p>
+                                        <p class="mb-0">Total Model</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-store-alt bx-sm"></i>
@@ -32,9 +32,9 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_tags'] ?? '0' }}
+                                            {{ $productsOverview['total_qa_code'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total RFID Tags</p>
+                                        <p class="mb-0">Total QA Code</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
                                         <i class="bx bx-crown bx-sm"></i>
@@ -47,9 +47,9 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_pass_products'] ?? '0' }}
+                                            {{ $productsOverview['total_writted'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">PASS Products</p>
+                                        <p class="mb-0">Total Writted</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-check-circle bx-sm"></i>
@@ -61,9 +61,9 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_fail_products'] ?? '0' }}
+                                            {{ $productsOverview['total_pending'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">FAIL Products</p>
+                                        <p class="mb-0">Total Pending Tag</p>
                                     </div>
                                     <span class="badge bg-label-danger me-sm-4 rounded p-2">
                                         <i class="bx bx-error bx-sm"></i>
@@ -217,12 +217,15 @@
                 url: url,
                 method: 'POST',
                 success: function(response) {
-                    toastr.success(response.message);
+
                     if (response.success) {
+                        toastr.success(response.message);
                         setTimeout(() => {
                             window.location.reload();
                         }, 1000);
 
+                    } else {
+                        toastr.error(response.message);
                     }
                 },
                 error: function(xhr, status, error) {

@@ -98,9 +98,10 @@ class ProductsController extends Controller
 
         $productsOverview = [
             'total_products' => $productsOverview['total_products'] ?? 0,
-            'total_tags' => $productsOverview['total_rfid_tags'] ?? 0,
-            'total_pass_products' => $productsOverview['total_pass'] ?? 0,
-            'total_failed_products' => $productsOverview['total_failed'] ?? 0,
+            'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
+            // 'total_tags' => $productsOverview['total_rfid_tags'] ?? 0,
+            'total_pass_products' => $productsOverview['total_passed'] ?? 0,
+            'total_fail_products' => $productsOverview['total_failed'] ?? 0,
             'total_rework_products' => $productsOverview['total_rework'] ?? 0,
             'total_pending_products' => $productsOverview['total_pending'] ?? 0,
         ];
@@ -140,11 +141,11 @@ class ProductsController extends Controller
             ->first();
 
         // QC status: prefer history.status, fallback to DB column (if exists)
-        $statusRaw = $history->status ?? ($row->qc_status ?? null);
+        $statusRaw = $history->status ?? null;
         $statusNormalized = strtoupper(trim((string) ($statusRaw ?? '')));
 
-        // normalize failed term variations
-        if ($statusNormalized === 'FAILED') {
+        // normalize fail term variations
+        if ($statusNormalized === 'FAIL') {
             $statusNormalized = 'FAIL';
         }
 
@@ -166,7 +167,7 @@ class ProductsController extends Controller
         }
 
         // Stage name: prefer history.stages (value), map to friendly name if available
-        $stageValue = $history->stages ?? ($row->current_stage ?? null);
+        $stageValue = $history->stages ?? null;
         $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
         $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
 
@@ -205,13 +206,13 @@ class ProductsController extends Controller
         $data['actions'] = '<div class="d-inline-block">
             <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-                <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
                 <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
             <div class="dropdown-divider"></div>
             </ul>
         </div>';
 
+        // <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
+        // <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
         return $data;
     }
 
@@ -318,7 +319,7 @@ class ProductsController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => 'Validation fail',
                 'errors' => $validator->errors(),
             ], 422);
         }
@@ -381,7 +382,7 @@ class ProductsController extends Controller
         if (! $Model) {
             return response()->json([
                 'success' => false,
-                'message' => 'Delete Failed! Product not found.',
+                'message' => 'Delete Fail! Product not found.',
                 'bg_color' => 'bg-danger',
             ]);
         }
@@ -420,7 +421,7 @@ class ProductsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Delete Failed! '.$e->getMessage(),
+                'message' => 'Delete Fail! '.$e->getMessage(),
                 'bg_color' => 'bg-danger',
             ]);
         }
@@ -470,7 +471,7 @@ class ProductsController extends Controller
         ]);
 
         if ($validator->fails()) {
-            Log::error('Product bulk upload failed: '.$validator->errors());
+            Log::error('Product bulk upload fail: '.$validator->errors());
 
             return response()->json(['success' => false, 'errors' => $validator->errors(), 'message' => 'Invalid format for upload file or action type.']);
         }
@@ -583,7 +584,7 @@ class ProductsController extends Controller
             DB::rollBack();
             Log::error('Product bulk upload error: '.$e->getMessage());
 
-            return response()->json(['success' => false, 'message' => 'Bulk upload failed: '.$e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Bulk upload fail: '.$e->getMessage()]);
         }
     }
 
@@ -602,11 +603,11 @@ class ProductsController extends Controller
 
         $dataRows = $products->map(function ($product) {
             $latest = $product->latestHistory;
-            $latestStage = $latest ? ($latest->stages ?? '') : ($product->current_stage ?? '');
-            $latestStatus = $latest ? ($latest->status ?? '') : ($product->qc_status ?? '');
-            // normalize FAILED -> FAIL in export as well
+            $latestStage = $latest ? ($latest->stages ?? '') : '';
+            $latestStatus = $latest ? ($latest->status ?? '') : '';
+            // normalize FAIL -> FAIL in export as well
             $latestStatusNormalized = strtoupper(trim((string) $latestStatus));
-            if ($latestStatusNormalized === 'FAILED') {
+            if ($latestStatusNormalized === 'FAIL') {
                 $latestStatusNormalized = 'FAIL';
             }
 
@@ -640,5 +641,79 @@ class ProductsController extends Controller
         ];
 
         return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    public function exportProductsStageWise(Request $request)
+    {
+        $user = Auth::user();
+        $daterange = $request->input('productsDaterangePicker');
+
+        $metaInfo = [
+            'date_range' => $daterange ?: 'All time',
+            'generated_by' => $user->fullname ?? 'System',
+        ];
+
+        // Fetch stages dynamically from config
+        $configData = UtilityHelper::getProductStagesAndDefectPoints();
+        $stages = $configData['stages'] ?? [];
+
+        // Base product headers (static part)
+        $baseHeaders = [
+            'SKU',
+            'Product Name',
+            'Size',
+            'QA Code',
+            'Reference Code',
+        ];
+
+        // Append stage-wise headers dynamically
+        $stageHeaders = array_map(fn ($stage) => $stage['name'], $stages);
+
+        // Meta/product info headers (could also be dynamic if needed)
+        $extraHeaders = [
+            // 'QC Confirmed At',
+            'Created At',
+            'Updated At',
+        ];
+
+        // Final headers
+        $headers = array_merge($baseHeaders, $stageHeaders, $extraHeaders);
+
+        // Fetch products with histories
+        $products = Products::with('processHistory')->get();
+
+        $dataRows = $products->map(function ($product) use ($stages) {
+            // Start with base columns
+            $row = [
+                $product->sku,
+                $product->product_name,
+                $product->size,
+                $product->qa_code,
+                $product->reference_code,
+            ];
+
+            // Collect stage-wise statuses
+            $historyByStage = $product->processHistory->keyBy('stages');
+
+            foreach ($stages as $stage) {
+                $stageKey = $stage['value']; // e.g. bonding_qc
+                $status = isset($historyByStage[$stageKey])
+                    ? strtoupper($historyByStage[$stageKey]->status)
+                    : '';
+                $row[] = $status;
+            }
+
+            // Append extra fields
+            // $row[] = $product->qc_confirmed_at ? LocaleHelper::formatDateWithTime($product->qc_confirmed_at) : '';
+            $row[] = LocaleHelper::formatDateWithTime($product->created_at);
+            $row[] = LocaleHelper::formatDateWithTime($product->updated_at);
+
+            return $row;
+        })->toArray();
+
+        return Excel::download(
+            new ProductExport($dataRows, $metaInfo, $headers),
+            'products_stage_wise_export_'.now()->format('Ymd_His').'.xlsx'
+        );
     }
 }

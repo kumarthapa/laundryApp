@@ -1,8 +1,8 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", "Edit Product")
+@section('title', 'Edit Product')
 
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12 col-12">
             <div class="card">
@@ -13,7 +13,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route("products.save", $product->id) }}" id="product-edit-form"
+                    <form method="POST" action="{{ route('products.save', $product->id) }}" id="product-edit-form"
                         enctype="multipart/form-data">
                         @csrf
                         <div class="row">
@@ -23,11 +23,20 @@
                                     <label for="product_name" class="form-label">Product Name <span
                                             class="text-danger">*</span></label>
                                     <input type="text" id="product_name" name="product_name"
-                                        class="form-control @error("product_name") is-invalid @enderror"
-                                        value="{{ old("product_name", $product->product_name) }}" required>
-                                    @error("product_name")
+                                        class="form-control @error('product_name') is-invalid @enderror"
+                                        value="{{ old('product_name', $product->product_name) }}" required>
+                                    @error('product_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
+                                </div>
+                            </div>
+
+                            <!-- SKU (readonly) -->
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                    <label for="qa_code" class="form-label">QA Code</label>
+                                    <input type="text" id="qa_code" name="qa_code" class="form-control"
+                                        value="{{ $product->qa_code }}" readonly>
                                 </div>
                             </div>
 
@@ -45,7 +54,7 @@
                                 <div class="mb-3">
                                     <label for="reference_code" class="form-label">Reference Code</label>
                                     <input type="text" id="reference_code" name="reference_code" class="form-control"
-                                        value="{{ old("reference_code", $product->reference_code) }}">
+                                        value="{{ old('reference_code', $product->reference_code) }}">
                                 </div>
                             </div>
 
@@ -54,9 +63,9 @@
                                 <div class="mb-3">
                                     <label for="size" class="form-label">Size <span class="text-danger">*</span></label>
                                     <input type="text" id="size" name="size"
-                                        class="form-control @error("size") is-invalid @enderror"
-                                        value="{{ old("size", $product->size) }}" required>
-                                    @error("size")
+                                        class="form-control @error('size') is-invalid @enderror"
+                                        value="{{ old('size', $product->size) }}" required>
+                                    @error('size')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -67,7 +76,7 @@
                                 <div class="mb-3">
                                     <label for="quantity" class="form-label">Quantity</label>
                                     <input type="number" id="quantity" name="quantity" min="0" class="form-control"
-                                        value="{{ old("quantity", $product->quantity) }}">
+                                        value="{{ old('quantity', $product->quantity) }}">
                                 </div>
                             </div>
 
@@ -92,7 +101,7 @@
     </div>
 @endsection
 
-@section("page-script")
+@section('page-script')
     <script>
         $(document).ready(function() {
             $("#product-edit-form").validate({
@@ -145,7 +154,7 @@
                                 $("#submit-button").text("Saved");
                                 setTimeout(function() {
                                     window.location.href = response.return_url ||
-                                        "{{ route("products") }}";
+                                        "{{ route('products') }}";
                                 }, 1500);
                             } else {
                                 toastr.error(response.message ||

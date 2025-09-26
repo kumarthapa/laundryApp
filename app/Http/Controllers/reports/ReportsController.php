@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\reports;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Helpers\TableHelper;
-use App\Helpers\LocaleHelper;
-use App\Helpers\UtilityHelper;
-use Illuminate\Support\Facades\Auth;
-use App\Models\products\Products;
-use App\Models\products\ProductProcessHistory;
-use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductExport;
+use App\Helpers\LocaleHelper;
+use App\Helpers\TableHelper;
+use App\Helpers\UtilityHelper;
+use App\Http\Controllers\Controller;
+use App\Models\products\ProductProcessHistory;
+use App\Models\products\Products;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportsController extends Controller
 {
@@ -24,43 +24,48 @@ class ReportsController extends Controller
 
     public function index(Request $request)
     {
+
         $headers = $this->commonHeader();
 
         // Get the counts overview
         $productsOverviewRaw = LocaleHelper::getProductSummaryCounts();
         $productsOverview = [
             'total_products' => $productsOverviewRaw['total_products'],
-            'total_tags' => $productsOverviewRaw['total_rfid_tags'],
-            'total_pass_products' => $productsOverviewRaw['total_pass'],
-            'total_failed_products' => $productsOverviewRaw['total_failed'],
+            'total_qa_code' => $productsOverviewRaw['total_qa_code'],
+            'total_pass_products' => $productsOverviewRaw['total_passed'],
+            'total_fail_products' => $productsOverviewRaw['total_failed'],
         ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
-        $UtilityHelper = new UtilityHelper();
+        $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('products', 'create.products');
         $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
+
+        $configData = UtilityHelper::getProductStagesAndDefectPoints();
 
         return view('content.reports.list')
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
             ->with('productsOverview', $productsOverview)
-            ->with('createPermissions', $createPermissions);
+            ->with('createPermissions', $createPermissions)
+            ->with('stages', $configData['stages'] ?? [])
+            ->with('defect_points', $configData['defect_points'] ?? [])
+            ->with('status', $configData['status'] ?? []);
     }
 
     public function commonHeader()
     {
-        return  [
+        return [
             ['created_at' => 'Created Date'],
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
-            ['rfid_tag' => 'RFID Tag'],
+            ['qa_code' => 'Qa Code'],
             ['quantity' => 'Quantity'],
             ['status' => 'QC Status'],
             ['stage' => 'Current Stage'],
-            ['actions' => 'Actions']
         ];
         //     $headers = [
         //     ['bonding_date' => 'Bonding Date'],
@@ -83,9 +88,6 @@ class ReportsController extends Controller
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        $view = route('view.products', ["code" => $row->id]);
-        $edit = route('edit.products', ["id" => $row->id]);
-        $delete = route('delete.products', ["id" => $row->id]);
 
         $history = ProductProcessHistory::where('product_id', $row->id)
             ->latest('changed_at')
@@ -94,10 +96,10 @@ class ReportsController extends Controller
         $statusHTML = '';
         switch ($history->status ?? $row->status) {
             case 'PASS':
-                $statusHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
+                $statusHTML = '<span class="badge rounded bg-label-success " title="PASS"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
                 break;
-            case 'FAILED':
-                $statusHTML = '<span class="badge rounded bg-label-danger " title="Active"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>FAILED</span>';
+            case 'FAIL':
+                $statusHTML = '<span class="badge rounded bg-label-danger " title="FAIL"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>FAIL</span>';
                 break;
             default:
                 $statusHTML = '<span class="badge rounded bg-label-primary" title="PENDING"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PENDING</span>';
@@ -105,27 +107,19 @@ class ReportsController extends Controller
         }
         // -------------- QC Status ---------------
         // -------------- product stage ---------------
-        $current_stage = $history->stage ?? 'Bonding';
-        $stageHTML = '<span class="badge rounded bg-label-success " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>' . $current_stage . '</span>';
+        $getStageName = LocaleHelper::getStageName($history->stages);
+        $current_stage = $getStageName ?? 'Bonding';
+
+        $stageHTML = '<span class="badge rounded bg-label-warning " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.$current_stage.'</span>';
         // -------------- product stages ---------------
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] = $row->product_name;
         $data['sku'] = $row->sku;
         $data['size'] = $row->size;
-        $data['rfid_tag'] = $row->rfid_tag;
+        $data['qa_code'] = $row->qa_code;
         $data['quantity'] = $row->quantity;
         $data['status'] = $statusHTML;
-        $data['stage'] =  $stageHTML;
-
-        $data['actions'] = '<div class="d-inline-block">
-        <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
-        <ul class="dropdown-menu dropdown-menu-end">
-        <li><a href="' . $view . '" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-        <li><a href="' . $edit . '" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
-        <li><a href="javascript:;" onclick="deleteRow(\'' . $delete . '\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
-        <div class="dropdown-divider"></div>
-        </ul>
-        </div>';
+        $data['stage'] = $stageHTML;
 
         return $data;
     }
@@ -137,13 +131,14 @@ class ReportsController extends Controller
     {
         $reportType = $request->input('report_type', 'default_report');
         $search = $request->get('search') ?? '';
-        $limit  = 100;
+        $limit = 100;
         $offset = 0;
         $sort = $request->get('sort') ?? 'created_at';
         $order = $request->get('order') ?? 'desc';
 
         $filters = [
             'status' => $request->get('status') ?? '',
+            'stages' => $request->get('stage') ?? '',
         ];
         $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');
         $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
@@ -152,83 +147,123 @@ class ReportsController extends Controller
             $filters['end_date'] = $daterange['end_date'] ?? '';
         }
 
+        // print_r($request->all());
+        // exit;
+
         $data_rows = [];
         $columns = [];
 
+        $headers = [
+            ['created_at' => 'Created Date'],
+            ['product_name' => 'Product Name'],
+            ['sku' => 'SKU'],
+            ['size' => 'Size'],
+            ['qa_code' => 'QA Code'],
+            ['quantity' => 'Quantity'],
+            ['status' => 'QC Status'],
+            ['stage' => 'Current Stage'],
+        ];
+        foreach ($headers as $header) {
+            foreach ($header as $data => $title) {
+                $columns[] = ['data' => $data, 'title' => $title];
+            }
+        }
+
         switch ($reportType) {
-            case 'stock_report':
-                $searchData = $this->products->search($search, $filters, $limit, $offset, $sort, $order);
+            case 'daily_floor_stock_report':
+                $searchData = $this->products->report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->products->get_found_rows($search);
 
-                $headers = [
-                    ['created_at' => 'Created Date'],
-                    ['product_name' => 'Product Name'],
-                    ['sku' => 'SKU'],
-                    ['size' => 'Size'],
-                    ['rfid_tag' => 'RFID Tag'],
-                    ['quantity' => 'Quantity'],
-                    ['status' => 'QC Status'],
-                    ['current_stage' => 'Current Stage'],
-                    ['actions' => 'Actions']
-                ];
-                foreach ($headers as $header) {
-                    foreach ($header as $data => $title) {
-                        $columns[] = ['data' => $data, 'title' => $title];
-                    }
-                }
+                // $headers = [
+                //     ['created_at' => 'Created Date'],
+                //     ['product_name' => 'Product Name'],
+                //     ['sku' => 'SKU'],
+                //     ['size' => 'Size'],
+                //     ['qa_code' => 'QA Code'],
+                //     ['quantity' => 'Quantity'],
+                //     ['status' => 'QC Status'],
+                //     ['stage' => 'Current Stage'],
+                // ];
+                // foreach ($headers as $header) {
+                //     foreach ($header as $data => $title) {
+                //         $columns[] = ['data' => $data, 'title' => $title];
+                //     }
+                // }
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
 
             case 'daily_bonding_report':
+                $filters['stages'] = 'bonding_qc';
                 $searchData = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
                 $total_rows = $this->products->getStockReportCount($search, $filters);
 
-                $headers = [
-                    ['product_name' => 'Product Name'],
-                    ['sku' =>  'SKU'],
-                    ['quantity' => 'Quantity'],
-                    ['status' => 'QC Status'],
-                    ['current_stage' => 'Current Stage'],
-                ];
-                foreach ($headers as $header) {
-                    foreach ($header as $data => $title) {
-                        $columns[] = ['data' => $data, 'title' => $title];
-                    }
-                }
+                // $headers = [
+                //     ['product_name' => 'Product Name'],
+                //     ['sku' => 'SKU'],
+                //     ['quantity' => 'Quantity'],
+                //     ['status' => 'QC Status'],
+                //     ['stage' => 'Current Stage'],
+                // ];
+                // foreach ($headers as $header) {
+                //     foreach ($header as $data => $title) {
+                //         $columns[] = ['data' => $data, 'title' => $title];
+                //     }
+                // }
+                // foreach ($searchData as $row) {
+                //     $history = ProductProcessHistory::where('product_id', $row->id)->first();
+                //     $data_rows[] = [
+                //         'product_name' => $row->product_name,
+                //         'sku' => $row->sku,
+                //         'quantity' => $row->quantity,
+                //         'status' => $history ? $history->status : '',
+                //         'stage' => $history ? LocaleHelper::getStageName($history->stages) : '',
+                //     ];
+                // }
+                // break;
                 foreach ($searchData as $row) {
-                    $history = ProductProcessHistory::where('product_id', $row->id)->first();
-                    $data_rows[] = [
-                        'product_name' => $row->product_name,
-                        'sku' => $row->sku,
-                        'quantity' => $row->quantity,
-                        'status' => $history ? $history->status : $row->status,
-                        'current_stage' => $history ? $history->stage : $row->current_stage,
-                    ];
+                    $data_rows[] = $this->tableHeaderRowData($row);
+                }
+                break;
+            case 'monthly_yearly_report':
+                $filters['start_date'] = '';
+                $filters['end_date'] = '';
+                $searchData = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                $total_rows = $this->products->getStockReportCount($search, $filters);
+                foreach ($searchData as $row) {
+                    $data_rows[] = $this->tableHeaderRowData($row);
+                }
+                break;
+            case 'daily_packing_report':
+                $filters['stages'] = 'packaging';
+                $searchData = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                $total_rows = $this->products->getStockReportCount($search, $filters);
+                foreach ($searchData as $row) {
+                    $data_rows[] = $this->tableHeaderRowData($row);
+                }
+                break;
+            case 'daily_tapedge_report':
+                $filters['stages'] = 'tape_edge_qc';
+                $searchData = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                $total_rows = $this->products->getStockReportCount($search, $filters);
+                foreach ($searchData as $row) {
+                    $data_rows[] = $this->tableHeaderRowData($row);
+                }
+                break;
+
+            case 'daily_zip_cover_report':
+                $filters['stages'] = 'zip_cover_qc';
+                $searchData = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                $total_rows = $this->products->getStockReportCount($search, $filters);
+                foreach ($searchData as $row) {
+                    $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
 
             default:
-                $searchData = $this->products->search($search, $filters, $limit, $offset, $sort, $order);
+                $searchData = $this->products->report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->products->get_found_rows($search);
-
-                $headers = [
-                    ['created_at' => 'Created Date'],
-                    ['product_name' => 'Product Name'],
-                    ['sku' => 'SKU'],
-                    ['size' => 'Size'],
-                    ['rfid_tag' => 'RFID Tag'],
-                    ['quantity' => 'Quantity'],
-                    ['status' => 'QC Status'],
-                    ['current_stage' => 'Current Stage'],
-                    ['actions' => 'Actions']
-                ];
-                foreach ($headers as $header) {
-                    foreach ($header as $data => $title) {
-                        $columns[] = ['data' => $data, 'title' => $title];
-                    }
-                }
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
@@ -250,11 +285,11 @@ class ReportsController extends Controller
     {
         $query = $this->products->newQuery();
 
-        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             $query->whereBetween('created_at', [$filters['start_date'], $filters['end_date']]);
         }
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
@@ -262,12 +297,13 @@ class ReportsController extends Controller
 
         return $rows->map(function ($item) {
             $history = ProductProcessHistory::where('product_id', $item->id)->first();
+
             return [
                 'product_name' => $item->product_name,
                 'sku' => $item->sku,
                 'quantity' => $item->quantity,
                 'status' => $history ? $history->status : $item->status,
-                'current_stage' => $history ? $history->stage : $item->current_stage,
+                'current_stage' => $history ? $history->stages : '',
             ];
         })->toArray();
     }
@@ -293,7 +329,7 @@ class ReportsController extends Controller
                 $product->sku,
                 $product->reference_code,
                 $product->size,
-                $product->rfid_tag,
+                $product->qa_code,
                 $product->quantity,
                 $product->status,
                 $product->qc_confirmed_at ? $product->qc_confirmed_at->format('Y-m-d H:i:s') : '',
@@ -316,6 +352,6 @@ class ReportsController extends Controller
             'Updated At',
         ];
 
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_' . now()->format('Ymd_His') . '.xlsx');
+        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
     }
 }

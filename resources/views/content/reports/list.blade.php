@@ -10,6 +10,77 @@
     </style>
 @endsection
 @section('content')
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-none mb-3" id="errorBox"></div>
+            <div class="card mb-4">
+                <div class="card-widget-separator-wrapper">
+                    <div class="card-body card-widget-separator">
+                        <div class="row gy-4 gy-sm-1">
+                            <div class="col-sm-6 col-lg-3">
+                                <div
+                                    class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            {{ $productsOverview['total_products'] ?? '0' }}
+                                        </h5>
+                                        <p class="mb-0">Total Products</p>
+                                    </div>
+                                    <span class="badge bg-label-success me-sm-4 rounded p-2">
+                                        <i class="bx bx-store-alt bx-sm"></i>
+                                    </span>
+                                </div>
+                                <hr class="d-none d-sm-block d-lg-none me-4">
+                            </div>
+                            <div class="col-sm-6 col-lg-3">
+                                <div
+                                    class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            {{ $productsOverview['total_qa_code'] ?? '0' }}
+                                        </h5>
+                                        <p class="mb-0">Total QA Code</p>
+                                    </div>
+                                    <span class="badge bg-label-warning me-lg-4 rounded p-2">
+                                        <i class="bx bx-crown bx-sm"></i>
+                                    </span>
+                                </div>
+                                <hr class="d-none d-sm-block d-lg-none">
+                            </div>
+                            <div class="col-sm-6 col-lg-3">
+                                <div
+                                    class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            {{ $productsOverview['total_pass_products'] ?? '0' }}
+                                        </h5>
+                                        <p class="mb-0">PASS Products</p>
+                                    </div>
+                                    <span class="badge bg-label-success me-sm-4 rounded p-2">
+                                        <i class="bx bx-check-circle bx-sm"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-3">
+                                <div
+                                    class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            {{ $productsOverview['total_fail_products'] ?? '0' }}
+                                        </h5>
+                                        <p class="mb-0">FAIL Products</p>
+                                    </div>
+                                    <span class="badge bg-label-danger me-sm-4 rounded p-2">
+                                        <i class="bx bx-error bx-sm"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="row g-6">
         <!-- Card Border Shadow -->
         <div class="col-lg-4 col-sm-8 mb-3">
@@ -30,7 +101,7 @@
                                 <span class="text-body-secondary">than last week</span>
                             </p>
                         </div>
-                        <button type="button" onclick="commonGenerateReports('stock_report')"
+                        <button type="button" onclick="commonGenerateReports('daily_floor_stock_report')"
                             class="btn btn-label-primary">Generate</button>
                     </div>
                 </div>
@@ -53,7 +124,7 @@
                                 <span class="text-body-secondary">than last week</span>
                             </p>
                         </div>
-                        <button type="button" onclick="commonGenerateReports()"
+                        <button type="button" onclick="commonGenerateReports('monthly_yearly_report')"
                             class="btn btn-label-primary">Generate</button>
                     </div>
                 </div>
@@ -76,7 +147,7 @@
                                 <span class="text-body-secondary">than last week</span>
                             </p>
                         </div>
-                        <button type="button" onclick="commonGenerateReports()"
+                        <button type="button" onclick="commonGenerateReports('daily_packing_report')"
                             class="btn btn-label-primary">Generate</button>
                     </div>
                 </div>
@@ -99,7 +170,7 @@
                                 <span class="text-body-secondary">than last week</span>
                             </p>
                         </div>
-                        <button type="button" onclick="commonGenerateReports()"
+                        <button type="button" onclick="commonGenerateReports('daily_tapedge_report')"
                             class="btn btn-label-primary">Generate</button>
                     </div>
                 </div>
@@ -122,7 +193,7 @@
                                 <span class="text-body-secondary">than last week</span>
                             </p>
                         </div>
-                        <button type="button" onclick="commonGenerateReports()"
+                        <button type="button" onclick="commonGenerateReports('daily_zip_cover_report')"
                             class="btn btn-label-primary">Generate</button>
                     </div>
                 </div>
@@ -169,26 +240,23 @@
                         <div class="col-md-3">
                             <select id="filterQcStatus" class="form-select filter-selected-data">
                                 <option value="">All QC Status</option>
-                                <option value="PASS">PASS</option>
-                                <option value="FAILED">FAILED</option>
-                                <option value="PENDING">PENDING</option>
+                                @if (isset($stages) && $stages)
+                                    @foreach ($status as $statusArray)
+                                        <option value="{{ $statusArray['value'] }}">{{ $statusArray['name'] }}</option>
+                                    @endforeach
+                                @endif
                             </select>
 
                         </div>
                         <div class="col-md-3">
                             <select id="filterCurrentStage" class="form-select filter-selected-data">
                                 <option value="">All Current Stages</option>
-                                <option value="Bonding">Bonding</option>
-                                <option value="Tapedge">Tapedge</option>
-                                <option value="Zip Cover">Zip Cover</option>
-                                <option value="QC">QC</option>
-                                <option value="Packing">Packing</option>
-                                <option value="Ready for Shipment">Ready for Shipment</option>
-                                <option value="Shipped">Shipped</option>
-                                <option value="Returned">Returned</option>
-                                <option value="Cancelled">Cancelled</option>
+                                @if (isset($stages) && $stages)
+                                    @foreach ($stages as $arrays)
+                                        <option value="{{ $arrays['value'] }}">{{ $arrays['name'] }}</option>
+                                    @endforeach
+                                @endif
                             </select>
-
                         </div>
                         <div class="col-md-6">
                             <div class="input-group date">
@@ -222,7 +290,7 @@
         'default_days' => 0,
     ])
     <script>
-        let currentReportType = 'stock_report'; // default report on page load
+        let currentReportType = 'daily_floor_stock_report'; // default report on page load
         $(document).ready(function() {
             $("#filterQcStatus").select2({
                 allowClear: true
@@ -234,7 +302,7 @@
             commonGenerateReports(currentReportType);
 
             // Reload data on filter change
-            $('#selectedDaterange, #filterStatus').change(function() {
+            $('#selectedDaterange, #filterQcStatus, #filterCurrentStage').change(function() {
                 if (currentReportType) {
                     commonGenerateReports(currentReportType);
                 }
@@ -263,7 +331,7 @@
 
 
         const reportTitles = {
-            'stock_report': 'Daily Floor Stock Report',
+            'daily_floor_stock_report': 'Daily Floor Stock Report',
             'monthly_yearly_report': 'Monthly and Yearly Reports',
             'daily_packing_report': 'Daily Packing Report',
             'daily_tapedge_report': 'Daily Tapedge Report',
@@ -284,7 +352,8 @@
                     _token: '{{ csrf_token() }}',
                     report_type: currentReportType,
                     selectedDaterange: $('#selectedDaterange').val(),
-                    status: $('#filterStatus').val()
+                    status: $('#filterQcStatus').val() || '',
+                    stage: $('#filterCurrentStage').val() || ''
                 },
                 success: function(response) {
                     $('#reportName').html('<i class="bx bx-food-menu"></i> ' + (reportTitles[

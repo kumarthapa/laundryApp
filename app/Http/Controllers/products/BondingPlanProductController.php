@@ -9,7 +9,6 @@ use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\BondingPlanProduct;
-use App\Models\products\ProductProcessHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -84,23 +83,19 @@ class BondingPlanProductController extends Controller
             ['sku' => 'SKU'],
             ['size' => 'Size'],
             ['qa_code' => 'QA Code'],
-            ['rfid_tag' => 'RFID Tag'],
+            // ['rfid_tag' => 'RFID Tag'],
             ['is_write' => 'Is Write'],
             // ['quantity' => 'Quantity'],
-            // ['qc_status' => 'QC Status'],
-            // ['current_stage' => 'Current Stage'],
             ['actions' => 'Actions'],
         ];
 
-        $productsOverview = LocaleHelper::getProductSummaryCounts();
+        $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
 
         $productsOverview = [
-            'total_products' => $productsOverview['total_products'] ?? 0,
-            'total_tags' => $productsOverview['total_rfid_tags'] ?? 0,
-            'total_pass_products' => $productsOverview['total_pass'] ?? 0,
-            'total_failed_products' => $productsOverview['total_failed'] ?? 0,
-            'total_rework_products' => $productsOverview['total_rework'] ?? 0,
-            'total_pending_products' => $productsOverview['total_pending'] ?? 0,
+            'total_model' => $productsOverview['total_model'] ?? 0,
+            'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
+            'total_writted' => $productsOverview['total_writted'] ?? 0,
+            'total_pending' => $productsOverview['total_pending'] ?? 0,
         ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
@@ -128,68 +123,46 @@ class BondingPlanProductController extends Controller
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        $view = route('view.bonding', ['code' => $row->id]);
+        // $view = route('view.bonding', ['code' => $row->id]);
+
         $edit = route('edit.bonding', ['id' => $row->id]);
         $delete = route('delete.bonding', ['id' => $row->id]);
 
-        // get latest history if present
-        $history = ProductProcessHistory::where('product_id', $row->id)
-            ->latest('changed_at')
-            ->first();
-
-        // QC status: prefer history.status, fallback to DB column (if exists)
-        $statusRaw = $history->status ?? ($row->qc_status ?? null);
-        $statusNormalized = strtoupper(trim((string) ($statusRaw ?? '')));
-
-        // normalize failed term variations
-        if ($statusNormalized === 'FAILED') {
-            $statusNormalized = 'FAIL';
-        }
-
         $statusHTML = '';
-        switch ($statusNormalized) {
-            case 'PASS':
-                $statusHTML = '<span class="badge rounded bg-label-success " title="PASS"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
-                break;
-            case 'FAIL':
-                $statusHTML = '<span class="badge rounded bg-label-danger " title="FAIL"><i class="icon-base bx bx-x-circle icon-lg me-1"></i>FAIL</span>';
-                break;
-            case 'REWORK':
-                $statusHTML = '<span class="badge rounded bg-label-warning " title="REWORK"><i class="icon-base bx bx-refresh icon-lg me-1"></i>REWORK</span>';
-                break;
-            case 'PENDING':
-            default:
-                $statusHTML = '<span class="badge rounded bg-label-primary" title="PENDING"><i class="icon-base bx bx-time icon-lg me-1"></i>PENDING</span>';
-                break;
+        if ($row->is_write) {
+            $statusHTML = '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>';
+        } else {
+            $statusHTML = '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
         }
 
         // Stage name: prefer history.stages (value), map to friendly name if available
-        $stageValue = $history->stages ?? 'BONDING';
-        $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
-        $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
+        // $stageValue = $history->stages ?? 'BONDING';
+        // $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
+        // $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
 
         // Defect points (history.defects_points stored JSON array) -> display small badges or count
-        $defectsHtml = '';
-        $defectsCount = 0;
-        $defectsRaw = $history->defects_points ?? null;
-        if (! empty($defectsRaw)) {
-            // try decode JSON safely
-            $decoded = null;
-            if (is_string($defectsRaw)) {
-                $decoded = @json_decode($defectsRaw, true);
-            } elseif (is_array($defectsRaw)) {
-                $decoded = $defectsRaw;
-            }
-            if (is_array($decoded) && count($decoded) > 0) {
-                $defectsCount = count($decoded);
-                $pieces = [];
-                foreach ($decoded as $d) {
-                    $label = $this->defectPointMap[$d] ?? $d;
-                    $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
-                }
-                $defectsHtml = implode(' ', $pieces);
-            }
-        }
+        // $defectsHtml = '';
+        // $defectsCount = 0;
+
+        // $defectsRaw = $history->defects_points ?? null;
+        // if (! empty($defectsRaw)) {
+        //     // try decode JSON safely
+        //     $decoded = null;
+        //     if (is_string($defectsRaw)) {
+        //         $decoded = @json_decode($defectsRaw, true);
+        //     } elseif (is_array($defectsRaw)) {
+        //         $decoded = $defectsRaw;
+        //     }
+        //     if (is_array($decoded) && count($decoded) > 0) {
+        //         $defectsCount = count($decoded);
+        //         $pieces = [];
+        //         foreach ($decoded as $d) {
+        //             $label = $this->defectPointMap[$d] ?? $d;
+        //             $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
+        //         }
+        //         $defectsHtml = implode(' ', $pieces);
+        //     }
+        // }
 
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] = $row->product_name;
@@ -197,23 +170,23 @@ class BondingPlanProductController extends Controller
         $data['sku'] = $row->sku;
         $data['size'] = $row->size;
         $data['qa_code'] = $row->qa_code;
-        $data['rfid_tag'] = $row->rfid_tag ?? 'N/A';
-        $data['is_write'] = $row->is_write == 0 ? 'PENDING' : 'WRITTEN';
+        // $data['rfid_tag'] = $row->rfid_tag ?? 'N/A';
+        $data['is_write'] = $statusHTML;
         // $data['quantity'] = $row->quantity;
-        // $data['qc_status'] = $statusHTML;
-        // $data['current_stage'] = $stageHTML . ($defectsHtml ? '<div class="mt-1">' . $defectsHtml . '</div>' : '');
 
         $data['actions'] = '<div class="d-inline-block">
-            <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-                <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
-                <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
-            <div class="dropdown-divider"></div>
-            </ul>
-        </div>';
+                <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                <i class="bx bx-dots-vertical-rounded"></i></a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
+                <div class="dropdown-divider"></div>
+                </ul>
+            </div>';
 
         return $data;
+
+        // <li><a href="javascripts:;" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
+        // <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
     }
 
     /* AJAX: return table rows */
@@ -337,6 +310,7 @@ class BondingPlanProductController extends Controller
         $data['qc_status_updated_by'] = $user->id ?? null;
 
         DB::beginTransaction();
+
         try {
             if ($id) {
                 $product = BondingPlanProduct::findOrFail($id);
@@ -390,7 +364,14 @@ class BondingPlanProductController extends Controller
                 'bg_color' => 'bg-danger',
             ]);
         }
-
+        if ($Model->is_write) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This item is already written and cannot be deleted.',
+                'bg_color' => 'bg-danger',
+            ]);
+        }
+        exit;
         Log::info('Found BondingPlanProduct: ', ['id' => $Model->id, 'products_count' => $Model->products->count()]);
 
         try {
@@ -460,21 +441,22 @@ class BondingPlanProductController extends Controller
                 $product->model,
                 $product->size,
                 $product->qa_code,
-                $product->rfid_tag,
+                // $product->rfid_tag,
                 $product->is_write,
                 $product->reference_code,
                 LocaleHelper::formatDateWithTime($product->created_at),
                 LocaleHelper::formatDateWithTime($product->updated_at),
             ];
         })->toArray();
-
+        // print_r($headers);
+        // exit;
         $headers = [
             'SKU',
             'Product Name',
             'Model',
             'Size',
             'QA Code',
-            'RFID Tag',
+            // 'RFID Tag',
             'Is Write',
             'Reference Code',
             'Created At',

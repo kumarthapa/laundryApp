@@ -32,9 +32,9 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_tags'] ?? '0' }}
+                                            {{ $productsOverview['total_qa_code'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total RFID Tags</p>
+                                        <p class="mb-0">Total QA Code</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
                                         <i class="bx bx-crown bx-sm"></i>
@@ -126,7 +126,8 @@
                 displayLength: 100,
                 // is_import: "Upload Products",
                 importUrl: "{{ route('create.products') }}",
-                is_export: "Export",
+                is_export: "Export All",
+                is_export2: "Export Stage Wise",
                 manuall_create: false,
             };
 
@@ -193,6 +194,10 @@
             let exportUrl = "{{ route('products.exportProducts') }}";
             $(".exportBtn").click(function() {
                 window.location.href = exportUrl;
+            });
+            let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
+            $(".exportBtn2").click(function() {
+                window.location.href = exportUrl2;
             });
 
             $(".bulkImportBtn").click(function() {

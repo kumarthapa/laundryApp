@@ -2,51 +2,17 @@
 
 namespace App\Helpers;
 
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Crypt;
-use CustomHelper;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LocaleHelper
 {
-
-    public static function get_documents_field_types($menu_name = '', $menu_type = 'employees')
-    {
-        $documents_field_types = [];
-        $documents_field_types = [
-            'text' => 'TextField',
-            'textarea' => 'TextArea',
-            'select_option' => 'Dropdown Options',
-            'checkbox' => 'Checkbox',
-            'date' => 'Date'
-        ];
-
-        return $documents_field_types;
-    }
-
-    public static function getModuleNames()
-    {
-        return [
-            'suppliers' => 'Supplierr',
-            'employees' => 'Employees',
-            'customers' => 'Customers',
-            'vehicles' => 'Vehicles'
-        ];
-    }
-
-
     public static function getDataSheetImportFormat($file)
     {
-        if (!$file instanceof \Illuminate\Http\UploadedFile) {
+        if (! $file instanceof \Illuminate\Http\UploadedFile) {
             return [
                 'success' => false,
                 'message' => 'Invalid file provided.',
@@ -60,7 +26,9 @@ class LocaleHelper
                 $headers = $data[0][0]; // Extract headers
                 // Loop through each row, skipping the header
                 foreach ($data[0] as $key => $row) {
-                    if ($key == 0) continue; // Skip the headers row
+                    if ($key == 0) {
+                        continue;
+                    } // Skip the headers row
                     $formattedRow = [];
                     foreach ($headers as $index => $header) {
                         $formattedRow[$header] = $row[$index];
@@ -68,16 +36,16 @@ class LocaleHelper
                     $formattedData[] = $formattedRow;
                 }
             }
+
             return $formattedData;
         } catch (\Exception $e) {
             // Handle errors, log them if necessary
             return [
                 'success' => false,
-                'message' => 'Error processing file: ' . $e->getMessage(),
+                'message' => 'Error processing file: '.$e->getMessage(),
             ];
         }
     }
-
 
     public static function dataSheetDateFormat($date = '')
     {
@@ -112,15 +80,16 @@ class LocaleHelper
             [
                 'success' => true,
                 'message' => 'Invalid date format',
-                'date' => date_format($dateFormat, 'Y-m-d H:i:s')
+                'date' => date_format($dateFormat, 'Y-m-d H:i:s'),
             ];
     }
-    //Date range input date format --------------------------
+
+    // Date range input date format --------------------------
     public static function dateRangeDateInputFormat($daterange = '')
     {
         $date = [];
         if ($daterange) {
-            list($startDate, $endDate) = explode(' - ', $daterange);
+            [$startDate, $endDate] = explode(' - ', $daterange);
             // Convert the dates to Y-m-d format
             $startDate = Carbon::createFromFormat('d/m/Y', $startDate)->startOfDay()->format('Y-m-d H:i:s');
             $endDate = Carbon::createFromFormat('d/m/Y', $endDate)->endOfDay()->format('Y-m-d H:i:s');
@@ -128,10 +97,13 @@ class LocaleHelper
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ];
+
             return $date;
         }
+
         return $date;
     }
+
     // get currency in words
     public static function amountInWords($number)
     {
@@ -139,8 +111,8 @@ class LocaleHelper
         $hundred = null;
         $digits_length = strlen($no);
         $i = 0;
-        $str = array();
-        $words = array(
+        $str = [];
+        $words = [
             0 => '',
             1 => 'one',
             2 => 'two',
@@ -168,9 +140,9 @@ class LocaleHelper
             60 => 'sixty',
             70 => 'seventy',
             80 => 'eighty',
-            90 => 'ninety'
-        );
-        $digits = array('', 'hundred', 'thousand', 'lakh', 'crore');
+            90 => 'ninety',
+        ];
+        $digits = ['', 'hundred', 'thousand', 'lakh', 'crore'];
 
         // Process the integer part (Rupees)
         while ($i < $digits_length) {
@@ -181,8 +153,8 @@ class LocaleHelper
             if ($number) {
                 $plural = (($counter = count($str)) && $number > 9) ? 's' : null;
                 $hundred = ($counter == 1 && $str[0]) ? ' and ' : null;
-                $str[] = ($number < 21) ? $words[$number] . ' ' . $digits[$counter] . $plural . ' ' . $hundred :
-                    $words[floor($number / 10) * 10] . ' ' . $words[$number % 10] . ' ' . $digits[$counter] . $plural . ' ' . $hundred;
+                $str[] = ($number < 21) ? $words[$number].' '.$digits[$counter].$plural.' '.$hundred :
+                    $words[floor($number / 10) * 10].' '.$words[$number % 10].' '.$digits[$counter].$plural.' '.$hundred;
             } else {
                 $str[] = null;
             }
@@ -193,29 +165,29 @@ class LocaleHelper
 
         // Process the Paise part (decimal)
         if ($decimal) {
-            $paise = ($decimal < 10) ? "Zero " . $words[$decimal] :
-                $words[floor($decimal / 10) * 10] . " " . $words[$decimal % 10];
+            $paise = ($decimal < 10) ? 'Zero '.$words[$decimal] :
+                $words[floor($decimal / 10) * 10].' '.$words[$decimal % 10];
             $paise .= ' Paise';
         } else {
             $paise = '';
         }
 
         // Final formatting
-        $currencyText = "Rupees";
-        return $currencyText . ' ' . ($Rupees ? $Rupees . ' ' : '') . $paise . ' Only';
-    }
+        $currencyText = 'Rupees';
 
+        return $currencyText.' '.($Rupees ? $Rupees.' ' : '').$paise.' Only';
+    }
 
     /**
      * Format a given date with time.
      *
-     * @param string $date       The date string to format.
-     * @param string $format     The desired date-time format (default: 'd-m-Y H:i:s').
-     * @return string|null       Formatted date or null if input is invalid.
+     * @param  string  $date  The date string to format.
+     * @param  string  $format  The desired date-time format (default: 'd-m-Y H:i:s').
+     * @return string|null Formatted date or null if input is invalid.
      */
     public static function formatDateWithTime($date, $format = 'd/m/Y H:i:s')
     {
-        if (!$date) {
+        if (! $date) {
             return null;
         }
 
@@ -229,13 +201,13 @@ class LocaleHelper
     /**
      * Format a given date without time.
      *
-     * @param string $date       The date string to format.
-     * @param string $format     The desired date-only format (default: 'd-m-Y').
-     * @return string|null       Formatted date or null if input is invalid.
+     * @param  string  $date  The date string to format.
+     * @param  string  $format  The desired date-only format (default: 'd-m-Y').
+     * @return string|null Formatted date or null if input is invalid.
      */
     public static function formatDateWithoutTime($date, $format = 'd-m-Y')
     {
-        if (!$date) {
+        if (! $date) {
             return null;
         }
 
@@ -246,7 +218,6 @@ class LocaleHelper
         }
     }
 
-
     protected static function getIndiaData()
     {
         static $cache = null;
@@ -256,10 +227,11 @@ class LocaleHelper
         }
 
         $path = public_path('json/states-cities.json');
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return [];
         }
         $cache = json_decode(file_get_contents($path), true);
+
         return $cache ?? [];
     }
 
@@ -271,49 +243,8 @@ class LocaleHelper
     public static function getCitiesByStateIndia($stateName)
     {
         $state = collect(self::getIndiaData())->firstWhere('state_code', $stateName);
-        return $state['cities'] ?? [];
-    }
 
-    public static function getMasterMISreportHeader()
-    {
-        $table_headers = [
-            'Trip Date',
-            'Client',
-            'Vertical',
-            'Service Type',
-            'City',
-            'Year',
-            'Month (P)',
-            'Trip Type (Scheduled/Peak Trip/Adhoc)',
-            'Rate Card Type',
-            'Type of Operation',
-            'Vehicle Number',
-            'Vehicle Size',
-            'Hours',
-            'Working Days (Q)',
-            'Estimated KMs',
-            'Actual Distance (KM) [R]',
-            'Overtime (Hours) (S)',
-            'Toll (INR) (T)',
-            'Parking (INR) (U)',
-            'Fixed Cost (RC) (X)',
-            'Fixed KM (RC)',
-            'Variable Cost/KM (RC) (Y)',
-            'Overtime Charge/Hour (RC) (Z)',
-            'Fixed Cost as per Working (INR)',
-            'Total Variable Cost (INR)',
-            'Total Extra KM Cost (INR) (C)',
-            'Total Overtime Cost (INR) (D)',
-            'Toll & Parking Cost (INR) (E)',
-            'Total Amount (A+B+C+D+E)',
-            'SC OPS Approval',
-            'Finance Comments',
-            'Tour Id',
-            'Trip Id',
-            'Trip Status',
-            'Vendor Advance'
-        ];
-        return $table_headers;
+        return $state['cities'] ?? [];
     }
 
     public static function getProductSummaryCounts()
@@ -327,6 +258,10 @@ class LocaleHelper
 
         $totalRfidTags = DB::table('products')
             ->whereNotNull('rfid_tag')
+            ->count();
+
+        $total_qa_code = DB::table('products')
+            ->whereNotNull('qa_code')
             ->count();
 
         // Subquery: latest QC + stage per product
@@ -344,7 +279,7 @@ class LocaleHelper
             ->mergeBindings($latestHistory);
 
         // QC status counts
-        $totalPass = (clone $latest)->where('t.status', 'PASS')->count();
+        $totalPassed = (clone $latest)->where('t.status', 'PASS')->count();
         $totalFailed = (clone $latest)->where('t.status', 'FAIL')->count();
         $totalRework = (clone $latest)->where('t.status', 'REWORK')->count();
         $totalPending = (clone $latest)->where('t.status', 'PENDING')->count();
@@ -358,13 +293,47 @@ class LocaleHelper
         }
 
         return [
-            'total_products'   => $totalProducts,
-            'total_rfid_tags'  => $totalRfidTags,
-            'total_pass'       => $totalPass,
-            'total_failed'     => $totalFailed,
-            'total_rework'     => $totalRework,
-            'total_pending'    => $totalPending,
-            'stage_counts'     => $stageCounts, // optional: stage breakdown
+            'total_products' => $totalProducts,
+            'total_rfid_tags' => $totalRfidTags,
+            'total_qa_code' => $total_qa_code,
+            'total_passed' => $totalPassed,
+            'total_failed' => $totalFailed,
+            'total_rework' => $totalRework,
+            'total_pending' => $totalPending,
+            'stage_counts' => $stageCounts, // optional: stage breakdown
         ];
+    }
+
+    public static function getBondingProductSummaryCounts()
+    {
+
+        $total_qa_code = DB::table('bonding_plan_products')->count();
+        $total_writted = DB::table('bonding_plan_products')->where('is_write', 1)->count();
+        $total_pending = DB::table('bonding_plan_products')->where('is_write', 0)->count();
+
+        return [
+
+            'total_model' => $total_qa_code,
+            'total_qa_code' => $total_qa_code,
+            'total_writted' => $total_writted,
+            'total_pending' => $total_pending,
+        ];
+    }
+
+    public static function getStageName($value = '')
+    {
+        $stageName = '';
+        $configData = UtilityHelper::getProductStagesAndDefectPoints();
+        $stages = $configData['stages'] ?? [];
+        if ($stages) {
+            foreach ($stages as $stage) {
+                if (! empty($stage['value']) && $stage['value'] === $value) {
+                    $stageName = $stage['name']; // return display name
+                    break;
+                }
+            }
+        }
+
+        return $stageName;
     }
 }
