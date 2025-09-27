@@ -189,6 +189,8 @@ class ProductsApiController extends Controller
             $products = $query->orderBy('created_at', 'desc')
                 ->paginate($limit, ['*'], 'page', $page);
 
+            Log::info('Total count before paginate: '.$query->count());
+
             // --- after $products = $query->orderBy(...)->paginate($limit, ['*'], 'page', $page);
 
             // Format each product into simple array

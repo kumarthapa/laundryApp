@@ -9,6 +9,7 @@ use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\BondingPlanProduct;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -467,14 +468,17 @@ class BondingPlanProductController extends Controller
     }
 
     // ============================ Bonding section ==========================
+
     public function bondingPlanImportFormat(Request $request)
     {
         try {
             $header = [
-                'SKU',
+                'SKU',               // optional
                 'Product Name',
                 'Size',
+                'QTY',               // main driver: number of rows to generate
                 'Reference Code',
+                'QC Confirmed At',   // expected format: 09/13/2025 20:57:39 (MM/DD/YYYY HH:mm:ss)
             ];
 
             $data = [$header, []];
@@ -532,84 +536,143 @@ class BondingPlanProductController extends Controller
             }
 
             $actualHeaders = $formattedData['header'];
-            $missingHeaders = array_diff(['Product Name', 'SKU', 'Size'], $actualHeaders);
+
+            // NOTE: SKU is NOT required. Require Product Name, Size and QTY.
+            $missingHeaders = array_diff(['Product Name', 'Size', 'QTY'], $actualHeaders);
             if (count($missingHeaders) > 0) {
                 return response()->json(['success' => false, 'message' => 'Missing headers: '.implode(', ', $missingHeaders)]);
             }
 
-            // Existing DB values
+            // Existing DB values only used for update_existing
             $existingSkus = BondingPlanProduct::pluck('sku')->toArray();
-            $fileSkus = [];
+
             $importData = [];
 
             foreach ($formattedData['body'] as $rowIndex => $row) {
                 if (empty($row) || (count(array_filter($row)) === 0)) {
                     continue; // skip empty rows
                 }
-                if (empty(trim($row['Product Name'] ?? '')) || empty(trim($row['Size'] ?? ''))) {
-                    return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).': Missing required fields. Product Name and Size are mandatory.']);
-                }
+
+                $rowNumber = $rowIndex + 1;
 
                 $productName = trim($row['Product Name'] ?? '');
-                $sku = trim($row['SKU'] ?? '') ?: null; // now nullable
+                $sku = trim($row['SKU'] ?? '') ?: null; // optional
                 $size = trim($row['Size'] ?? '');
-                $referenceCode = $row['Reference Code'] ?? null;
-                // $Model         = $row['Model'] ?? ($sku ?? 'N/A');
+                $referenceCode = isset($row['Reference Code']) ? trim($row['Reference Code']) : null;
+                $qc_confirmed_at_raw = isset($row['QC Confirmed At']) ? trim($row['QC Confirmed At']) : null;
+                $qtyRaw = $row['QTY'] ?? null;
 
-                if ($actionType === 'upload_new') {
-                    if ($sku && in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).": SKU '{$sku}' already exists."]);
+                if ($productName === '' || $size === '') {
+                    return response()->json(['success' => false, 'message' => "Row {$rowNumber}: Missing required fields. Product Name and Size are mandatory."]);
+                }
+
+                // QTY validation & normalization (default 1)
+                $qty = (int) $qtyRaw;
+                if ($qty < 1) {
+                    $qty = 1;
+                }
+
+                // For update_existing we still require SKU to exist if provided
+                if ($actionType === 'update_existing') {
+                    if (! $sku) {
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: SKU is required for update_existing."]);
                     }
-                    if ($sku && in_array($sku, $fileSkus)) {
-                        return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).": Duplicate SKU '{$sku}' in file."]);
-                    }
-                    if ($sku) {
-                        $fileSkus[] = $sku;
-                    }
-                } elseif ($actionType === 'update_existing') {
-                    if ($sku && ! BondingPlanProduct::where('sku', $sku)->exists()) {
-                        return response()->json(['success' => false, 'message' => 'Row '.($rowIndex + 1).": SKU '{$sku}' does not exist for update."]);
+                    if (! in_array($sku, $existingSkus)) {
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: SKU '{$sku}' does not exist for update."]);
                     }
                 }
 
-                // Example QA code generator
+                // QC Confirmed At validation:
+                // Expected format: MM/DD/YYYY HH:mm:ss (example: 09/13/2025 20:57:39)
+                $qc_confirmed_at = null;
+                if ($qc_confirmed_at_raw !== null && $qc_confirmed_at_raw !== '') {
+                    $parsed = null;
+                    // try the expected format first
+                    try {
+                        $parsed = Carbon::createFromFormat('m/d/Y H:i:s', $qc_confirmed_at_raw);
+                    } catch (\Exception $e) {
+                        // fallback: try common formats (ISO, Y-m-d H:i:s, etc.)
+                        try {
+                            $parsed = Carbon::parse($qc_confirmed_at_raw);
+                        } catch (\Exception $e2) {
+                            $parsed = null;
+                        }
+                    }
+
+                    if (! $parsed) {
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'MM/DD/YYYY HH:mm:ss' (e.g. 09/13/2025 20:57:39)."]);
+                    }
+
+                    // use DB datetime format
+                    $qc_confirmed_at = $parsed->format('Y-m-d H:i:s');
+                }
+
+                // Generate QA code once per input row (same QA for all qty duplicates)
                 $modelCode = $this->getModelFromProductName($productName);
                 $date = (int) date('d');
                 $month = (int) date('m');
                 $year = (int) date('y');
                 $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
 
-                $productData = [
-                    'product_name' => $productName,
-                    'sku' => $sku,
-                    'reference_code' => $referenceCode,
-                    'size' => $size,
-                    'model' => $modelCode,
-                    'qa_code' => $qa_code,
-                    'date' => $date,
-                    'month' => $month,
-                    'year' => $year,
-                    'serial_no' => $row['Serial No'] ?? null,
-                    'bonding_name' => $row['Bonding Name'] ?? null,
-                ];
-
+                // For upload_new: duplicates SKU allowed — DO NOT reject duplicates in file or DB
+                // For upload_new, generate $qty rows with same QA code
                 if ($actionType === 'upload_new') {
-                    $productData['created_at'] = now();
+                    for ($i = 0; $i < $qty; $i++) {
+                        $productData = [
+                            'product_name' => $productName,
+                            'sku' => $sku,
+                            'reference_code' => $referenceCode,
+                            'qc_confirmed_at' => $qc_confirmed_at,
+                            'size' => $size,
+                            'model' => $modelCode,
+                            'qa_code' => $qa_code,
+                            'date' => $date,
+                            'month' => $month,
+                            'year' => $year,
+                            'serial_no' => $row['Serial No'] ?? null,
+                            'bonding_name' => $row['Bonding Name'] ?? null,
+                            'quantity' => 1, // each inserted row will represent one unit
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                        $importData[] = $productData;
+                    }
+                } else { // update_existing
+                    // For update_existing, do a single update per file row (keep existing behavior)
+                    $productData = [
+                        'product_name' => $productName,
+                        'sku' => $sku,
+                        'reference_code' => $referenceCode,
+                        'qc_confirmed_at' => $qc_confirmed_at,
+                        'size' => $size,
+                        'model' => $modelCode,
+                        'qa_code' => $qa_code,
+                        'date' => $date,
+                        'month' => $month,
+                        'year' => $year,
+                        'serial_no' => $row['Serial No'] ?? null,
+                        'bonding_name' => $row['Bonding Name'] ?? null,
+                        // do not overwrite timestamps here; update() will set updated_at automatically if model uses timestamps
+                    ];
+                    // We'll store the update instruction as an array with sku -> data
+                    $importData[] = ['__update_sku' => $sku, 'data' => $productData];
                 }
-
-                $importData[] = $productData;
-            }
-
-            // print_r($importData);
-            // exit;
+            } // end foreach rows
 
             // Save to DB
             if (! empty($importData)) {
                 if ($actionType === 'upload_new') {
+                    // batch insert
+                    // make sure the array keys and columns match the table
                     BondingPlanProduct::insert($importData);
                 } else {
-                    foreach ($importData as $p) {
-                        BondingPlanProduct::where('sku', $p['sku'])->update($p);
+                    // apply updates
+                    foreach ($importData as $item) {
+                        if (isset($item['__update_sku'])) {
+                            $skuToUpdate = $item['__update_sku'];
+                            $p = $item['data'];
+                            BondingPlanProduct::where('sku', $skuToUpdate)->update($p);
+                        }
                     }
                 }
             }
