@@ -91,7 +91,6 @@ class BondingPlanProduct extends Model
                     ->orWhere('p.product_name', 'like', "%{$search}%")
                     ->orWhere('p.sku', 'like', "%{$search}%")
                     ->orWhere('p.size', 'like', "%{$search}%")
-                    ->orWhere('p.rfid_tag', 'like', "%{$search}%")
                     ->orWhere('h.status', 'like', "%{$search}%")
                     ->orWhere('h.stages', 'like', "%{$search}%")
                     ->orWhere('h.defects_points', 'like', "%{$search}%");
