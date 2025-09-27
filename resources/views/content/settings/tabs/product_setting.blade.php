@@ -32,13 +32,14 @@
                             @foreach ($product_process_stages as $key => $values)
                                 <tr>
                                     <td class="text-nowrap">
-                                        <input type="text" class="form-control" value="{{ $values["name"] }}"
-                                            name="product_process_stages[{{ $key }}][name]">
-                                        <input type="hidden" class="product_stage" value="{{ $values["value"] }}"
+                                        <input type="text" class="form-control" value="{{ $values['name'] }}"
+                                            name="product_process_stages[{{ $key }}][name]" readonly>
+                                        <input type="hidden" class="product_stage" value="{{ $values['value'] }}"
                                             name="product_process_stages[{{ $key }}][value]">
                                     </td>
                                     <td class="text-nowrap">
-                                        <button class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2">
+                                        <button class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2"
+                                            disabled>
                                             <i class="bx bx-trash"></i>
                                         </button>
                                     </td>
@@ -86,13 +87,14 @@
                             @foreach ($product_status as $key => $values)
                                 <tr>
                                     <td class="text-nowrap">
-                                        <input type="text" class="form-control" value="{{ $values["name"] }}"
-                                            name="product_status[{{ $key }}][name]">
-                                        <input type="hidden" class="product_status" value="{{ $values["value"] }}"
+                                        <input type="text" class="form-control" value="{{ $values['name'] }}"
+                                            name="product_status[{{ $key }}][name]" readonly>
+                                        <input type="hidden" class="product_status" value="{{ $values['value'] }}"
                                             name="product_status[{{ $key }}][value]">
                                     </td>
                                     <td class="text-nowrap">
-                                        <button class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2">
+                                        <button class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2"
+                                            disabled>
                                             <i class="bx bx-trash"></i>
                                         </button>
                                     </td>
@@ -123,8 +125,8 @@
                 <input type="hidden" name="setting_key_name" value="Product Defect Points">
                 @foreach ($product_process_stages as $stageKey => $stage)
                     @php
-                        $stage_name = $stage["name"];
-                        $stage_key = $stage["value"];
+                        $stage_name = $stage['name'];
+                        $stage_key = $stage['value'];
                     @endphp
 
                     <div class="stage-block py-2" data-stage="{{ $stage_key }}">
@@ -132,8 +134,8 @@
 
                         <div class="d-flex justify-content-between my-0 py-0">
                             <input type="text" class="form-control product_defect_points_labelname me-3"
-                                placeholder="Enter Defect Point">
-                            <button class="btn btn-primary btn-sm add_new_defect_label" type="button">
+                                placeholder="Enter Defect Point" readonly>
+                            <button class="btn btn-primary btn-sm add_new_defect_label" type="button" disabled>
                                 <i class="bx bx-plus me-1"></i>Add
                             </button>
                         </div>
@@ -153,16 +155,18 @@
                                             <tr>
                                                 <td class="text-nowrap">
                                                     <input type="text" class="form-control"
-                                                        value="{{ $pointValue["name"] }}"
-                                                        name="product_defect_points[{{ $stage_key }}][{{ $pointIndex }}][name]">
+                                                        value="{{ $pointValue['name'] }}"
+                                                        name="product_defect_points[{{ $stage_key }}][{{ $pointIndex }}][name]"
+                                                        readonly>
 
                                                     <input type="hidden" class="form-control"
-                                                        value="{{ $pointValue["value"] }}"
+                                                        value="{{ $pointValue['value'] }}"
                                                         name="product_defect_points[{{ $stage_key }}][{{ $pointIndex }}][value]">
                                                 </td>
                                                 <td class="text-nowrap">
                                                     <button type="button"
-                                                        class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2">
+                                                        class="btn btn-sm btn-danger btn-icon delete_row mx-2 mb-1 px-2"
+                                                        disabled>
                                                         <i class="bx bx-trash"></i>
                                                     </button>
                                                 </td>

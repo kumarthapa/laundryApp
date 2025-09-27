@@ -30,49 +30,6 @@ class BondingPlanProductController extends Controller
     public function __construct()
     {
         $this->bondingPlanProduct = new BondingPlanProduct;
-
-        // Load config maps once for reuse (value => label)
-        $configData = UtilityHelper::getProductStagesAndDefectPoints() ?? [];
-
-        // stages: array of {name, value}
-        $stages = $configData['stages'] ?? [];
-        $this->stageMap = collect($stages)->mapWithKeys(function ($s) {
-            $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
-
-            return [$s['value'] => $label];
-        })->toArray();
-
-        // status: array of {name, value} OR keyed map
-        $status = $configData['status'] ?? [];
-        if (is_array($status) && array_values($status) !== $status) {
-            // already associative map value=>label
-            $this->statusMap = $status;
-        } else {
-            $this->statusMap = collect($status)->mapWithKeys(function ($s) {
-                $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
-
-                return [$s['value'] => $label];
-            })->toArray();
-        }
-
-        // defect_points: object keyed by stage => array[{name,value}]
-        $defects = $configData['defect_points'] ?? [];
-        $flatDefects = [];
-        if (is_array($defects)) {
-            foreach ($defects as $stageKey => $points) {
-                if (! is_array($points)) {
-                    continue;
-                }
-                foreach ($points as $p) {
-                    $val = $p['value'] ?? null;
-                    $name = $p['name'] ?? ($p['label'] ?? $val);
-                    if ($val) {
-                        $flatDefects[$val] = $name;
-                    }
-                }
-            }
-        }
-        $this->defectPointMap = $flatDefects;
     }
 
     public function index(Request $request)
@@ -112,9 +69,6 @@ class BondingPlanProductController extends Controller
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
             ->with('productsOverview', $productsOverview)
-            ->with('stages', $configData['stages'] ?? [])
-            ->with('defect_points', $configData['defect_points'] ?? [])
-            ->with('status', $configData['status'] ?? [])
             ->with('createPermissions', $createPermissions);
     }
 
@@ -196,32 +150,14 @@ class BondingPlanProductController extends Controller
         $search = $request->get('search') ?? '';
         $limit = intval($request->get('length', 100));
         $offset = intval($request->get('start', 0));
-        $sort = $request->get('sort') ?? 'p.created_at';
+        $sort = $request->get('sort') ?? 'created_at';
         $order = $request->get('order') ?? 'desc';
 
         // Normalize incoming filter keys: support both old and new param names
         $filters = [
-            // qc status may come as qc_status or status
-            'status' => $request->get('qc_status') ?? $request->get('status') ?? '',
-            // stage may come as current_stage or stages
-            'stages' => $request->get('current_stage') ?? $request->get('stages') ?? '',
-            // defect points param name might be defect_points (frontend) or defects_points (legacy/backward)
-            'defects_points' => $request->get('defect_points') ?? $request->get('defects_points') ?? '',
+            // qc status may come as qa_status or status
+            'status' => $request->get('status') ?? 'all',
         ];
-
-        // normalize "ALL" to empty (no filter)
-        foreach (['status', 'stages', 'defects_points'] as $k) {
-            if (is_string($filters[$k]) && strtolower($filters[$k]) === 'all') {
-                $filters[$k] = '';
-            }
-        }
-
-        // If defect points sent as comma-separated string (from multi-select), convert to array
-        if (! empty($filters['defects_points']) && is_string($filters['defects_points']) && strpos($filters['defects_points'], ',') !== false) {
-            // trim values
-            $arr = array_filter(array_map('trim', explode(',', $filters['defects_points'])));
-            $filters['defects_points'] = array_values($arr);
-        }
 
         // Date range
         $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');

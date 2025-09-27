@@ -129,52 +129,14 @@
                 is_export: "Export",
                 manuall_create: false,
             };
-
-            // Get Blade JSON
-            var statusData = @json($status ?? []);
-            var stageData = @json($stages ?? []);
-            var defectPointsData = @json($defect_points ?? []);
-
-            // Convert array of {name,value} to key:value object
-            function arrayToKeyValue(arr) {
-                var obj = {
-                    'ALL': 'ALL'
-                };
-                if (Array.isArray(arr)) {
-                    arr.forEach(function(item) {
-                        obj[item.value] = item.name;
-                    });
-                }
-                return obj;
-            }
-
-            // Convert defect points (object of arrays) to flattened key:value object
-            function defectPointsToKeyValue(obj) {
-                var result = {
-                    'ALL': 'ALL'
-                };
-                if (obj && typeof obj === 'object') {
-                    Object.values(obj).forEach(function(arr) {
-                        arr.forEach(function(item) {
-                            if (item.value && item.name) result[item.value] = item.name;
-                        });
-                    });
-                }
-                return result;
-            }
-
             var filterData = {
-                'qc_status': {
-                    'data': arrayToKeyValue(statusData),
+                'status': {
+                    'data': {
+                        '1': 'WRITTEN',
+                        '0': 'PENDING',
+                        'all': 'ALL',
+                    },
                     'filter_name': 'Filter By Status',
-                },
-                'current_stage': {
-                    'data': arrayToKeyValue(stageData),
-                    'filter_name': 'Filter By Stage',
-                },
-                'defect_points': {
-                    'data': defectPointsToKeyValue(defectPointsData),
-                    'filter_name': 'Filter By Defect Point',
                 },
             };
 
