@@ -308,7 +308,7 @@ class BondingPlanProductController extends Controller
                 'bg_color' => 'bg-danger',
             ]);
         }
-        exit;
+
         Log::info('Found BondingPlanProduct: ', ['id' => $Model->id, 'products_count' => $Model->products->count()]);
 
         try {

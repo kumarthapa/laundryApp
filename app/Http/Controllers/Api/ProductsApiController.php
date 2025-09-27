@@ -74,7 +74,7 @@ class ProductsApiController extends Controller
                 $query->whereBetween('created_at', [$startDate, $endDate]);
             }
             // Only Non Writed Model will  Write
-            // $query->where('is_write', 0);
+            $query->where('is_write', 0);
 
             // Pagination
             $pln_products = $query->orderBy('created_at', 'desc')
@@ -301,11 +301,11 @@ class ProductsApiController extends Controller
         Log::info('updateQaCode: '.json_encode($request->all()));
 
         try {
-            // Validate input
+            // Basic validation first
             $validator = Validator::make($request->all(), [
                 'product_id' => 'required|integer|exists:bonding_plan_products,id',
-                'qa_code' => 'required|string|max:255|unique:bonding_plan_products,qa_code',
-                'rfid_tag' => 'required|string|max:255|unique:products,rfid_tag',
+                'qa_code' => 'required|string|max:255',
+                'rfid_tag' => 'required|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -316,23 +316,31 @@ class ProductsApiController extends Controller
                 ], 422);
             }
 
-            // Get input values
             $productId = $request->input('product_id');
             $qaCode = $request->input('qa_code');
+            $rfidTag = $request->input('rfid_tag');
 
-            // Check if QA code already exists for another product
+            // --- Duplicate checks ---
             $existingQa = BondingPlanProduct::where('qa_code', $qaCode)
-                ->where('id', '<>', $productId) // exclude current product
+                ->where('id', '<>', $productId)
                 ->first();
 
             if ($existingQa) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'The QA code has already been taken.',
+                    'message' => "The QA Code '{$qaCode}' is already in use.",
                 ], 422);
             }
 
-            // Find the bonding product
+            $existingRfid = Products::where('rfid_tag', $rfidTag)->first();
+            if ($existingRfid) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "The RFID Tag '{$rfidTag}' is already in use.",
+                ], 422);
+            }
+
+            // --- Update bonding product ---
             $bondingProduct = BondingPlanProduct::findOrFail($productId);
             $bondingProduct->qa_code = $qaCode;
             $bondingProduct->quantity = 1;
@@ -341,29 +349,25 @@ class ProductsApiController extends Controller
             $bondingProduct->write_date = now();
             $bondingProduct->save();
 
-            // Insert into products table
-            $productsData = [
+            // --- Insert into products ---
+            $product = Products::create([
                 'bonding_plan_product_id' => $bondingProduct->id,
                 'product_name' => $bondingProduct->product_name,
-                'qa_code' => $bondingProduct->qa_code,
-                'rfid_tag' => $request->input('rfid_tag'),
+                'qa_code' => $qaCode,
+                'rfid_tag' => $rfidTag,
                 'sku' => $bondingProduct->sku ?? null,
                 'size' => $bondingProduct->size,
                 'quantity' => $bondingProduct->quantity ?? 0,
                 'reference_code' => $bondingProduct->reference_code ?? null,
-            ];
+            ]);
 
-            $product = Products::create($productsData);
-
-            // Insert into product_process_history table
-            $historyData = [
-                'product_id' => $product->id,  // <- use products.id, NOT bonding_plan_products.id
-                'stages' => 'bonding_qc',      // corrected column name
+            // --- Insert into history ---
+            ProductProcessHistory::create([
+                'product_id' => $product->id,   // products.id
+                'stages' => 'bonding_qc',
                 'status' => 'PENDING',
-                'defects_points' => null,      // corrected column name
-            ];
-
-            ProductProcessHistory::create($historyData);
+                'defects_points' => null,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -371,12 +375,12 @@ class ProductsApiController extends Controller
                 'data' => [
                     'id' => $bondingProduct->id,
                     'product_name' => $bondingProduct->product_name,
-                    'qa_code' => $bondingProduct->qa_code,
-                    'rfid_tag' => $request->input('rfid_tag'),
+                    'qa_code' => $qaCode,
+                    'rfid_tag' => $rfidTag,
                 ],
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             Log::error('Error updating QA code: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
