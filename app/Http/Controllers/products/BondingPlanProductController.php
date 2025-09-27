@@ -473,7 +473,7 @@ class BondingPlanProductController extends Controller
 
             $actualHeaders = $formattedData['header'];
 
-            // NOTE: SKU is NOT required. Require Product Name, Size and QTY.
+            // SKU is NOT required. Require Product Name, Size and QTY.
             $missingHeaders = array_diff(['Product Name', 'Size', 'QTY'], $actualHeaders);
             if (count($missingHeaders) > 0) {
                 return response()->json(['success' => false, 'message' => 'Missing headers: '.implode(', ', $missingHeaders)]);
@@ -481,7 +481,6 @@ class BondingPlanProductController extends Controller
 
             // Existing DB values only used for update_existing
             $existingSkus = BondingPlanProduct::pluck('sku')->toArray();
-
             $importData = [];
 
             foreach ($formattedData['body'] as $rowIndex => $row) {
@@ -508,7 +507,7 @@ class BondingPlanProductController extends Controller
                     $qty = 1;
                 }
 
-                // For update_existing we still require SKU to exist if provided
+                // For update_existing we require SKU if provided
                 if ($actionType === 'update_existing') {
                     if (! $sku) {
                         return response()->json(['success' => false, 'message' => "Row {$rowNumber}: SKU is required for update_existing."]);
@@ -518,43 +517,41 @@ class BondingPlanProductController extends Controller
                     }
                 }
 
-                // QC Confirmed At validation:
-                // Expected format: MM/DD/YYYY HH:mm:ss (example: 09/13/2025 20:57:39)
+                // QC Confirmed At validation
                 $qc_confirmed_at = null;
-                if ($qc_confirmed_at_raw !== null && $qc_confirmed_at_raw !== '') {
+                if (! empty($qc_confirmed_at_raw)) {
                     $parsed = null;
-                    // try the expected format first
+
                     try {
-                        $parsed = Carbon::createFromFormat('m/d/Y H:i:s', $qc_confirmed_at_raw);
+                        // Try full datetime format first: DD/MM/YYYY HH:mm:ss
+                        $parsed = Carbon::createFromFormat('d/m/Y H:i:s', $qc_confirmed_at_raw);
                     } catch (\Exception $e) {
-                        // fallback: try common formats (ISO, Y-m-d H:i:s, etc.)
                         try {
-                            $parsed = Carbon::parse($qc_confirmed_at_raw);
+                            // Only date format: DD/MM/YYYY
+                            $parsed = Carbon::createFromFormat('d/m/Y', $qc_confirmed_at_raw);
+                            $parsed->setTime(0, 0, 0);
                         } catch (\Exception $e2) {
-                            $parsed = null;
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'DD/MM/YYYY' or 'DD/MM/YYYY HH:mm:ss'.",
+                            ]);
                         }
                     }
 
-                    if (! $parsed) {
-                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'MM/DD/YYYY HH:mm:ss' (e.g. 09/13/2025 20:57:39)."]);
-                    }
-
-                    // use DB datetime format
                     $qc_confirmed_at = $parsed->format('Y-m-d H:i:s');
                 }
 
-                // Generate QA code once per input row (same QA for all qty duplicates)
+                // Generate QA code once per input row
                 $modelCode = $this->getModelFromProductName($productName);
                 $date = (int) date('d');
                 $month = (int) date('m');
-                $year = (int) date('y');
+                $year = (int) date('Y'); // 4-digit year
                 $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
 
-                // For upload_new: duplicates SKU allowed — DO NOT reject duplicates in file or DB
-                // For upload_new, generate $qty rows with same QA code
                 if ($actionType === 'upload_new') {
+                    // Generate multiple rows for the given QTY
                     for ($i = 0; $i < $qty; $i++) {
-                        $productData = [
+                        $importData[] = [
                             'product_name' => $productName,
                             'sku' => $sku,
                             'reference_code' => $referenceCode,
@@ -567,47 +564,41 @@ class BondingPlanProductController extends Controller
                             'year' => $year,
                             'serial_no' => $row['Serial No'] ?? null,
                             'bonding_name' => $row['Bonding Name'] ?? null,
-                            'quantity' => 1, // each inserted row will represent one unit
+                            'quantity' => 1,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
-                        $importData[] = $productData;
                     }
-                } else { // update_existing
-                    // For update_existing, do a single update per file row (keep existing behavior)
-                    $productData = [
-                        'product_name' => $productName,
-                        'sku' => $sku,
-                        'reference_code' => $referenceCode,
-                        'qc_confirmed_at' => $qc_confirmed_at,
-                        'size' => $size,
-                        'model' => $modelCode,
-                        'qa_code' => $qa_code,
-                        'date' => $date,
-                        'month' => $month,
-                        'year' => $year,
-                        'serial_no' => $row['Serial No'] ?? null,
-                        'bonding_name' => $row['Bonding Name'] ?? null,
-                        // do not overwrite timestamps here; update() will set updated_at automatically if model uses timestamps
+                } else {
+                    // For update_existing: single update per row
+                    $importData[] = [
+                        '__update_sku' => $sku,
+                        'data' => [
+                            'product_name' => $productName,
+                            'sku' => $sku,
+                            'reference_code' => $referenceCode,
+                            'qc_confirmed_at' => $qc_confirmed_at,
+                            'size' => $size,
+                            'model' => $modelCode,
+                            'qa_code' => $qa_code,
+                            'date' => $date,
+                            'month' => $month,
+                            'year' => $year,
+                            'serial_no' => $row['Serial No'] ?? null,
+                            'bonding_name' => $row['Bonding Name'] ?? null,
+                        ],
                     ];
-                    // We'll store the update instruction as an array with sku -> data
-                    $importData[] = ['__update_sku' => $sku, 'data' => $productData];
                 }
-            } // end foreach rows
+            }
 
             // Save to DB
             if (! empty($importData)) {
                 if ($actionType === 'upload_new') {
-                    // batch insert
-                    // make sure the array keys and columns match the table
                     BondingPlanProduct::insert($importData);
                 } else {
-                    // apply updates
                     foreach ($importData as $item) {
                         if (isset($item['__update_sku'])) {
-                            $skuToUpdate = $item['__update_sku'];
-                            $p = $item['data'];
-                            BondingPlanProduct::where('sku', $skuToUpdate)->update($p);
+                            BondingPlanProduct::where('sku', $item['__update_sku'])->update($item['data']);
                         }
                     }
                 }
