@@ -1,10 +1,10 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", " Role - List")
-@section("page-style")
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
+@section('title', ' Role - List')
+@section('page-style')
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 
-@section("content")
+@section('content')
     <!-- Basic Layout & Basic with Icons -->
     <div class="row g-4">
         {{-- @if (isset($role_info)) --}}
@@ -37,7 +37,7 @@
                                         onclick="editRoleModal('{{ $role->role_id }}','{{ $role->role_name }}','{{ $role->user_type }}','{{ $role->status }}')"
                                         class="role-edit-modal"><i class="bx bxs-edit"></i>&nbsp;<small>Edit
                                             Role</small></a>
-                                    <a href="{{ route("roles.create", $role->role_id) }}" class="role-edit-modal mx-2"><i
+                                    <a href="{{ route('roles.create', $role->role_id) }}" class="role-edit-modal mx-2"><i
                                             class="bx bxs-edit"></i>&nbsp;<small>Edit
                                             Permissions</small></a>
                                 </div>
@@ -62,22 +62,23 @@
             </div>
         </div>
     </div>
-    @include("content.modals.editRole")
+    @include('content.modals.editRole')
 @endsection
 
-@section("page-script")
+@section('page-script')
     {{-- @include("content.roles-and-permissions.offcanvasRoleForm") --}}
-    @include("content.modals.roleView")
-    @include("content.partial.datatable")
+    @include('content.modals.roleView')
+    @include('content.partial.datatable')
     <script type="text/javascript">
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
             var options1 = {
-                url: '{{ route("roles.list") }}',
-                createUrl: '{{ route("roles.create") }}',
-                createPermissions: "{{ isset($createPermissions) ? $createPermissions : "" }}",
+                url: '{{ route('roles.list') }}',
+                createUrl: '{{ route('roles.create') }}',
+                createPermissions: "{{ isset($createPermissions) ? $createPermissions : '' }}",
                 fetchId: "FetchData",
                 title: "Role list",
+                is_delete: "",
                 createTitle: "Create New Role"
             };
             var filterData = {
@@ -93,7 +94,7 @@
             };
             getDataTableS(options1, filterData, tableHeaders);
             $(".addNewRecordBtn").click(function() {
-                window.location.href = "{{ route("roles.create") }}";
+                window.location.href = "{{ route('roles.create') }}";
             })
         }); // end jquery document dot write
 
@@ -139,7 +140,7 @@
         function EditPermissions2() {
             let roleid = $('#edit_role_id_2').val();
             if (!roleid) return false;
-            window.location.href = "{{ route("roles.create") }}" + '/' + roleid;
+            window.location.href = "{{ route('roles.create') }}" + '/' + roleid;
         }
 
         function viewRowDetails(url) {

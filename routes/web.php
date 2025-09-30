@@ -102,10 +102,10 @@ Route::post('/bonding/bulkBondingPlanUpload', $controller_path.'\products\Bondin
 
 // ================================= ALL TYPES OF REPORTS ROUTES ================================ //
 
-#Route::get('/reports', $controller_path . '\reports\ReportsController@index')->name('reports');
-#Route::post('/reports/list', $controller_path . '\reports\ReportsController@list')->name('reports.list');
-
-Route::get('/reports', $controller_path.'\reports\ReportsController@index')->name('reports');
-Route::post('/reports/list', $controller_path.'\reports\ReportsController@list')->name('reports.list');
-
+// Route::get('/reports', $controller_path . '\reports\ReportsController@index')->name('reports');
 // Route::post('/reports/list', $controller_path . '\reports\ReportsController@list')->name('reports.list');
+
+Route::get('/reports', $controller_path.'\reports\ReportsController@index')->name('reports')->middleware('permission:reports,view.reports');
+Route::post('/reports/list', $controller_path.'\reports\ReportsController@list')->name('reports.list')->middleware('permission:reports,view.reports');
+
+// Route::post('/reports/list', $controller_path . '\reports\ReportsController@list')->name('view.reports');

@@ -37,6 +37,7 @@ class BondingPlanProduct extends Model
 
     protected $dates = [
         'write_date',
+        'qc_confirmed_at',
         'created_at',
         'updated_at',
     ];

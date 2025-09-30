@@ -8,7 +8,6 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
-use App\Models\products\BondingPlanProduct;
 use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
 use Illuminate\Http\Request;
@@ -91,7 +90,7 @@ class ProductsController extends Controller
             ['quantity' => 'Quantity'],
             ['qc_status' => 'QC Status'],
             ['current_stage' => 'Current Stage'],
-            ['actions' => 'Actions'],
+            // ['actions' => 'Actions'],
         ];
 
         $productsOverview = LocaleHelper::getProductSummaryCounts();
@@ -110,7 +109,8 @@ class ProductsController extends Controller
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('products', 'create.products');
-        $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
+        $deletePermissions = $UtilityHelper::CheckModulePermissions('products', 'delete.products');
+        $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
 
         $configData = UtilityHelper::getProductStagesAndDefectPoints();
 
@@ -122,6 +122,7 @@ class ProductsController extends Controller
             ->with('stages', $configData['stages'] ?? [])
             ->with('defect_points', $configData['defect_points'] ?? [])
             ->with('status', $configData['status'] ?? [])
+            ->with('deletePermissions', $deletePermissions)
             ->with('createPermissions', $createPermissions);
     }
 
@@ -193,6 +194,8 @@ class ProductsController extends Controller
                 $defectsHtml = implode(' ', $pieces);
             }
         }
+        // Checkbox column (first cell) with data-id
+        $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
 
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] = $row->product_name;
@@ -203,13 +206,13 @@ class ProductsController extends Controller
         $data['qc_status'] = $statusHTML;
         $data['current_stage'] = $stageHTML.($defectsHtml ? '<div class="mt-1">'.$defectsHtml.'</div>' : '');
 
-        $data['actions'] = '<div class="d-inline-block">
-            <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
-            <div class="dropdown-divider"></div>
-            </ul>
-        </div>';
+        // $data['actions'] = '<div class="d-inline-block">
+        //     <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
+        //     <ul class="dropdown-menu dropdown-menu-end">
+        //         <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
+        //     <div class="dropdown-divider"></div>
+        //     </ul>
+        // </div>';
 
         // <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
         // <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
@@ -375,55 +378,97 @@ class ProductsController extends Controller
     }
 
     /* Delete */
-    public function delete(Request $request, $id = '')
+    public function delete(Request $request, $id = null)
     {
-        $delete_id = $id ?: $request->input('id');
-        $Model = Products::find($delete_id);
-        if (! $Model) {
+        // Collect ids from multiple possible sources: route param $id, request 'id', or request 'ids' (array)
+        $inputIds = $request->input('ids', null);
+        $singleId = $id ?: $request->input('id', null);
+
+        if (is_array($inputIds) && ! empty($inputIds)) {
+            $ids = array_values(array_filter($inputIds, fn ($v) => ! is_null($v) && $v !== ''));
+        } elseif ($singleId) {
+            $ids = [$singleId];
+        } else {
             return response()->json([
                 'success' => false,
-                'message' => 'Delete Fail! Product not found.',
-                'bg_color' => 'bg-danger',
-            ]);
+                'message' => 'No id(s) provided.',
+            ], 422);
         }
 
+        DB::beginTransaction();
         try {
-            // remove related histories and then product
-            $Model->processHistory()->delete();
+            $models = Products::with('processHistory')->whereIn('id', $ids)->get();
+            if ($models->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No matching records found.',
+                ], 404);
+            }
 
-            // $bondingProduct = BondingPlanProduct::find($Model->bonding_plan_product_id);
-            // $bondingProduct->qa_code = ;
-            // $bondingProduct->quantity = 1;
-            // $bondingProduct->is_write = 1;
-            // $bondingProduct->write_by = $user->id ?? 0;
-            // $bondingProduct->write_date = now();
-            // $bondingProduct->update();
+            $deletedCount = 0;
+            $skipped = [];
 
-            $Model->delete();
+            foreach ($models as $model) {
+                // example rule: skip if written/locked
+                if ($model->is_written ?? false) {
+                    $skipped[] = $model->id;
 
-            $user = Auth::user();
-            $this->UserActivityLog($request, [
-                'module' => 'products',
-                'activity_type' => 'delete',
-                'message' => 'Deleted product by : '.($user->fullname ?? 'Unknown'),
-                'application' => 'web',
-                'data' => [
-                    'sku' => $Model->sku,
-                    'rfid_tag' => $Model->rfid_tag,
-                ],
-            ]);
+                    continue;
+                }
+
+                // delete histories
+                if (method_exists($model, 'processHistory')) {
+                    $model->processHistory()->delete();
+                }
+
+                // delete related products if relation exists
+                if (method_exists($model, 'products')) {
+                    $model->products()->delete();
+                }
+
+                $model->delete();
+                $deletedCount++;
+            }
+
+            DB::commit();
+
+            // build message
+            $message = $deletedCount.' item(s) deleted successfully.';
+            if (! empty($skipped)) {
+                $message .= ' Written items cannot be deleted: '.count($skipped).' item(s) skipped ['.implode(',', $skipped).'].';
+            }
+
+            // log user activity
+            try {
+                $user = Auth::user();
+                $this->UserActivityLog($request, [
+                    'module' => 'products',
+                    'activity_type' => 'delete',
+                    'message' => 'Delete action by: '.($user->fullname ?? 'Unknown'),
+                    'application' => 'web',
+                    'data' => [
+                        'deleted_count' => $deletedCount,
+                        'skipped' => $skipped,
+                    ],
+                ]);
+            } catch (\Throwable $t) {
+                Log::warning('UserActivityLog failed: '.$t->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Record and related histories deleted successfully',
-                'bg_color' => 'bg-success',
+                'message' => $message,
+                'deleted' => $deletedCount,
+                'skipped' => $skipped,
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Delete exception: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Delete Fail! '.$e->getMessage(),
-                'bg_color' => 'bg-danger',
-            ]);
+                'message' => 'Delete failed: '.$e->getMessage(),
+            ], 500);
         }
     }
 

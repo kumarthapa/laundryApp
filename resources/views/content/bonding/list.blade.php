@@ -125,6 +125,7 @@
                 createTitle: "Manually Create",
                 displayLength: 100,
                 is_import: "Upload Models",
+                is_delete: "{{ $deletePermissions ?? '' }}",
                 importUrl: "{{ route('create.bonding') }}",
                 is_export: "Export",
                 manuall_create: false,

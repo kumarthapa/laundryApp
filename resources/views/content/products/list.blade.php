@@ -125,6 +125,7 @@
                 createTitle: "Manually Create",
                 displayLength: 100,
                 // is_import: "Upload Products",
+                is_delete: "{{ $deletePermissions ?? '' }}",
                 importUrl: "{{ route('create.products') }}",
                 is_export: "Export All",
                 is_export2: "Export Stage Wise",

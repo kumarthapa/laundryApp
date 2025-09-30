@@ -44,7 +44,8 @@ class BondingPlanProductController extends Controller
             // ['rfid_tag' => 'RFID Tag'],
             ['is_write' => 'Is Write'],
             // ['quantity' => 'Quantity'],
-            ['actions' => 'Actions'],
+            ['qc_confirmed_at' => 'qc_confirmed_at'],
+            // ['actions' => 'Actions'],
         ];
 
         $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
@@ -60,88 +61,121 @@ class BondingPlanProductController extends Controller
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('bonding', 'create.bonding');
-        $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
-
-        $configData = UtilityHelper::getProductStagesAndDefectPoints();
+        $deletePermissions = $UtilityHelper::CheckModulePermissions('bonding', 'delete.bonding');
+        // $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
+        // Readonly must be false so checkbox column is added
+        $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
 
         return view('content.bonding.list')
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
             ->with('productsOverview', $productsOverview)
-            ->with('createPermissions', $createPermissions);
+            ->with('createPermissions', $createPermissions)
+            ->with('deletePermissions', $deletePermissions);
     }
 
     /**
      * Build a single row for datatable from DB row/stdClass
      */
+    // protected function tableHeaderRowData($row)
+    // {
+    //     $data = [];
+    //     // $view = route('view.bonding', ['code' => $row->id]);
+
+    //     $edit = route('edit.bonding', ['id' => $row->id]);
+    //     $delete = route('delete.bonding', ['id' => $row->id]);
+
+    //     $statusHTML = '';
+    //     if ($row->is_write) {
+    //         $statusHTML = '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>';
+    //     } else {
+    //         $statusHTML = '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
+    //     }
+
+    //     // Stage name: prefer history.stages (value), map to friendly name if available
+    //     // $stageValue = $history->stages ?? 'BONDING';
+    //     // $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
+    //     // $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
+
+    //     // Defect points (history.defects_points stored JSON array) -> display small badges or count
+    //     // $defectsHtml = '';
+    //     // $defectsCount = 0;
+
+    //     // $defectsRaw = $history->defects_points ?? null;
+    //     // if (! empty($defectsRaw)) {
+    //     //     // try decode JSON safely
+    //     //     $decoded = null;
+    //     //     if (is_string($defectsRaw)) {
+    //     //         $decoded = @json_decode($defectsRaw, true);
+    //     //     } elseif (is_array($defectsRaw)) {
+    //     //         $decoded = $defectsRaw;
+    //     //     }
+    //     //     if (is_array($decoded) && count($decoded) > 0) {
+    //     //         $defectsCount = count($decoded);
+    //     //         $pieces = [];
+    //     //         foreach ($decoded as $d) {
+    //     //             $label = $this->defectPointMap[$d] ?? $d;
+    //     //             $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
+    //     //         }
+    //     //         $defectsHtml = implode(' ', $pieces);
+    //     //     }
+    //     // }
+
+    //     $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
+    //     $data['product_name'] = $row->product_name;
+    //     $data['model'] = $row->model ?? 'N/A';
+    //     $data['sku'] = $row->sku;
+    //     $data['size'] = $row->size;
+    //     $data['qa_code'] = $row->qa_code;
+    //     // $data['rfid_tag'] = $row->rfid_tag ?? 'N/A';
+    //     $data['is_write'] = $statusHTML;
+    //     // $data['quantity'] = $row->quantity;
+
+    //     $data['actions'] = '<div class="d-inline-block">
+    //             <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+    //             <i class="bx bx-dots-vertical-rounded"></i></a>
+    //             <ul class="dropdown-menu dropdown-menu-end">
+    //                 <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
+    //             <div class="dropdown-divider"></div>
+    //             </ul>
+    //         </div>';
+
+    //     return $data;
+
+    //     // <li><a href="javascripts:;" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
+    //     // <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
+    // }
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        // $view = route('view.bonding', ['code' => $row->id]);
 
-        $edit = route('edit.bonding', ['id' => $row->id]);
-        $delete = route('delete.bonding', ['id' => $row->id]);
-
-        $statusHTML = '';
-        if ($row->is_write) {
-            $statusHTML = '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>';
-        } else {
-            $statusHTML = '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
-        }
-
-        // Stage name: prefer history.stages (value), map to friendly name if available
-        // $stageValue = $history->stages ?? 'BONDING';
-        // $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
-        // $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
-
-        // Defect points (history.defects_points stored JSON array) -> display small badges or count
-        // $defectsHtml = '';
-        // $defectsCount = 0;
-
-        // $defectsRaw = $history->defects_points ?? null;
-        // if (! empty($defectsRaw)) {
-        //     // try decode JSON safely
-        //     $decoded = null;
-        //     if (is_string($defectsRaw)) {
-        //         $decoded = @json_decode($defectsRaw, true);
-        //     } elseif (is_array($defectsRaw)) {
-        //         $decoded = $defectsRaw;
-        //     }
-        //     if (is_array($decoded) && count($decoded) > 0) {
-        //         $defectsCount = count($decoded);
-        //         $pieces = [];
-        //         foreach ($decoded as $d) {
-        //             $label = $this->defectPointMap[$d] ?? $d;
-        //             $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
-        //         }
-        //         $defectsHtml = implode(' ', $pieces);
-        //     }
-        // }
+        // Checkbox column (first cell) with data-id
+        $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
 
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
-        $data['product_name'] = $row->product_name;
-        $data['model'] = $row->model ?? 'N/A';
-        $data['sku'] = $row->sku;
-        $data['size'] = $row->size;
-        $data['qa_code'] = $row->qa_code;
-        // $data['rfid_tag'] = $row->rfid_tag ?? 'N/A';
-        $data['is_write'] = $statusHTML;
-        // $data['quantity'] = $row->quantity;
+        $data['product_name'] = e($row->product_name);
+        $data['model'] = e($row->model ?? 'N/A');
+        $data['sku'] = e($row->sku);
+        $data['size'] = e($row->size);
+        $data['qa_code'] = e($row->qa_code);
 
-        $data['actions'] = '<div class="d-inline-block">
-                <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                <i class="bx bx-dots-vertical-rounded"></i></a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
-                <div class="dropdown-divider"></div>
-                </ul>
-            </div>';
+        $data['is_write'] = $row->is_write
+            ? '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>'
+            : '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
+
+        // Actions: call deleteRowById(id) for single-record deletion via unified method
+        // $data['actions'] = '<div class="d-inline-block">
+        //     <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+        //     <i class="bx bx-dots-vertical-rounded"></i></a>
+        //     <ul class="dropdown-menu dropdown-menu-end">
+        //         <li><a href="javascript:;" onclick="deleteRowById('.e($row->id).');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
+        //     <div class="dropdown-divider"></div>
+        //     </ul>
+        // </div>';
+        $data['qc_confirmed_at'] = $row->qc_confirmed_at;
 
         return $data;
-
-        // <li><a href="javascripts:;" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-        // <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
     }
 
     /* AJAX: return table rows */
@@ -286,75 +320,149 @@ class BondingPlanProductController extends Controller
     }
 
     /* Delete */
-    public function delete(Request $request, $id = '')
+    // public function delete(Request $request, $id = '')
+    // {
+    //     $delete_id = $id ?: $request->input('id');
+    //     Log::info("Delete request for bonding_plan_product ID: $delete_id");
+
+    //     $Model = BondingPlanProduct::with('products')->find($delete_id);
+    //     if (! $Model) {
+    //         Log::warning("BondingPlanProduct not found for ID: $delete_id");
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Delete Failed! Product not found.',
+    //             'bg_color' => 'bg-danger',
+    //         ]);
+    //     }
+    //     if ($Model->is_write) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'This item is already written and cannot be deleted.',
+    //             'bg_color' => 'bg-danger',
+    //         ]);
+    //     }
+
+    //     Log::info('Found BondingPlanProduct: ', ['id' => $Model->id, 'products_count' => $Model->products->count()]);
+
+    //     try {
+    //         foreach ($Model->products as $product) {
+    //             // Delete related product process history explicitly (optional, cascade works if DB ON DELETE CASCADE is set)
+    //             if (method_exists($product, 'processHistory')) {
+    //                 $product->processHistory()->delete();
+    //                 Log::info("Deleted process history for product ID: {$product->id}");
+    //             }
+    //         }
+
+    //         // Delete related products
+    //         $Model->products()->delete();
+    //         Log::info('Related products deleted.');
+
+    //         // Delete the bonding plan product record
+    //         $Model->delete();
+    //         Log::info('BondingPlanProduct deleted.');
+
+    //         // Optional: log user activity here (uncomment and implement UserActivityLog)
+
+    //         $user = Auth::user();
+    //         $this->UserActivityLog($request, [
+    //             'module' => 'bonding',
+    //             'activity_type' => 'delete',
+    //             'message' => 'Deleted product by : '.($user->fullname ?? 'Unknown'),
+    //             'application' => 'web',
+    //             'data' => [
+    //                 'sku' => $Model->sku,
+    //                 'rfid_tag' => $Model->rfid_tag ?? 'N/A',
+    //             ],
+    //         ]);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Record and related histories deleted successfully',
+    //             'bg_color' => 'bg-success',
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('Delete exception: '.$e->getMessage());
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Delete Failed! '.$e->getMessage(),
+    //             'bg_color' => 'bg-danger',
+    //         ]);
+    //     }
+    // }
+
+    public function delete(Request $request, $id = null)
     {
-        $delete_id = $id ?: $request->input('id');
-        Log::info("Delete request for bonding_plan_product ID: $delete_id");
+        // Collect ids from multiple possible sources: route param $id, request 'id', or request 'ids' (array)
+        $inputIds = $request->input('ids', null);
+        $singleId = $id ?: $request->input('id', null);
 
-        $Model = BondingPlanProduct::with('products')->find($delete_id);
-        if (! $Model) {
-            Log::warning("BondingPlanProduct not found for ID: $delete_id");
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Delete Failed! Product not found.',
-                'bg_color' => 'bg-danger',
-            ]);
-        }
-        if ($Model->is_write) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This item is already written and cannot be deleted.',
-                'bg_color' => 'bg-danger',
-            ]);
+        if (is_array($inputIds) && ! empty($inputIds)) {
+            $ids = array_values(array_filter($inputIds, function ($v) {
+                return ! is_null($v) && $v !== '';
+            }));
+        } elseif ($singleId) {
+            $ids = [$singleId];
+        } else {
+            return response()->json(['success' => false, 'message' => 'No id(s) provided.'], 422);
         }
 
-        Log::info('Found BondingPlanProduct: ', ['id' => $Model->id, 'products_count' => $Model->products->count()]);
-
+        Log::info('Delete requested for bonding ids: '.json_encode($ids));
+        DB::beginTransaction();
         try {
-            foreach ($Model->products as $product) {
-                // Delete related product process history explicitly (optional, cascade works if DB ON DELETE CASCADE is set)
-                if (method_exists($product, 'processHistory')) {
-                    $product->processHistory()->delete();
-                    Log::info("Deleted process history for product ID: {$product->id}");
+            $models = BondingPlanProduct::with('products')->whereIn('id', $ids)->get();
+            if ($models->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'No matching records found.'], 404);
+            }
+            $deletedCount = 0;
+            $skipped = [];
+            foreach ($models as $model) {
+                // if ($model->is_write) {
+                //     $skipped[] = $model->id;
+
+                //     continue;
+                // }
+                // Delete related product process history if method exists
+                foreach ($model->products as $product) {
+                    if (method_exists($product, 'processHistory')) {
+                        $product->processHistory()->delete();
+                    }
                 }
+
+                // Delete related products and the model
+                $model->products()->delete();
+                $model->delete();
+                $deletedCount++;
             }
 
-            // Delete related products
-            $Model->products()->delete();
-            Log::info('Related products deleted.');
+            DB::commit();
+            Log::info('item(s) deleted successfully count: '.json_encode($deletedCount));
+            $message = $deletedCount.' item(s) deleted successfully.';
+            // if (! empty($skipped)) {
+            //     $message .= ' Written items cannot be deleted: '.count($skipped).' item(s) skipped ['.implode(',', $skipped).'].';
+            // }
+            // 0 item(s) deleted successfully. Skipped 1 written item(s): [80].
+            // optional: log user activity
+            try {
+                $user = Auth::user();
+                $this->UserActivityLog($request, [
+                    'module' => 'bonding',
+                    'activity_type' => 'delete',
+                    'message' => 'Bulk delete by: '.($user->fullname ?? 'Unknown'),
+                    'application' => 'web',
+                    'data' => ['deleted_count' => $deletedCount, 'skipped' => $skipped],
+                ]);
+            } catch (\Throwable $t) {
+                Log::warning('UserActivityLog failed: '.$t->getMessage());
+            }
 
-            // Delete the bonding plan product record
-            $Model->delete();
-            Log::info('BondingPlanProduct deleted.');
-
-            // Optional: log user activity here (uncomment and implement UserActivityLog)
-
-            $user = Auth::user();
-            $this->UserActivityLog($request, [
-                'module' => 'bonding',
-                'activity_type' => 'delete',
-                'message' => 'Deleted product by : '.($user->fullname ?? 'Unknown'),
-                'application' => 'web',
-                'data' => [
-                    'sku' => $Model->sku,
-                    'rfid_tag' => $Model->rfid_tag ?? 'N/A',
-                ],
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Record and related histories deleted successfully',
-                'bg_color' => 'bg-success',
-            ]);
+            return response()->json(['success' => true, 'message' => $message]);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Delete exception: '.$e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Delete Failed! '.$e->getMessage(),
-                'bg_color' => 'bg-danger',
-            ]);
+            return response()->json(['success' => false, 'message' => 'Delete failed: '.$e->getMessage()], 500);
         }
     }
 
@@ -616,17 +724,55 @@ class BondingPlanProductController extends Controller
 
     public function getModelFromProductName($productName)
     {
-        $words = preg_split('/\s+/', trim($productName));
-        $model = '';
-        foreach ($words as $word) {
-            if (ctype_alpha($word[0])) {
-                $model .= strtoupper($word[0]);
-            }
-            if (strlen($model) >= 3) {
-                break;
+
+        // echo getModelFromProductName("Lux pro");        // LUP
+        // echo getModelFromProductName("Lux pro Demon"); // LPD
+        // echo getModelFromProductName("Lux");           // LUX
+        // echo getModelFromProductName("Luxuman");       // LUX
+
+        // split and keep only alphabetic characters in each word
+        $rawWords = preg_split('/\s+/', trim($productName));
+        $words = [];
+        foreach ($rawWords as $w) {
+            $clean = preg_replace('/[^A-Za-z]/', '', $w);
+            if ($clean !== '') {
+                $words[] = $clean;
             }
         }
 
-        return $model ?: 'N/A';
+        if (empty($words)) {
+            return 'N/A';
+        }
+
+        $count = count($words);
+        $model = '';
+
+        if ($count === 1) {
+            // single word -> first 3 letters
+            $model = mb_strtoupper(mb_substr($words[0], 0, 3));
+        } elseif ($count === 2) {
+            $first = $words[0];
+            $second = $words[1];
+            if (mb_strlen($first) >= 2) {
+                $model = mb_strtoupper(mb_substr($first, 0, 2).mb_substr($second, 0, 1));
+            } else {
+                // first word only 1 char -> take 1 from first + 2 from second
+                $model = mb_strtoupper(mb_substr($first, 0, 1).mb_substr($second, 0, 2));
+            }
+        } else {
+            // 3 or more words -> first letter of each of first 3 words
+            for ($i = 0; $i < 3; $i++) {
+                $model .= mb_strtoupper(mb_substr($words[$i], 0, 1));
+            }
+        }
+
+        // ensure exactly 3 chars (pad with 'X' if very short)
+        if (mb_strlen($model) < 3) {
+            $model = str_pad($model, 3, 'X');
+        } elseif (mb_strlen($model) > 3) {
+            $model = mb_substr($model, 0, 3);
+        }
+
+        return $model;
     }
 }

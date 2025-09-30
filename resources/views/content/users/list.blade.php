@@ -1,10 +1,10 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", " Users - List")
-@section("page-style")
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
+@section('title', ' Users - List')
+@section('page-style')
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12">
             <div class="card mb-4">
@@ -16,7 +16,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($usersOverview["total_users"]) ? $usersOverview["total_users"] : "0" }}
+                                            {{ isset($usersOverview['total_users']) ? $usersOverview['total_users'] : '0' }}
                                         </h3>
                                         <p class="mb-0">Total Users</p>
                                     </div>
@@ -31,7 +31,7 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($usersOverview["total_active"]) ? $usersOverview["total_active"] : "0" }}
+                                            {{ isset($usersOverview['total_active']) ? $usersOverview['total_active'] : '0' }}
                                         </h3>
                                         <p class="mb-0">Active Users</p>
                                     </div>
@@ -46,7 +46,7 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ isset($usersOverview["total_pending"]) ? $usersOverview["total_pending"] : "0" }}
+                                            {{ isset($usersOverview['total_pending']) ? $usersOverview['total_pending'] : '0' }}
                                         </h3>
                                         <p class="mb-0">Pending Users</p>
                                     </div>
@@ -79,10 +79,10 @@
     </div>
 @endsection
 
-@section("page-script")
+@section('page-script')
     {{-- @include('content.partial.modal.custom_filters', ['user_types' => $userTypes]) --}}
-    @include("content.modals.userView")
-    @include("content.partial.datatable")
+    @include('content.modals.userView')
+    @include('content.partial.datatable')
     <script type="text/javascript">
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
@@ -99,15 +99,16 @@
             };
 
             var options1 = {
-                url: "{{ route("users.list") }}",
-                createUrl: "{{ route("users.create") }}",
-                createPermissions: "{{ isset($createPermissions) ? $createPermissions : "" }}",
+                url: "{{ route('users.list') }}",
+                createUrl: "{{ route('users.create') }}",
+                createPermissions: "{{ isset($createPermissions) ? $createPermissions : '' }}",
                 fetchId: "FetchData",
                 title: "User list",
+                is_delete: "",
             };
             getDataTableS(options1, filterData, tableHeaders);
             $(".addNewRecordBtn").click(function() {
-                window.location.href = "{{ route("users.create") }}";
+                window.location.href = "{{ route('users.create') }}";
             })
 
         }); // end jquery document dot write
