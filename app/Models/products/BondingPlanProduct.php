@@ -33,6 +33,8 @@ class BondingPlanProduct extends Model
         'write_by',
         'write_date',
         'reference_code',
+        'is_locked',
+        'locked_by',
     ];
 
     protected $dates = [

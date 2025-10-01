@@ -25,25 +25,33 @@ class DashboardApiController extends Controller
     public function summary(Request $request)
     {
         $cacheSeconds = (int) $request->query('cache_seconds', 5);
-        $todayKey = Carbon::today()->toDateString();
-        $cacheKey = "dashboard.summary.v2.{$todayKey}";
 
-        $data = Cache::remember($cacheKey, $cacheSeconds, function () {
-            $todayStart = Carbon::today()->startOfDay();
-            $todayEnd = Carbon::today()->endOfDay();
+        // Read from request OR fallback to today
+        $startDate = $request->query('start_date')
+            ? Carbon::parse($request->query('start_date'))->startOfDay()
+            : Carbon::today()->startOfDay();
+
+        $endDate = $request->query('end_date')
+            ? Carbon::parse($request->query('end_date'))->endOfDay()
+            : Carbon::today()->endOfDay();
+
+        // Cache key based on date range
+        $cacheKey = "dashboard.summary.v2.{$startDate->toDateString()}_{$endDate->toDateString()}";
+
+        $data = Cache::remember($cacheKey, $cacheSeconds, function () use ($startDate, $endDate) {
             $monthStart = Carbon::now()->startOfMonth();
             $monthEnd = Carbon::now()->endOfMonth();
 
-            // Total products created
-            $totalToday = $this->products->whereBetween('created_at', [$todayStart, $todayEnd])->count();
+            // Total products
+            $totalSelected = $this->products->whereBetween('created_at', [$startDate, $endDate])->count();
             $totalMonth = $this->products->whereBetween('created_at', [$monthStart, $monthEnd])->count();
 
             // Latest status per product
             $latestHistory = DB::table('product_process_history as h')
-                ->select('h.product_id', 'h.status', 'h.stages')
+                ->select('h.product_id', 'h.status', 'h.stages', 'h.changed_at')
                 ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change 
-                                 FROM product_process_history 
-                                 GROUP BY product_id) latest'), function ($join) {
+                             FROM product_process_history 
+                             GROUP BY product_id) latest'), function ($join) {
                     $join->on('h.product_id', '=', 'latest.product_id')
                         ->on('h.changed_at', '=', 'latest.latest_change');
                 });
@@ -51,24 +59,32 @@ class DashboardApiController extends Controller
             $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
                 ->mergeBindings($latestHistory);
 
-            // Status counts
-            $defectsToday = (clone $latest)->where('t.status', 'FAIL')->count();
-            $goodToday = (clone $latest)->where('t.status', 'PASS')->count();
-            $pendingToday = (clone $latest)->where('t.status', 'PENDING')->count();
+            // Status counts (within range)
+            $defects = (clone $latest)->whereBetween('t.changed_at', [$startDate, $endDate])->where('t.status', 'FAIL')->count();
+            $good = (clone $latest)->whereBetween('t.changed_at', [$startDate, $endDate])->where('t.status', 'PASS')->count();
+            $pending = (clone $latest)->whereBetween('t.changed_at', [$startDate, $endDate])->where('t.status', 'PENDING')->count();
 
-            $efficiency = $totalToday > 0 ? round(($goodToday / $totalToday) * 100, 2) : 0.0;
-            $defectRate = $totalToday > 0 ? round(($defectsToday / $totalToday) * 100, 2) : 0.0;
+            $productions = (clone $latest)
+                ->whereBetween('t.changed_at', [$startDate, $endDate])
+                ->where('t.status', 'PASS')
+                ->where('t.stages', 'packaging')
+                ->count();
+
+            $efficiency = $totalSelected > 0 ? round(($good / $totalSelected) * 100, 2) : 0.0;
+            $defectRate = $totalSelected > 0 ? round(($defects / $totalSelected) * 100, 2) : 0.0;
 
             // Stage counts
             $stagesCounts = $latest
                 ->select('t.stages', DB::raw('COUNT(*) as cnt'))
+                ->whereBetween('t.changed_at', [$startDate, $endDate])
                 ->groupBy('t.stages')
                 ->pluck('cnt', 't.stages')
                 ->map(fn ($v) => (int) $v)
                 ->toArray();
 
-            // Recent activities
+            // Recent activities (filtered by date range)
             $recent = ProductProcessHistory::with('product')
+                ->whereBetween('changed_at', [$startDate, $endDate])
                 ->orderBy('changed_at', 'desc')
                 ->limit(20)
                 ->get()
@@ -88,11 +104,11 @@ class DashboardApiController extends Controller
 
             return [
                 'kpis' => [
-                    'total_today' => $totalToday,
+                    'total_selected' => $productions,
                     'total_month' => $totalMonth,
-                    'pass_today' => $goodToday,
-                    'pending_today' => $pendingToday,
-                    'defects_today' => $defectsToday,
+                    'pass_selected' => $good,
+                    'pending_selected' => $pending,
+                    'defects_selected' => $defects,
                     'efficiency_percent' => $efficiency,
                     'defect_rate_percent' => $defectRate,
                 ],

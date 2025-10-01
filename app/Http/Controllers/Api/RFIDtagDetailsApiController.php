@@ -41,10 +41,10 @@ class RFIDtagDetailsApiController extends Controller
             }
 
             $tagId = $request->input('tag_id');
-
+            Log::info('tagId: '.json_encode($tagId));
             // Query product by RFID tag with history
             $product = $this->products->with('processHistory')->where('rfid_tag', $tagId)->first();
-
+            Log::info('product: '.$product);
             if (! $product) {
                 return response()->json([
                     'success' => false,
@@ -162,6 +162,16 @@ class RFIDtagDetailsApiController extends Controller
                 'changed_by' => auth()->id() ?? null,
                 'changed_at' => now(),
             ]);
+
+            // Final stage auto lock tag
+            if ($stage === 'packaging') {
+                if ($product->bondingPlanProduct) {
+                    $product->bondingPlanProduct->update([
+                        'is_locked' => 1,
+                        'locked_by' => auth()->id(),
+                    ]);
+                }
+            }
 
             return response()->json([
                 'success' => true,
