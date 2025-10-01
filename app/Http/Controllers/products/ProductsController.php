@@ -397,6 +397,8 @@ class ProductsController extends Controller
 
         DB::beginTransaction();
         try {
+            // print_r($ids);
+            // exit;
             $models = Products::with('processHistory')->whereIn('id', $ids)->get();
             if ($models->isEmpty()) {
                 return response()->json([

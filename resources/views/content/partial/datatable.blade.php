@@ -41,7 +41,7 @@
                             alert('Please select at least one row to delete.');
                             return;
                         }
-                        unifiedDelete(ids);
+                        unifiedDelete(ids, options.delete_url);
                     }
                 },
                 {
@@ -158,7 +158,7 @@
 
     // Unified delete function for single or multiple ids
     // Accept either a single id (number/string) or an array of ids
-    function unifiedDelete(idsOrId) {
+    function unifiedDelete(idsOrId, delete_url) {
         var ids = Array.isArray(idsOrId) ? idsOrId : [idsOrId];
 
         if (!ids || ids.length === 0) {
@@ -174,7 +174,7 @@
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
-            url: "{{ route('delete.bonding') }}",
+            url: delete_url,
             method: 'POST',
             data: {
                 ids: ids
@@ -202,6 +202,6 @@
             alert('Invalid id');
             return;
         }
-        unifiedDelete(id);
+        unifiedDelete(id, '');
     }
 </script>

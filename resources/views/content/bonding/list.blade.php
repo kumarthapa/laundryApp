@@ -126,6 +126,7 @@
                 displayLength: 100,
                 is_import: "Upload Models",
                 is_delete: "{{ $deletePermissions ?? '' }}",
+                delete_url: "{{ route('delete.bonding') }}",
                 importUrl: "{{ route('create.bonding') }}",
                 is_export: "Export",
                 manuall_create: false,

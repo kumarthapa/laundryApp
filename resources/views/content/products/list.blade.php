@@ -126,6 +126,7 @@
                 displayLength: 100,
                 // is_import: "Upload Products",
                 is_delete: "{{ $deletePermissions ?? '' }}",
+                delete_url: "{{ route('delete.products') }}",
                 importUrl: "{{ route('create.products') }}",
                 is_export: "Export All",
                 is_export2: "Export Stage Wise",
