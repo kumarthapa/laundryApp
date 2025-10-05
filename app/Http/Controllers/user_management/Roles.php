@@ -465,6 +465,8 @@ class Roles extends Controller
         }
         try {
             if ($post_data) {
+                print_r($post_data);
+                exit;
                 Permission::updateOrInsert(
                     ['permission_name' => $permission_name, 'permission_id' => $permission_id, 'module_id' => $module_id],
                     $post_data

@@ -104,13 +104,14 @@ class DashboardApiController extends Controller
 
             return [
                 'kpis' => [
-                    'total_selected' => $productions,
+                    'total_today' => $productions,
                     'total_month' => $totalMonth,
-                    'pass_selected' => $good,
+                    'pass_today' => $good,
                     'pending_selected' => $pending,
                     'defects_selected' => $defects,
                     'efficiency_percent' => $efficiency,
                     'defect_rate_percent' => $defectRate,
+
                 ],
                 'stages' => $stagesCounts,
                 'recent_activities' => $recent,

@@ -354,4 +354,135 @@ class ReportsController extends Controller
 
         return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
     }
+
+    public function exportReport(Request $request)
+    {
+        $reportType = $request->input('report_type', 'daily_floor_stock_report');
+        $filters = [
+            'status' => $request->get('status') ?? '',
+            'stages' => $request->get('stage') ?? '',
+        ];
+
+        $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');
+        $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
+        if ($daterange) {
+            $filters['start_date'] = $daterange['start_date'] ?? '';
+            $filters['end_date'] = $daterange['end_date'] ?? '';
+        }
+
+        // get rows and headers for export (plain text values)
+        [$dataRows, $headers] = $this->getReportDataForExport($reportType, $filters);
+
+        $user = Auth::user();
+        $metaInfo = [
+            'date_range' => $selectedDate ?: 'All time',
+            'generated_by' => $user->fullname ?? ($user->name ?? 'System'),
+        ];
+
+        $fileName = 'report_'.$reportType.'_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), $fileName);
+    }
+
+    /**
+     * Prepare plain data rows and headers for export based on report type and filters.
+     * Returns an array: [ $dataRows, $headers ]
+     */
+    protected function getReportDataForExport(string $reportType, array $filters): array
+    {
+        $dataRows = [];
+        $headers = [
+            'Product Name',
+            'SKU',
+            'Size',
+            'QA Code',
+            'Quantity',
+            'QC Status',
+            'Current Stage',
+            'Created At',
+        ];
+
+        // empty search / use internal model methods; adapt as needed
+        $search = '';
+        $limit = 200;    // pass 0 or large number depending on model implementation
+        $offset = 0;
+        $sort = 'created_at';
+        $order = 'desc';
+
+        // print_r($reportType);
+        // exit;
+        switch ($reportType) {
+            case 'daily_floor_stock_report':
+                $items = $this->products->report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
+                break;
+
+            case 'daily_bonding_report':
+                $filters['stages'] = 'bonding_qc';
+                $items = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
+
+            case 'daily_packing_report':
+                $filters['stages'] = 'packaging';
+                $items = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
+
+            case 'daily_tapedge_report':
+                $filters['stages'] = 'tape_edge_qc';
+                $items = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
+
+            case 'daily_zip_cover_report':
+                $filters['stages'] = 'zip_cover_qc';
+                $items = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
+
+            case 'monthly_yearly_report':
+                // monthly/yearly you may want different columns — keeping same basic data for now
+                $filters['start_date'] = $filters['start_date'] ?? '';
+                $filters['end_date'] = $filters['end_date'] ?? '';
+                $items = $this->products->getStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
+
+            default:
+                // fallback to generic search
+                $items = $this->products->report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
+                break;
+        }
+
+        // print_r($items);
+        // exit;
+
+        // Normalize $items (could be Collection or array)
+        foreach ($items as $item) {
+            // fetch latest history for status/stage if exists
+            $history = ProductProcessHistory::where('product_id', $item->id ?? ($item->product_id ?? null))
+                ->latest('changed_at')
+                ->first();
+
+            $status = $history->status ?? ($item->status ?? '');
+            $stageName = LocaleHelper::getStageName($history->stages ?? ($item->stages ?? '')) ?? '';
+
+            $createdAt = '';
+            if (! empty($item->created_at)) {
+                try {
+                    $createdAt = \Carbon\Carbon::parse($item->created_at)->format('Y-m-d H:i:s');
+                } catch (\Throwable $e) {
+                    $createdAt = (string) ($item->created_at ?? '');
+                }
+            }
+
+            $dataRows[] = [
+                $item->product_name ?? '',
+                $item->sku ?? '',
+                $item->size ?? '',
+                $item->qa_code ?? '',
+                $item->quantity ?? '',
+                $status,
+                $stageName,
+                $createdAt,
+            ];
+        }
+
+        return [$dataRows, $headers];
+    }
 }

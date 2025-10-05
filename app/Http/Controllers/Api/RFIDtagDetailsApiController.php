@@ -14,6 +14,13 @@ class RFIDtagDetailsApiController extends Controller
 {
     protected $products;
 
+    // Stage dependencies: which stages must be PASSED before moving to target stage
+    protected $stageDependencies = [
+        'packaging' => ['tape_edge_qc', 'zip_cover_qc'],
+        // you can add more rules later
+        // 'dispatch' => ['packaging'],
+    ];
+
     public function __construct()
     {
         $this->products = new Products;
@@ -135,6 +142,23 @@ class RFIDtagDetailsApiController extends Controller
                 ], 404);
             }
 
+            // 🚫 Prevent skipping mandatory stages
+            if (array_key_exists($stage, $this->stageDependencies)) {
+                $requiredStages = $this->stageDependencies[$stage];
+
+                $hasPassed = ProductProcessHistory::where('product_id', $product->id)
+                    ->whereIn('stages', $requiredStages)
+                    ->where('status', 'PASS')
+                    ->exists();
+
+                if (! $hasPassed) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Product cannot move directly to Packaging',
+                    ]);
+                }
+            }
+
             // 🔍 Check if this stage is already PASS in history
             $existingPass = ProductProcessHistory::where('product_id', $product->id)
                 ->where('stages', $stage)
@@ -144,8 +168,13 @@ class RFIDtagDetailsApiController extends Controller
             if ($existingPass && $qcStatus != 'FAIL') {
                 return response()->json([
                     'success' => false,
-                    'message' => "Stage '{$stage}' is already PASS",
-                ], 409); // 409 = conflict
+                    'message' => 'This stage is already PASS',
+                ]); // 409 = conflict
+            } elseif ($existingPass && $qcStatus === 'FAIL') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This stage is already PASS',
+                ]);
             }
 
             // Update product stage and QC status

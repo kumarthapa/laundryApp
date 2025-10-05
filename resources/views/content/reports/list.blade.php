@@ -258,7 +258,7 @@
                                 @endif
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="input-group date">
                                 <input class="form-control filter-selected-data" type="text"
                                     name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />
@@ -267,6 +267,17 @@
                                 </span>
                             </div>
                         </div>
+                        <!-- Download Button -->
+                        <div class="col-md-2 d-flex justify-content-md-end">
+                            <button class="btn btn-sm btn-primary d-flex align-items-center w-auto"
+                                onclick="downloadSeletedReport('daily_floor_stock_report')">
+                                <i class="icon-base bx bx-export icon-sm me-1"></i>
+                                <span class="d-sm-none d-md-inline">Download report</span>
+                                <span class="d-md-none d-sm-inline">Export</span>
+                            </button>
+                        </div>
+
+
                     </div>
                 </div>
                 <!--- Filters ------------ END ---------------->
@@ -382,6 +393,50 @@
                     alert('Failed to fetch report data.');
                 }
             });
+        }
+
+
+        function downloadSeletedReport(reportType) {
+            if (!reportType) {
+                alert("Report Not Found!!");
+            }
+            // create a temporary form and submit POST to trigger file download
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('reports.export') }}";
+            form.style.display = 'none';
+            form.target = '_blank'; // open in new tab/window so file download starts
+
+            // csrf
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = "{{ csrf_token() }}";
+            form.appendChild(tokenInput);
+
+            reportType = currentReportType || reportType;
+
+
+            // required values
+            const inputs = {
+                report_type: reportType,
+                selectedDaterange: document.getElementById('selectedDaterange') ? document.getElementById(
+                    'selectedDaterange').value : '',
+                status: $('#filterQcStatus').length ? $('#filterQcStatus').val() : '',
+                stage: $('#filterCurrentStage').length ? $('#filterCurrentStage').val() : ''
+            };
+
+            for (const name in inputs) {
+                const el = document.createElement('input');
+                el.type = 'hidden';
+                el.name = name;
+                el.value = inputs[name] ?? '';
+                form.appendChild(el);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
         }
     </script>
 @endsection

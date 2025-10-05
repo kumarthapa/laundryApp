@@ -206,7 +206,7 @@ class ProductsApiController extends Controller
                     'qa_code' => $product->qa_code,
                     'quantity' => $product->quantity,
                     'status' => isset($latestHistory) ? $latestHistory->status : 'PENDING',
-                    'stage' => isset($latestHistory) ? ($latestHistory->stages ?? $latestHistory->stage ?? 'BONDING') : 'BONDING',
+                    'stage' => isset($latestHistory) ? $latestHistory->stages : 'bonding_qc',
                     'created_at' => $product->created_at->toDateTimeString(),
                 ];
             });

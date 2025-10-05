@@ -73,14 +73,13 @@
             // KPI updates
             if (m.totalProducts !== undefined) document.getElementById('kpi-total-products').innerText = m
                 .totalProducts;
-            if (m.stageCounts !== undefined) {
-                document.getElementById('kpi-shipped').innerText = (m.stageCounts['Shipped'] || 0);
-                // in-production calculation
+            if (m.totalProductsToday !== undefined) {
+                document.getElementById('kpi-shipped').innerText = (m.stageCounts['packaging'] || 0);
+                // in-daily-production calculation
                 let total = 0;
-                Object.values(m.stageCounts).forEach(v => total += v);
-                const inProd = total - ((m.stageCounts['Shipped'] || 0) + (m.stageCounts[
-                    'Ready for Shipment'] || 0));
-                document.getElementById('kpi-in-production').innerText = inProd;
+                Object.values(m.totalProductsToday).forEach(v => total += v);
+                const inProd = total || 0;
+                document.getElementById('kpi-in-daily-production').innerText = inProd;
             }
             if (m.qcPassRate !== undefined) document.getElementById('kpi-qc-pass').innerText = m.qcPassRate !==
                 null ? m.qcPassRate + '%' : 'N/A';

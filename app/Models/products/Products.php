@@ -129,7 +129,6 @@ class Products extends Model
             $jsonVal = json_encode($filters['defects_points']);
             $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
         }
-
         // Date range filter (product created_at)
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             $query->whereBetween('p.created_at', [$filters['start_date'], $filters['end_date']]);
@@ -138,12 +137,13 @@ class Products extends Model
         // Protect sort/order inputs a bit
         $allowedOrders = ['asc', 'desc'];
         $order = in_array(strtolower($order), $allowedOrders) ? $order : 'desc';
-
         // Apply sort, limit, offset
         $query->orderBy($sort, $order)
             ->limit(intval($limit))
             ->offset(intval($offset));
 
+        // print_r($query->get());
+        // exit;
         return $query->get();
     }
 

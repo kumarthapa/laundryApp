@@ -35,8 +35,8 @@
                             <div class="invalid-feedback">Select Module Name!</div>
                         </div>
                     </div>
-                    <div class="col-12 text-center">
-                        <button type="reset" class="btn btn-label-secondary" data-bs-dismiss="modal"
+                    <div class="col-12 text-end">
+                        <button type="reset" class="btn btn-label-secondary mx-2" data-bs-dismiss="modal"
                             aria-label="Close">Cancel</button>
                         <button type="submit" class="btn btn-primary me-sm-3 me-1">Submit</button>
                     </div>

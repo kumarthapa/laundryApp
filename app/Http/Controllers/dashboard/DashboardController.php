@@ -35,6 +35,9 @@ class DashboardController extends Controller
         // 1) Total products
         $totalProducts = Products::count();
 
+        // 1) Total products created today
+        $totalProductsToday = Products::whereDate('created_at', Carbon::today())->count();
+
         // Load config arrays for stages and defect points (if needed later)
         $productConfig = UtilityHelper::getProductStagesAndDefectPoints();
         $stagesConfig = $productConfig['stages'] ?? [];
@@ -115,7 +118,7 @@ class DashboardController extends Controller
                 'h.remarks as comments'
             )
             ->orderBy('h.changed_at', 'desc')
-            ->limit(20)
+            ->limit(30)
             ->get();
 
         // 6) QC pass rate (across all QC stages from config)
@@ -149,7 +152,7 @@ class DashboardController extends Controller
             })
             ->join('product_process_history as h', 'h.id', '=', 'latest_h.max_id')
             ->where('p.updated_at', '<', $stuckCutoff)
-            ->whereNotIn('h.stages', ['Shipped', 'Ready for Shipment', 'Returned', 'Cancelled'])
+            ->whereNotIn('h.stages', ['packaging'])
             ->orderBy('p.updated_at', 'asc')
             ->limit(20)
             ->get([
@@ -203,6 +206,7 @@ class DashboardController extends Controller
         return [
             'totalProducts' => (int) $totalProducts,
             'stageCounts' => $stageCounts,
+            'totalProductsToday' => $totalProductsToday,
             'qcCounts' => $qcCounts,
             'dailySeries' => $dailySeries,
             'recentActivities' => $recentActivities,

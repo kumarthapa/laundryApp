@@ -40,11 +40,13 @@
                             </div>
                         </div>
                         <div class="col-12 py-4">
+                            {{-- // To Create new permission --}}
                             {{-- <div class="d-flex justify-content-between">
                                 <h4>Role Permissions</h4>
                                 <a href="javascript:;" class="btn btn-label-primary" data-bs-target="#addNewPermission"
                                     data-bs-toggle="modal"><i class="bx bx-check-shield"></i>Add New Permission</a>
                             </div> --}}
+
                             <div>
                                 <input type="text" id="searchInput" class="form-control my-3" placeholder="Search...">
                             </div>

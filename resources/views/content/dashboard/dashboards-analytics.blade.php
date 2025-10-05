@@ -21,6 +21,35 @@
 
 @section('content')
     <div class="row">
+
+
+        <div class="col-sm-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="d-flex align-items-center">
+                        <div class="avatar me-3 flex-shrink-0">
+                            <span class="avatar-initial bg-label-warning rounded"><i
+                                    class="icon-base bx bx-store-alt icon-lg"></i></span>
+                        </div> Daily Products
+                    </h6>
+                    <h3 id="kpi-in-daily-production">
+                        @php
+
+                            $total = $metrics['totalProductsToday'] ?? 0;
+                            // $total = array_sum($metrics['totalProductsToday'] ?? []);
+                            echo $total;
+                            // $shippedOrReady =
+                            //     ($metrics['stageCounts']['Shipped'] ?? 0) +
+                            //     ($metrics['stageCounts']['Ready for Shipment'] ?? 0);
+                            // echo $total - $shippedOrReady;
+                        @endphp
+                    </h3>
+                    {{-- <small class="text-muted">Excludes shipped/ready</small> --}}
+                    <small class="text-muted">Daily Floor Stock</small>
+                </div>
+            </div>
+        </div>
+
         <div class="col-sm-6 col-lg-3 mb-4">
             <div class="card h-100">
                 <div class="card-body">
@@ -31,30 +60,7 @@
                         </div> Total Products
                     </h6>
                     <h3 id="kpi-total-products">{{ $metrics['totalProducts'] ?? 0 }}</h3>
-                    <small class="text-muted">Floor stock</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-sm-6 col-lg-3 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-warning rounded"><i
-                                    class="icon-base bx bx-store-alt icon-lg"></i></span>
-                        </div> Items in Production
-                    </h6>
-                    <h3 id="kpi-in-production">
-                        @php
-                            $total = array_sum($metrics['stageCounts'] ?? []);
-                            $shippedOrReady =
-                                ($metrics['stageCounts']['Shipped'] ?? 0) +
-                                ($metrics['stageCounts']['Ready for Shipment'] ?? 0);
-                            echo $total - $shippedOrReady;
-                        @endphp
-                    </h3>
-                    <small class="text-muted">Excludes shipped/ready</small>
+                    <small class="text-muted">Total Floor stock</small>
                 </div>
             </div>
         </div>
@@ -81,10 +87,10 @@
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-danger rounded"><i
                                     class="icon-base bx bxs-truck icon-lg"></i></span>
-                        </div> Shipped
+                        </div> Total Packaging
                     </h6>
-                    <h3 id="kpi-shipped">{{ $metrics['stageCounts']['Shipped'] ?? 0 }}</h3>
-                    <small class="text-muted">Total shipped</small>
+                    <h3 id="kpi-shipped">{{ $metrics['stageCounts']['packaging'] ?? 0 }}</h3>
+                    <small class="text-muted">Ready To Shipped</small>
                 </div>
             </div>
         </div>

@@ -9,7 +9,6 @@ use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\BondingPlanProduct;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -94,7 +93,7 @@ class BondingPlanProductController extends Controller
     //     }
 
     //     // Stage name: prefer history.stages (value), map to friendly name if available
-    //     // $stageValue = $history->stages ?? 'BONDING';
+    //     // $stageValue = $history->stages ?? 'bonding_qc';
     //     // $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
     //     // $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
 
@@ -581,14 +580,15 @@ class BondingPlanProductController extends Controller
 
             $actualHeaders = $formattedData['header'];
 
-            // SKU is NOT required. Require Product Name, Size and QTY.
+            // Required headers
             $missingHeaders = array_diff(['Product Name', 'Size', 'QTY'], $actualHeaders);
             if (count($missingHeaders) > 0) {
                 return response()->json(['success' => false, 'message' => 'Missing headers: '.implode(', ', $missingHeaders)]);
             }
 
-            // Existing DB values only used for update_existing
-            $existingSkus = BondingPlanProduct::pluck('sku')->toArray();
+            // Pre-fetch all QA codes once (for existence checks)
+            $allQaCodes = BondingPlanProduct::pluck('qa_code')->toArray();
+
             $importData = [];
 
             foreach ($formattedData['body'] as $rowIndex => $row) {
@@ -596,15 +596,18 @@ class BondingPlanProductController extends Controller
                     continue; // skip empty rows
                 }
 
-                $rowNumber = $rowIndex + 1;
+                $rowNumber = $rowIndex + 1; // keep same as before
 
+                // Read columns (original header keys)
                 $productName = trim($row['Product Name'] ?? '');
                 $sku = trim($row['SKU'] ?? '') ?: null; // optional
                 $size = trim($row['Size'] ?? '');
                 $referenceCode = isset($row['Reference Code']) ? trim($row['Reference Code']) : null;
                 $qc_confirmed_at_raw = isset($row['QC Confirmed At']) ? trim($row['QC Confirmed At']) : null;
                 $qtyRaw = $row['QTY'] ?? null;
+                $sheetQaCode = $row['QA Code'] ?? null; // used for update_existing
 
+                // Basic required checks
                 if ($productName === '' || $size === '') {
                     return response()->json(['success' => false, 'message' => "Row {$rowNumber}: Missing required fields. Product Name and Size are mandatory."]);
                 }
@@ -615,48 +618,49 @@ class BondingPlanProductController extends Controller
                     $qty = 1;
                 }
 
-                // For update_existing we require SKU if provided
+                // For update_existing: QA Code is required in sheet and must exist
                 if ($actionType === 'update_existing') {
-                    if (! $sku) {
-                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: SKU is required for update_existing."]);
+                    if (! $sheetQaCode) {
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: QA Code is required for update_existing."]);
                     }
-                    if (! in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: SKU '{$sku}' does not exist for update."]);
+                    if (! in_array($sheetQaCode, $allQaCodes)) {
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: QA Code '{$sheetQaCode}' does not exist for update."]);
                     }
                 }
 
-                // QC Confirmed At validation
+                // QC Confirmed At validation (FileImportHelper may already normalized Excel dates to Y-m-d H:i:s)
                 $qc_confirmed_at = null;
                 if (! empty($qc_confirmed_at_raw)) {
-                    $parsed = null;
-
                     try {
-                        // Try full datetime format first: DD/MM/YYYY HH:mm:ss
-                        $parsed = Carbon::createFromFormat('d/m/Y H:i:s', $qc_confirmed_at_raw);
-                    } catch (\Exception $e) {
-                        try {
-                            // Only date format: DD/MM/YYYY
-                            $parsed = Carbon::createFromFormat('d/m/Y', $qc_confirmed_at_raw);
-                            $parsed->setTime(0, 0, 0);
-                        } catch (\Exception $e2) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'DD/MM/YYYY' or 'DD/MM/YYYY HH:mm:ss'.",
-                            ]);
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $qc_confirmed_at_raw)) {
+                            // Already Y-m-d or Y-m-d H:i:s
+                            $parsed = \Carbon\Carbon::parse($qc_confirmed_at_raw);
+                        } else {
+                            // Handle text values (DD/MM/YYYY or DD/MM/YYYY HH:mm:ss)
+                            try {
+                                $parsed = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $qc_confirmed_at_raw);
+                            } catch (\Exception $e) {
+                                $parsed = \Carbon\Carbon::createFromFormat('d/m/Y', $qc_confirmed_at_raw)->startOfDay();
+                            }
                         }
+                        $qc_confirmed_at = $parsed->format('Y-m-d H:i:s');
+                    } catch (\Exception $e) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'DD/MM/YYYY' or 'DD/MM/YYYY HH:mm:ss'.",
+                        ]);
                     }
-
-                    $qc_confirmed_at = $parsed->format('Y-m-d H:i:s');
                 }
 
-                // Generate QA code once per input row
-                $modelCode = $this->getModelFromProductName($productName);
-                $date = (int) date('d');
-                $month = (int) date('m');
-                $year = (int) date('Y'); // 4-digit year
-                $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
-
+                // Branch: upload_new
                 if ($actionType === 'upload_new') {
+                    // Generate QA code and date/month/year for new uploads
+                    $modelCode = $this->getModelFromProductName($productName);
+                    $date = (int) date('d');
+                    $month = (int) date('m');
+                    $year = (int) date('Y'); // 4-digit year
+                    $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
+
                     // Generate multiple rows for the given QTY
                     for ($i = 0; $i < $qty; $i++) {
                         $importData[] = [
@@ -678,35 +682,60 @@ class BondingPlanProductController extends Controller
                         ];
                     }
                 } else {
-                    // For update_existing: single update per row
-                    $importData[] = [
-                        '__update_sku' => $sku,
-                        'data' => [
-                            'product_name' => $productName,
-                            'sku' => $sku,
-                            'reference_code' => $referenceCode,
-                            'qc_confirmed_at' => $qc_confirmed_at,
-                            'size' => $size,
-                            'model' => $modelCode,
-                            'qa_code' => $qa_code,
-                            'date' => $date,
-                            'month' => $month,
-                            'year' => $year,
-                            'serial_no' => $row['Serial No'] ?? null,
-                            'bonding_name' => $row['Bonding Name'] ?? null,
-                        ],
-                    ];
+                    // Branch: update_existing
+                    // Prevent updating records that are already written (is_write = 1)
+                    $writtenQa = BondingPlanProduct::where('qa_code', $sheetQaCode)
+                        ->where('is_write', 1)
+                        ->pluck('qa_code')
+                        ->toArray();
+
+                    if (in_array($sheetQaCode, $writtenQa)) {
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: Written QA Code '{$sheetQaCode}' cannot be updated."]);
+                    }
+
+                    // Fetch existing records for this QA Code
+                    $existingRecords = BondingPlanProduct::where('qa_code', $sheetQaCode)->get();
+
+                    foreach ($existingRecords as $info) {
+                        // Build update data but keep existing values as fallback.
+                        $updateData = [
+                            'sku' => $sku !== null ? $sku : $info->sku,
+                            'reference_code' => $referenceCode !== null ? $referenceCode : $info->reference_code,
+                            'qc_confirmed_at' => $qc_confirmed_at !== null ? $qc_confirmed_at : $info->qc_confirmed_at,
+                            'size' => $size !== '' ? $size : $info->size,
+                            'model' => ! empty($this->getModelFromProductName($productName)) ? $this->getModelFromProductName($productName) : $info->model,
+                            // Do NOT overwrite qa_code/date/month/year unless the sheet explicitly includes and you want that behavior.
+                            'date' => $info->date,
+                            'month' => $info->month,
+                            'year' => $info->year,
+                        ];
+
+                        // Optionally update serial_no / bonding_name if present in sheet
+                        if (array_key_exists('Serial No', $row)) {
+                            $updateData['serial_no'] = $row['Serial No'] ?? $info->serial_no;
+                        }
+                        if (array_key_exists('Bonding Name', $row)) {
+                            $updateData['bonding_name'] = $row['Bonding Name'] ?? $info->bonding_name;
+                        }
+
+                        $importData[] = [
+                            '__update_qa_code' => $sheetQaCode,
+                            'data' => $updateData,
+                        ];
+                    }
                 }
             }
 
             // Save to DB
             if (! empty($importData)) {
                 if ($actionType === 'upload_new') {
+                    // Insert new rows in DB
                     BondingPlanProduct::insert($importData);
                 } else {
+                    // Process updates
                     foreach ($importData as $item) {
-                        if (isset($item['__update_sku'])) {
-                            BondingPlanProduct::where('sku', $item['__update_sku'])->update($item['data']);
+                        if (isset($item['__update_qa_code'])) {
+                            BondingPlanProduct::where('qa_code', $item['__update_qa_code'])->update($item['data']);
                         }
                     }
                 }

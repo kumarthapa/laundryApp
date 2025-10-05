@@ -21,7 +21,8 @@ class AuthController extends Controller
             'password' => 'required|string|min:4|max:255',
         ]);
         if ($validator->fails()) {
-            Log::info("Login validation failed", ['errors' => $validator->errors()]);
+            Log::info('Login validation failed', ['errors' => $validator->errors()]);
+
             return response()->json([
                 'success' => false,
                 'message' => $validator->errors()->first(),
@@ -35,20 +36,22 @@ class AuthController extends Controller
         $user = User::where('username', $username)->first();
 
         // Validate user existence and password
-        if (!$user || !Hash::check($password, $user->password)) {
-            Log::warning("Login attempt failed", ['username' => $username]);
+        if (! $user || ! Hash::check($password, $user->password)) {
+            Log::warning('Login attempt failed', ['username' => $username]);
+
             return response()->json([
                 'success' => false,
-                'message' => "Invalid credentials",
+                'message' => 'Invalid credentials',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         // Check if user is active
         if ($user->status !== 'Active') {
-            Log::info("Inactive user login blocked", ['user_id' => $user->id]);
+            Log::info('Inactive user login blocked', ['user_id' => $user->id]);
+
             return response()->json([
                 'success' => false,
-                'message' => "User account is not active",
+                'message' => 'User account is not active',
             ], Response::HTTP_FORBIDDEN);
         }
 
@@ -60,35 +63,36 @@ class AuthController extends Controller
 
         // Prepare response data
         $data = [
-            "user" => [
-                'name'      => $user->fullname,
-                'email'     => $user->email,
+            'user' => [
+                'name' => $user->fullname,
+                'email' => $user->email,
                 'user_code' => $user->user_code,
-                'role'      => $user_role,
-                'api_key'   => $user->api_key,
+                'role' => $user_role,
+                'api_key' => $user->api_key,
             ],
-            "permissions" => $user->getUserPermissions(),
-            "token" => $tokenResult->plainTextToken,
+            'permissions' => $user->getUserPermissions(),
+            'token' => $tokenResult->plainTextToken,
         ];
-
-        Log::info("User login successful", ['user_id' => $user->id]);
-        Log::info("Sanctum token generated", ['token' => $tokenResult->plainTextToken]);
+        Log::info('User login successful', ['user_id' => $user->id]);
+        Log::info('Response data: '.json_encode($data));
+        Log::info('Sanctum token generated', ['token' => $tokenResult->plainTextToken]);
 
         return response()->json([
             'success' => true,
-            'message' => "Login successful",
-            'data'    => $data,
+            'message' => 'Login successful',
+            'data' => $data,
         ], Response::HTTP_OK);
     }
 
     public function resetPassword(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email'    => 'required|email|max:255',
-            'newpass'  => 'required|string|min:8|max:255',
+            'email' => 'required|email|max:255',
+            'newpass' => 'required|string|min:8|max:255',
         ]);
         if ($validator->fails()) {
-            Log::info("Password reset validation failed", ['errors' => $validator->errors()]);
+            Log::info('Password reset validation failed', ['errors' => $validator->errors()]);
+
             return response()->json([
                 'success' => false,
                 'message' => $validator->errors()->first(),
@@ -96,22 +100,23 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
-        if (!$user) {
-            Log::warning("Password reset attempted for non-existent email", ['email' => $request->email]);
+        if (! $user) {
+            Log::warning('Password reset attempted for non-existent email', ['email' => $request->email]);
+
             return response()->json([
                 'success' => false,
-                'message' => "User not found",
+                'message' => 'User not found',
             ], Response::HTTP_NOT_FOUND);
         }
 
         $user->password = Hash::make($request->newpass);
         $user->save();
 
-        Log::info("Password changed successfully", ['user_id' => $user->id]);
-        
+        Log::info('Password changed successfully', ['user_id' => $user->id]);
+
         return response()->json([
             'success' => true,
-            'message' => "Password changed successfully",
+            'message' => 'Password changed successfully',
         ], Response::HTTP_OK);
     }
 }

@@ -112,6 +112,7 @@
     @include('content.common.scripts.daterangePicker', [
         'float' => 'right',
         'name' => 'masterTableDaterangePicker',
+        'default_days' => 0,
     ])
     <script>
         $(document).ready(function() {
@@ -193,14 +194,14 @@
                 window.location.href = '{{ route('create.products') }}';
             });
 
-            let exportUrl = "{{ route('products.exportProducts') }}";
-            $(".exportBtn").click(function() {
-                window.location.href = exportUrl;
-            });
-            let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
-            $(".exportBtn2").click(function() {
-                window.location.href = exportUrl2;
-            });
+            // let exportUrl = "{{ route('products.exportProducts') }}";
+            // $(".exportBtn").click(function() {
+            //     window.location.href = exportUrl;
+            // });
+            // let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
+            // $(".exportBtn2").click(function() {
+            //     window.location.href = exportUrl2;
+            // });
 
             $(".bulkImportBtn").click(function() {
                 $("#bulkProductImportModal").modal('show');

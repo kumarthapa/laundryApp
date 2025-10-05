@@ -10,6 +10,7 @@ use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -255,11 +256,12 @@ class ProductsController extends Controller
         // Date range
         $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');
         $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
-        if ($daterange) {
-            $filters['start_date'] = $daterange['start_date'] ?? '';
-            $filters['end_date'] = $daterange['end_date'] ?? '';
-        }
 
+        $filters['start_date'] = isset($daterange['start_date']) ? $daterange['start_date'] : Carbon::today()->startOfDay();
+        $filters['end_date'] = isset($daterange['end_date']) ? $daterange['end_date'] : Carbon::today()->endOfDay();
+
+        // print_r($filters);
+        // exit;
         $searchData = $this->products->search($search, $filters, $limit, $offset, $sort, $order);
         $total_rows = $this->products->get_found_rows($search, $filters);
 
