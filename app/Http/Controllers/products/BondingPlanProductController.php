@@ -34,6 +34,7 @@ class BondingPlanProductController extends Controller
     public function index(Request $request)
     {
         $headers = [
+            ['serial_no' => 'SL NO'],
             ['created_at' => 'Created Date'],
             ['product_name' => 'Product Name'],
             ['model' => 'Model'],
@@ -151,7 +152,7 @@ class BondingPlanProductController extends Controller
 
         // Checkbox column (first cell) with data-id
         $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
-
+        $data['serial_no'] = e($row->serial_no);
         $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
         $data['product_name'] = e($row->product_name);
         $data['model'] = e($row->model ?? 'N/A');
@@ -590,7 +591,7 @@ class BondingPlanProductController extends Controller
             $allQaCodes = BondingPlanProduct::pluck('qa_code')->toArray();
 
             $importData = [];
-
+            $sl_no = 1; // Initialize once before processing all rows
             foreach ($formattedData['body'] as $rowIndex => $row) {
                 if (empty($row) || (count(array_filter($row)) === 0)) {
                     continue; // skip empty rows
@@ -608,7 +609,7 @@ class BondingPlanProductController extends Controller
                 $sheetQaCode = $row['QA Code'] ?? null; // used for update_existing
 
                 // Basic required checks
-                if ($productName === '' || $size === '') {
+                if (($actionType != 'update_existing') && ($productName === '' || $size === '')) {
                     return response()->json(['success' => false, 'message' => "Row {$rowNumber}: Missing required fields. Product Name and Size are mandatory."]);
                 }
 
@@ -662,7 +663,9 @@ class BondingPlanProductController extends Controller
                     $qa_code = "{$modelCode}-{$size}-{$date}{$month}{$year}";
 
                     // Generate multiple rows for the given QTY
+
                     for ($i = 0; $i < $qty; $i++) {
+
                         $importData[] = [
                             'product_name' => $productName,
                             'sku' => $sku,
@@ -674,12 +677,13 @@ class BondingPlanProductController extends Controller
                             'date' => $date,
                             'month' => $month,
                             'year' => $year,
-                            'serial_no' => $row['Serial No'] ?? null,
+                            'serial_no' => $sl_no ?? null,
                             'bonding_name' => $row['Bonding Name'] ?? null,
                             'quantity' => 1,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
+                        $sl_no++;
                     }
                 } else {
                     // Branch: update_existing
@@ -702,12 +706,13 @@ class BondingPlanProductController extends Controller
                             'sku' => $sku !== null ? $sku : $info->sku,
                             'reference_code' => $referenceCode !== null ? $referenceCode : $info->reference_code,
                             'qc_confirmed_at' => $qc_confirmed_at !== null ? $qc_confirmed_at : $info->qc_confirmed_at,
-                            'size' => $size !== '' ? $size : $info->size,
-                            'model' => ! empty($this->getModelFromProductName($productName)) ? $this->getModelFromProductName($productName) : $info->model,
+                            // 'size' => $size !== '' ? $size : $info->size,
+                            // 'model' => ! empty($this->getModelFromProductName($productName)) ? $this->getModelFromProductName($productName) : $info->model,
                             // Do NOT overwrite qa_code/date/month/year unless the sheet explicitly includes and you want that behavior.
-                            'date' => $info->date,
-                            'month' => $info->month,
-                            'year' => $info->year,
+                            // 'date' => $info->date,
+                            // 'month' => $info->month,
+                            // 'year' => $info->year,
+                            // 'serial_no' => isset($row['Serial No']) ? $row['Serial No'] : $info->serial_no,
                         ];
 
                         // Optionally update serial_no / bonding_name if present in sheet
@@ -727,11 +732,15 @@ class BondingPlanProductController extends Controller
             }
 
             // Save to DB
+            // print_r($importData);
+            // exit;
+
             if (! empty($importData)) {
                 if ($actionType === 'upload_new') {
                     // Insert new rows in DB
                     BondingPlanProduct::insert($importData);
                 } else {
+
                     // Process updates
                     foreach ($importData as $item) {
                         if (isset($item['__update_qa_code'])) {

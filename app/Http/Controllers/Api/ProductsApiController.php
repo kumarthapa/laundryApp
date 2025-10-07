@@ -60,13 +60,19 @@ class ProductsApiController extends Controller
 
             // Apply search filters on BondingPlanProduct fields
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('product_name', 'LIKE', "%$search%")
-                        ->orWhere('sku', 'LIKE', "%$search%")
-                        ->orWhere('qa_code', 'LIKE', "%$search%")
-                        ->orWhere('model', 'LIKE', "%$search%")
-                        ->orWhere('size', 'LIKE', "%$search%");
-                });
+                if (ctype_digit($search)) {
+                    // If user entered only digits — search by serial_no exactly
+                    $query->where('serial_no', (int) $search);
+                } else {
+                    // Otherwise search text fields using LIKE
+                    $query->where(function ($q) use ($search) {
+                        $q->where('product_name', 'LIKE', "%$search%")
+                            ->orWhere('sku', 'LIKE', "%$search%")
+                            ->orWhere('qa_code', 'LIKE', "%$search%")
+                            ->orWhere('model', 'LIKE', "%$search%")
+                            ->orWhere('size', 'LIKE', "%$search%");
+                    });
+                }
             }
 
             // Apply date range filter on created_at (bonding plan created date)
@@ -91,6 +97,7 @@ class ProductsApiController extends Controller
                     'model' => $bondingProduct->model,
                     'qa_code' => $bondingProduct->qa_code,
                     'sku' => $bondingProduct->sku,
+                    'serial_no' => $bondingProduct->serial_no,
                     'size' => $bondingProduct->size,
                     'is_write' => $bondingProduct->is_write,
                     'write_by' => $bondingProduct->write_by,
