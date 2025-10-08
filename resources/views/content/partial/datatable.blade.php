@@ -48,17 +48,17 @@
                     text: '<i class="bx bx-export me-1"></i>' + (options?.is_export2 ?? "Export Selected"),
                     className: 'create-new btn btn-primary mx-2 exportBtn2 ' + (options.is_export2 ?
                         'd-block' : 'd-none'),
-                    action: function() {
-                        handleExport2();
-                    }
+                    // action: function() {
+                    //     handleExport2();
+                    // }
                 },
                 {
                     text: '<i class="bx bx-export me-1"></i>' + (options?.is_export ?? "Export All"),
                     className: 'create-new btn btn-primary mx-2 exportBtn ' + (options.is_export ?
                         'd-block' : 'd-none'),
-                    action: function() {
-                        handleExportAll();
-                    }
+                    // action: function({options.export_url}) {
+                    //     handleExportAll(options.export_url);
+                    // }
                 },
 
                 {
@@ -205,14 +205,14 @@
         unifiedDelete(id, '');
     }
 
-    function handleExportAll() {
-        let exportUrl = "{{ route('products.exportProducts') }}";
-        // your export ajax or CSV/XLS logic
-        window.location.href = exportUrl;
-    }
+    // function handleExportAll() {
+    //     let exportUrl = "{{ route('products.exportProducts') }}";
+    //     // your export ajax or CSV/XLS logic
+    //     window.location.href = exportUrl;
+    // }
 
-    function handleExport2() {
-        let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
-        window.location.href = exportUrl2;
-    }
+    // function handleExport2() {
+    //     let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
+    //     window.location.href = exportUrl2;
+    // }
 </script>

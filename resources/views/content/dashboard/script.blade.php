@@ -108,21 +108,21 @@
                 qcChart.render();
             }
 
-            // recent activity table refresh
-            if (Array.isArray(m.recentActivities)) {
-                const body = document.getElementById('recent-activity-body');
-                body.innerHTML = '';
-                m.recentActivities.forEach(act => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${act.changed_at}</td>
-                                <td>${act.sku}</td>
-                                <td>${act.qc_code || ''}</td>
-                                <td>${act.stage}</td>
-                                <td>${act.status}</td>
-                                <td>${(act.comments||'').substring(0,80)}</td>`;
-                    body.appendChild(tr);
-                });
-            }
+            // ---------------- recent activity table refresh --------------------
+            // if (Array.isArray(m.recentActivities)) {
+            //     const body = document.getElementById('recent-activity-body');
+            //     body.innerHTML = '';
+            //     m.recentActivities.forEach(act => {
+            //         const tr = document.createElement('tr');
+            //         tr.innerHTML = `<td>${act.changed_at}</td>
+            //                     <td>${act.sku}</td>
+            //                     <td>${act.qa_code || ''}</td>
+            //                     <td>${act.stage}</td>
+            //                     <td>${act.status}</td>
+            //                     <td>${(act.comments||'').substring(0,80)}</td>`;
+            //         body.appendChild(tr);
+            //     });
+            // }
         }
 
         // initial render

@@ -154,10 +154,19 @@
                 window.location.href = '{{ route('create.bonding') }}';
             });
 
+            // Export bonding data
             let exportUrl = "{{ route('bonding.exportBonding') }}";
             $(".exportBtn").click(function() {
-                window.location.href = exportUrl;
+                let selectedDaterange = document.getElementById('selectedDaterange').value || '';
+
+                if (selectedDaterange) {
+                    window.location.href =
+                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}`;
+                } else {
+                    window.location.href = exportUrl;
+                }
             });
+
 
             $(".bulkImportBtn").click(function() {
                 $("#bulkProductImportModal").modal('show');

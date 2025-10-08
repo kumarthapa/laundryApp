@@ -24,6 +24,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', $controller_path.'\dashboard\DashboardController@index')->name('dashboard');
     Route::get('/dashboard/metrics', $controller_path.'\dashboard\DashboardController@metrics')->name('metrics'); // JSON for charts (polling)
+    Route::get('/dashboard/list', $controller_path.'\dashboard\DashboardController@list')->name('dashboard.list');
+    Route::get('/dashboard/export-products', $controller_path.'\dashboard\DashboardController@exportProducts')->name('dashboard.exportProducts');
 
     // Roles And Permissions
     Route::get('/roles', $controller_path.'\user_management\Roles@index')->name('roles')->middleware('permission:roles,view.roles');

@@ -4,6 +4,7 @@
 
 @section('vendor-style')
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
 
 @section('vendor-script')
@@ -12,9 +13,96 @@
 @endsection
 
 @section('page-script')
+    @include('content.partial.datatable')
+    @include('content.common.scripts.daterangePicker', [
+        'float' => 'right',
+        'name' => 'masterTableDaterangePicker',
+        'default_days' => 0,
+    ])
     <script>
         // Data passed from server for initial page load
         let metrics = @json($metrics);
+
+        $(document).ready(function() {
+            var tableHeaders = {!! $table_headers !!};
+            var options1 = {
+                url: "{{ route('dashboard.list') }}",
+                createPermissions: '',
+                fetchId: "FetchData",
+                title: "Recent Process Events",
+                displayLength: 100,
+                is_export: "Export All",
+            };
+
+            // Get Blade JSON
+            var statusData = @json($status ?? []);
+            var stageData = @json($stages ?? []);
+            var defectPointsData = @json($defect_points ?? []);
+
+            // Convert array of {name,value} to key:value object
+            function arrayToKeyValue(arr) {
+                var obj = {
+                    'ALL': 'ALL'
+                };
+                if (Array.isArray(arr)) {
+                    arr.forEach(function(item) {
+                        obj[item.value] = item.name;
+                    });
+                }
+                return obj;
+            }
+
+            // Convert defect points (object of arrays) to flattened key:value object
+            function defectPointsToKeyValue(obj) {
+                var result = {
+                    'ALL': 'ALL'
+                };
+                if (obj && typeof obj === 'object') {
+                    Object.values(obj).forEach(function(arr) {
+                        arr.forEach(function(item) {
+                            if (item.value && item.name) result[item.value] = item.name;
+                        });
+                    });
+                }
+                return result;
+            }
+
+            var filterData = {
+                'qc_status': {
+                    'data': arrayToKeyValue(statusData),
+                    'filter_name': 'Filter By Status',
+                },
+                'current_stage': {
+                    'data': arrayToKeyValue(stageData),
+                    'filter_name': 'Filter By Stage',
+                },
+                'defect_points': {
+                    'data': defectPointsToKeyValue(defectPointsData),
+                    'filter_name': 'Filter By Defect Point',
+                },
+            };
+
+            console.log("filterData:", filterData);
+
+            getDataTableS(options1, filterData, tableHeaders, getStats);
+
+            function getStats(params) {
+                console.log("Applied filters:", params);
+            }
+
+
+            let exportUrl = "{{ route('dashboard.exportProducts') }}";
+            $(".exportBtn").click(function() {
+                let selectedDaterange = document.getElementById('selectedDaterange').value || '';
+                if (selectedDaterange) {
+                    window.location.href =
+                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}`;
+                } else {
+                    window.location.href = exportUrl;
+                }
+
+            });
+        });
     </script>
     @include('content.dashboard.script')
 @endsection
@@ -108,7 +196,8 @@
                         <h6>Average minutes per stage</h6>
                         <ul>
                             @forelse ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
-                                <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }} minutes
+                                <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }}
+                                    minutes
                                 </li>
                             @empty
                                 <li>No data available</li>
@@ -161,7 +250,7 @@
         </div>
     </div>
 
-    <div class="row">
+    {{-- <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
@@ -191,6 +280,32 @@
                                 </tr>
                             @endforeach
                         </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div> --}}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <!--- Filters ------------ START ---------------->
+                <div class="card-header border-bottom">
+
+                    {{-- <h6>Search By Filters</h6> --}}
+                    <div class="d-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
+                        <div class="input-group date">
+                            <input class="form-control filter-selected-data" type="text"
+                                name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />
+                            <span class="input-group-text">
+                                <i class='bx bxs-calendar'></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <!--- Filters ------------ END ---------------->
+                <div class="card-datatable table-responsive pt-0">
+                    <table class="datatables-basic border-top table" id="DataTables2024">
                     </table>
                 </div>
             </div>

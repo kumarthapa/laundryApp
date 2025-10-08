@@ -194,14 +194,27 @@
                 window.location.href = '{{ route('create.products') }}';
             });
 
-            // let exportUrl = "{{ route('products.exportProducts') }}";
-            // $(".exportBtn").click(function() {
-            //     window.location.href = exportUrl;
-            // });
-            // let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
-            // $(".exportBtn2").click(function() {
-            //     window.location.href = exportUrl2;
-            // });
+            let exportUrl = "{{ route('products.exportProducts') }}";
+            $(".exportBtn").click(function() {
+                let selectedDaterange = document.getElementById('selectedDaterange').value || '';
+                if (selectedDaterange) {
+                    window.location.href =
+                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}`;
+                } else {
+                    window.location.href = exportUrl;
+                }
+
+            });
+            let exportUrl2 = "{{ route('products.exportProductsStageWise') }}";
+            $(".exportBtn2").click(function() {
+                let selectedDaterange = document.getElementById('selectedDaterange').value || '';
+                if (selectedDaterange) {
+                    window.location.href =
+                        `${exportUrl2}?daterange=${encodeURIComponent(selectedDaterange)}`;
+                } else {
+                    window.location.href = exportUrl2;
+                }
+            });
 
             $(".bulkImportBtn").click(function() {
                 $("#bulkProductImportModal").modal('show');

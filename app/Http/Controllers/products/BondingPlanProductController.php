@@ -469,46 +469,71 @@ class BondingPlanProductController extends Controller
     public function exportBonding(Request $request)
     {
         $user = Auth::user();
-        $daterange = $request->input('bondingDaterangePicker');
+        $daterange = $request->query('daterange'); // from query string
+        $startDate = null;
+        $endDate = null;
+
+        if (! empty($daterange)) {
+            try {
+                // Example: "08/09/2025 - 08/10/2025"
+                [$start, $end] = array_map('trim', explode('-', $daterange));
+                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
+                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Invalid date range format. Expected 'DD/MM/YYYY - DD/MM/YYYY'.",
+                ]);
+            }
+        }
 
         $metaInfo = [
             'date_range' => $daterange ?: 'All time',
             'generated_by' => $user->fullname ?? 'System',
         ];
 
-        // Eager load latestHistory (we store stages/status as strings)
-        $bondingProducts = BondingPlanProduct::with('products')->get();
+        // Base query
+        $query = BondingPlanProduct::with('products');
+
+        // Filter by date range if provided
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $bondingProducts = $query->get();
 
         $dataRows = $bondingProducts->map(function ($product) {
             return [
+                $product->serial_no,
                 $product->sku,
                 $product->product_name,
                 $product->model,
                 $product->size,
                 $product->qa_code,
-                // $product->rfid_tag,
                 $product->is_write,
                 $product->reference_code,
                 LocaleHelper::formatDateWithTime($product->created_at),
                 LocaleHelper::formatDateWithTime($product->updated_at),
             ];
         })->toArray();
-        // print_r($headers);
-        // exit;
+
         $headers = [
+            'Serial No',
             'SKU',
             'Product Name',
             'Model',
             'Size',
             'QA Code',
-            // 'RFID Tag',
             'Is Write',
             'Reference Code',
             'Created At',
             'Updated At',
         ];
 
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'bonding_export_'.now()->format('Ymd_His').'.xlsx');
+        return Excel::download(
+            new ProductExport($dataRows, $metaInfo, $headers),
+            'bonding_export_'.now()->format('Ymd_His').'.xlsx'
+        );
     }
 
     // ============================ Bonding section ==========================
@@ -622,7 +647,7 @@ class BondingPlanProductController extends Controller
                 // For update_existing: QA Code is required in sheet and must exist
                 if ($actionType === 'update_existing') {
                     if (! $sheetQaCode) {
-                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: QA Code is required for update_existing."]);
+                        return response()->json(['success' => false, 'message' => "Row {$rowNumber}: QA Code is required Header."]);
                     }
                     if (! in_array($sheetQaCode, $allQaCodes)) {
                         return response()->json(['success' => false, 'message' => "Row {$rowNumber}: QA Code '{$sheetQaCode}' does not exist for update."]);
@@ -631,24 +656,31 @@ class BondingPlanProductController extends Controller
 
                 // QC Confirmed At validation (FileImportHelper may already normalized Excel dates to Y-m-d H:i:s)
                 $qc_confirmed_at = null;
+
                 if (! empty($qc_confirmed_at_raw)) {
                     try {
-                        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $qc_confirmed_at_raw)) {
-                            // Already Y-m-d or Y-m-d H:i:s
-                            $parsed = \Carbon\Carbon::parse($qc_confirmed_at_raw);
-                        } else {
-                            // Handle text values (DD/MM/YYYY or DD/MM/YYYY HH:mm:ss)
+                        // Normalize separators to "/"
+                        $normalized = str_replace('-', '/', $qc_confirmed_at_raw);
+
+                        // Try parsing with time first
+                        try {
+                            $parsed = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $normalized);
+                        } catch (\Exception $e1) {
+                            // If no time, fallback to date-only
                             try {
-                                $parsed = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $qc_confirmed_at_raw);
-                            } catch (\Exception $e) {
-                                $parsed = \Carbon\Carbon::createFromFormat('d/m/Y', $qc_confirmed_at_raw)->startOfDay();
+                                $parsed = \Carbon\Carbon::createFromFormat('d/m/Y', $normalized)->startOfDay();
+                            } catch (\Exception $e2) {
+                                // If still fails, try parsing with Carbon auto parser (for Y-m-d etc.)
+                                $parsed = \Carbon\Carbon::parse($qc_confirmed_at_raw);
                             }
                         }
+
                         $qc_confirmed_at = $parsed->format('Y-m-d H:i:s');
+
                     } catch (\Exception $e) {
                         return response()->json([
                             'success' => false,
-                            'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'DD/MM/YYYY' or 'DD/MM/YYYY HH:mm:ss'.",
+                            'message' => "Row {$rowNumber}: Invalid QC Confirmed At format. Expected 'DD-MM-YYYY', 'DD-MM-YYYY HH:mm:ss', 'DD/MM/YYYY' or 'DD/MM/YYYY HH:mm:ss'.",
                         ]);
                     }
                 }
@@ -703,9 +735,9 @@ class BondingPlanProductController extends Controller
                     foreach ($existingRecords as $info) {
                         // Build update data but keep existing values as fallback.
                         $updateData = [
-                            'sku' => $sku !== null ? $sku : $info->sku,
-                            'reference_code' => $referenceCode !== null ? $referenceCode : $info->reference_code,
-                            'qc_confirmed_at' => $qc_confirmed_at !== null ? $qc_confirmed_at : $info->qc_confirmed_at,
+                            'sku' => $sku !== null ? $sku : $info->sku ?? null,
+                            'reference_code' => $referenceCode !== null ? $referenceCode : $info->reference_code ?? null,
+                            'qc_confirmed_at' => $qc_confirmed_at !== null ? $qc_confirmed_at : $info->qc_confirmed_at ?? null,
                             // 'size' => $size !== '' ? $size : $info->size,
                             // 'model' => ! empty($this->getModelFromProductName($productName)) ? $this->getModelFromProductName($productName) : $info->model,
                             // Do NOT overwrite qa_code/date/month/year unless the sheet explicitly includes and you want that behavior.
@@ -715,10 +747,6 @@ class BondingPlanProductController extends Controller
                             // 'serial_no' => isset($row['Serial No']) ? $row['Serial No'] : $info->serial_no,
                         ];
 
-                        // Optionally update serial_no / bonding_name if present in sheet
-                        if (array_key_exists('Serial No', $row)) {
-                            $updateData['serial_no'] = $row['Serial No'] ?? $info->serial_no;
-                        }
                         if (array_key_exists('Bonding Name', $row)) {
                             $updateData['bonding_name'] = $row['Bonding Name'] ?? $info->bonding_name;
                         }

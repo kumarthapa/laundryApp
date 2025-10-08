@@ -640,7 +640,23 @@ class ProductsController extends Controller
     public function exportProducts(Request $request)
     {
         $user = Auth::user();
-        $daterange = $request->input('productsDaterangePicker');
+        $daterange = $request->query('daterange'); // from query string
+        $startDate = null;
+        $endDate = null;
+
+        if (! empty($daterange)) {
+            try {
+                // Example: "08/09/2025 - 08/10/2025"
+                [$start, $end] = array_map('trim', explode('-', $daterange));
+                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
+                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Invalid date range format. Expected 'DD/MM/YYYY - DD/MM/YYYY'.",
+                ]);
+            }
+        }
 
         $metaInfo = [
             'date_range' => $daterange ?: 'All time',
@@ -648,7 +664,12 @@ class ProductsController extends Controller
         ];
 
         // Eager load latestHistory (we store stages/status as strings)
-        $products = Products::with('latestHistory')->get();
+        $query = Products::with('latestHistory');
+        // Filter by date range if provided
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        }
+        $products = $query->get();
 
         $dataRows = $products->map(function ($product) {
             $latest = $product->latestHistory;
@@ -695,7 +716,23 @@ class ProductsController extends Controller
     public function exportProductsStageWise(Request $request)
     {
         $user = Auth::user();
-        $daterange = $request->input('productsDaterangePicker');
+        $daterange = $request->query('daterange'); // from query string
+        $startDate = null;
+        $endDate = null;
+
+        if (! empty($daterange)) {
+            try {
+                // Example: "08/09/2025 - 08/10/2025"
+                [$start, $end] = array_map('trim', explode('-', $daterange));
+                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
+                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Invalid date range format. Expected 'DD/MM/YYYY - DD/MM/YYYY'.",
+                ]);
+            }
+        }
 
         $metaInfo = [
             'date_range' => $daterange ?: 'All time',
@@ -729,7 +766,12 @@ class ProductsController extends Controller
         $headers = array_merge($baseHeaders, $stageHeaders, $extraHeaders);
 
         // Fetch products with histories
-        $products = Products::with('processHistory')->get();
+        $query = Products::with('latestHistory');
+        // Filter by date range if provided
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        }
+        $products = $query->get();
 
         $dataRows = $products->map(function ($product) use ($stages) {
             // Start with base columns
