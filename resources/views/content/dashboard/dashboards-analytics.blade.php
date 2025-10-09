@@ -29,7 +29,7 @@
                 createPermissions: '',
                 fetchId: "FetchData",
                 title: "Recent Process Events",
-                displayLength: 31,
+                displayLength: 30,
                 is_export: "Export All",
             };
 

@@ -146,7 +146,7 @@
                 fetchId: "FetchData",
                 title: "Bonding Plan Products",
                 createTitle: "Manually Create",
-                displayLength: 100,
+                displayLength: 30,
                 is_import: "Upload Models",
                 is_delete: "{{ $deletePermissions ?? '' }}",
                 delete_url: "{{ route('delete.bonding') }}",

@@ -148,7 +148,7 @@
                 fetchId: "FetchData",
                 title: "Products List",
                 createTitle: "Manually Create",
-                displayLength: 100,
+                displayLength: 30,
                 // is_import: "Upload Products",
                 is_delete: "{{ $deletePermissions ?? '' }}",
                 delete_url: "{{ route('delete.products') }}",

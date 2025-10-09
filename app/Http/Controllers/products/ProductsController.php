@@ -225,7 +225,7 @@ class ProductsController extends Controller
     public function list(Request $request)
     {
         $search = $request->get('search') ?? '';
-        $limit = intval($request->get('length', 100));
+        $limit = intval($request->get('length', 10000));
         $offset = intval($request->get('start', 0));
         $sort = $request->get('sort') ?? 'p.created_at';
         $order = $request->get('order') ?? 'desc';
