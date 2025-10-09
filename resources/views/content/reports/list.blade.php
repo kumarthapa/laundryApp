@@ -97,8 +97,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <p class="mb-0">
-                                <span class="text-heading fw-medium me-2">+18.2%</span>
-                                <span class="text-body-secondary">than last week</span>
+                                <span class="text-heading fw-medium me-2">Today's</span>
+                                <span class="text-body-secondary">Total floor products</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('daily_floor_stock_report')"
@@ -120,8 +120,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <p class="mb-0">
-                                <span class="text-heading fw-medium me-2">+18.2%</span>
-                                <span class="text-body-secondary">than last week</span>
+                                <span class="text-heading fw-medium me-2">Overall</span>
+                                <span class="text-body-secondary">Total products</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('monthly_yearly_report')"
@@ -143,8 +143,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <p class="mb-0">
-                                <span class="text-heading fw-medium me-2">+18.2%</span>
-                                <span class="text-body-secondary">than last week</span>
+                                <span class="text-heading fw-medium me-2">Today's</span>
+                                <span class="text-body-secondary">Total packing products</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('daily_packing_report')"
@@ -166,8 +166,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <p class="mb-0">
-                                <span class="text-heading fw-medium me-2">+18.2%</span>
-                                <span class="text-body-secondary">than last week</span>
+                                <span class="text-heading fw-medium me-2">Today's</span>
+                                <span class="text-body-secondary">Total tapedge products</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('daily_tapedge_report')"
@@ -189,8 +189,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <p class="mb-0">
-                                <span class="text-heading fw-medium me-2">+18.2%</span>
-                                <span class="text-body-secondary">than last week</span>
+                                <span class="text-heading fw-medium me-2">Today's</span>
+                                <span class="text-body-secondary">Total zip cover products</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('daily_zip_cover_report')"
@@ -212,8 +212,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <p class="mb-0">
-                                <span class="text-heading fw-medium me-2">+18.2%</span>
-                                <span class="text-body-secondary">than last week</span>
+                                <span class="text-heading fw-medium me-2">Today's</span>
+                                <span class="text-body-secondary">Total bonding products</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('daily_bonding_report')"
