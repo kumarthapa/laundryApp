@@ -174,27 +174,27 @@ class ProductsController extends Controller
         $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
 
         // Defect points (history.defects_points stored JSON array) -> display small badges or count
-        $defectsHtml = '';
-        $defectsCount = 0;
-        $defectsRaw = $history->defects_points ?? null;
-        if (! empty($defectsRaw)) {
-            // try decode JSON safely
-            $decoded = null;
-            if (is_string($defectsRaw)) {
-                $decoded = @json_decode($defectsRaw, true);
-            } elseif (is_array($defectsRaw)) {
-                $decoded = $defectsRaw;
-            }
-            if (is_array($decoded) && count($decoded) > 0) {
-                $defectsCount = count($decoded);
-                $pieces = [];
-                foreach ($decoded as $d) {
-                    $label = $this->defectPointMap[$d] ?? $d;
-                    $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
-                }
-                $defectsHtml = implode(' ', $pieces);
-            }
-        }
+        // $defectsHtml = '';
+        // $defectsCount = 0;
+        // $defectsRaw = $history->defects_points ?? null;
+        // if (! empty($defectsRaw)) {
+        //     // try decode JSON safely
+        //     $decoded = null;
+        //     if (is_string($defectsRaw)) {
+        //         $decoded = @json_decode($defectsRaw, true);
+        //     } elseif (is_array($defectsRaw)) {
+        //         $decoded = $defectsRaw;
+        //     }
+        //     if (is_array($decoded) && count($decoded) > 0) {
+        //         $defectsCount = count($decoded);
+        //         $pieces = [];
+        //         foreach ($decoded as $d) {
+        //             $label = $this->defectPointMap[$d] ?? $d;
+        //             $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
+        //         }
+        //         $defectsHtml = implode(' ', $pieces);
+        //     }
+        // }
         // Checkbox column (first cell) with data-id
         $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
 
@@ -205,7 +205,8 @@ class ProductsController extends Controller
         $data['qa_code'] = $row->qa_code;
         $data['quantity'] = $row->quantity;
         $data['qc_status'] = $statusHTML;
-        $data['current_stage'] = $stageHTML.($defectsHtml ? '<div class="mt-1">'.$defectsHtml.'</div>' : '');
+        $data['current_stage'] = $stageHTML;
+        // $data['current_stage'] = $stageHTML.($defectsHtml ? '<div class="mt-1">'.$defectsHtml.'</div>' : '');
 
         // $data['actions'] = '<div class="d-inline-block">
         //     <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>

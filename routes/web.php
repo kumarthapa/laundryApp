@@ -109,5 +109,5 @@ Route::post('/bonding/bulkBondingPlanUpload', $controller_path.'\products\Bondin
 
 Route::get('/reports', $controller_path.'\reports\ReportsController@index')->name('reports')->middleware('permission:reports,view.reports');
 Route::post('/reports/list', $controller_path.'\reports\ReportsController@list')->name('reports.list')->middleware('permission:reports,view.reports');
-Route::post('/eports/export', $controller_path.'\reports\ReportsController@exportReport')->name('reports.export')->middleware('permission:reports,view.reports');
-// Route::post('/reports/list', $controller_path . '\reports\ReportsController@list')->name('view.reports');
+Route::post('/reports/export', $controller_path.'\reports\ReportsController@exportReport')->name('reports.export')->middleware('permission:reports,view.reports');
+Route::post('/reports/defect_export', $controller_path.'\reports\ReportsController@exportDefectReport')->name('reports.defect_export')->middleware('permission:reports,view.reports');

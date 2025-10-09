@@ -3,6 +3,17 @@
 @section('title', 'Bonding Plan Products List')
 @section('page-style')
     <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
+    <style>
+        @media screen and (max-width: 768px) {
+            .select2-container--default {
+                margin-bottom: 10px !important;
+            }
+
+            .create-new {
+                margin-bottom: 10px !important;
+            }
+        }
+    </style>
 @endsection
 @section('content')
     <div class="row">
@@ -81,9 +92,21 @@
         <div class="col-12">
             <div class="card">
                 <!--- Filters ------------ START ---------------->
-                <div class="card-header border-bottom">
+                {{-- <div class="card-header border-bottom">
                     <h6>Search By Filters</h6>
                     <div class="d-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
+                        <div class="input-group date">
+                            <input class="form-control filter-selected-data" type="text"
+                                name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />
+                            <span class="input-group-text">
+                                <i class='bx bxs-calendar'></i>
+                            </span>
+                        </div>
+                    </div>
+                </div> --}}
+                <div class="card-header border-bottom">
+                    <h6>Search By Filters</h6>
+                    <div class="d-md-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
                         <div class="input-group date">
                             <input class="form-control filter-selected-data" type="text"
                                 name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />

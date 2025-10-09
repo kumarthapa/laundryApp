@@ -21,16 +21,17 @@ class DashboardController extends Controller
         $metrics = $this->gatherMetrics();
         $headers = [
             ['updated_date' => 'Updated Date'],
+            ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['qa_code' => 'QA Code'],
             ['stage' => 'Stage'],
             ['status' => 'Status'],
-            ['defects_points' => 'Defect Points'],
+            // ['defects_points' => 'Defect Points'],
             ['comments' => 'Comments'],
         ];
 
         $configData = UtilityHelper::getProductStagesAndDefectPoints();
-        $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true, true, true);
+        $table_headers = TableHelper::get_manage_table_headers($headers, false, true, false, false, false);
 
         return view('content.dashboard.dashboards-analytics', [
             'metrics' => $metrics,
@@ -52,7 +53,7 @@ class DashboardController extends Controller
         $data = [];
         // Updated Date
         $data['updated_date'] = LocaleHelper::formatDateWithTime($row->updated_date ?? '');
-
+        $data['product_name'] = $row->product_name;
         // SKU & QA Code
         $data['sku'] = e($row->sku);
         $data['qa_code'] = e($row->qa_code);
@@ -72,21 +73,21 @@ class DashboardController extends Controller
         $data['status'] = $statusHTML;
 
         // Defect Points (stored as JSON)
-        $defectsHtml = '';
-        $defectsRaw = $row->defects_points ?? null;
+        // $defectsHtml = '';
+        // $defectsRaw = $row->defects_points ?? null;
 
-        if (! empty($defectsRaw)) {
-            $decoded = is_string($defectsRaw) ? @json_decode($defectsRaw, true) : (is_array($defectsRaw) ? $defectsRaw : []);
-            if (is_array($decoded) && count($decoded) > 0) {
-                $badges = [];
-                foreach ($decoded as $d) {
-                    $label = $this->defectPointMap[$d] ?? $d;
-                    $badges[] = '<span class="badge rounded bg-label-info me-1">'.e($label).'</span>';
-                }
-                $defectsHtml = implode(' ', $badges);
-            }
-        }
-        $data['defects_points'] = $defectsHtml ?: '-';
+        // if (! empty($defectsRaw)) {
+        //     $decoded = is_string($defectsRaw) ? @json_decode($defectsRaw, true) : (is_array($defectsRaw) ? $defectsRaw : []);
+        //     if (is_array($decoded) && count($decoded) > 0) {
+        //         $badges = [];
+        //         foreach ($decoded as $d) {
+        //             $label = $this->defectPointMap[$d] ?? $d;
+        //             $badges[] = '<span class="badge rounded bg-label-info me-1">'.e($label).'</span>';
+        //         }
+        //         $defectsHtml = implode(' ', $badges);
+        //     }
+        // }
+        // $data['defects_points'] = $defectsHtml ?: '-';
 
         // Comments
         $data['comments'] = e($row->comments ?? '');
@@ -124,14 +125,16 @@ class DashboardController extends Controller
         // Date range filter
         $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');
         $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
-        $filters['start_date'] = $daterange['start_date'] ?? Carbon::today()->startOfDay();
-        $filters['end_date'] = $daterange['end_date'] ?? Carbon::today()->endOfDay();
+
+        $filters['start_date'] = $daterange['start_date'] ?? Carbon::now()->subMonth()->startOfDay();
+        $filters['end_date'] = $daterange['end_date'] ?? Carbon::now()->endOfDay();
 
         // Main query (direct from history)
         $query = DB::table('product_process_history as h')
             ->join('products as p', 'p.id', '=', 'h.product_id')
             ->select(
                 DB::raw("DATE_FORMAT(h.changed_at, '%Y-%m-%d %H:%i:%s') as updated_date"),
+                'p.product_name',
                 'p.sku',
                 'p.qa_code',
                 'h.stages as stage',

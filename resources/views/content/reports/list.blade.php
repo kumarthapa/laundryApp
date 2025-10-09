@@ -237,7 +237,7 @@
                     {{-- <h6>Search By Filters</h6> --}}
 
                     <div class="row pt-3" id="filter-container">
-                        <div class="col-md-3">
+                        <div class="col-md-3 mb-md-0 mb-3">
                             <select id="filterQcStatus" class="form-select filter-selected-data">
                                 <option value="">All QC Status</option>
                                 @if (isset($stages) && $stages)
@@ -248,7 +248,7 @@
                             </select>
 
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 mb-md-0 mb-3">
                             <select id="filterCurrentStage" class="form-select filter-selected-data">
                                 <option value="">All Current Stages</option>
                                 @if (isset($stages) && $stages)
@@ -258,7 +258,7 @@
                                 @endif
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3 mb-md-0 mb-3">
                             <div class="input-group date">
                                 <input class="form-control filter-selected-data" type="text"
                                     name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />
@@ -268,14 +268,28 @@
                             </div>
                         </div>
                         <!-- Download Button -->
-                        <div class="col-md-2 d-flex justify-content-md-end">
+                        <div class="col-md-3 d-flex justify-content-end mb-md-0 mb-3">
+                            <button class="btn btn-sm btn-primary d-flex align-items-center w-auto me-2"
+                                onclick="downloadSeletedReport('daily_floor_stock_report')">
+                                <i class="icon-base bx bx-export icon-sm me-1"></i>
+                                <span>Export All</span>
+                                {{-- <span class="d-md-none d-sm-inline">Export All</span> --}}
+                            </button>
+                            <button class="btn btn-sm btn-primary d-flex align-items-center w-auto"
+                                onclick="downloadDefectReport()">
+                                <i class="icon-base bx bx-export icon-sm me-1"></i>
+                                <span>Defect report</span>
+                                {{-- <span class="d-md-none d-sm-inline">Defect report</span> --}}
+                            </button>
+                        </div>
+                        {{-- <div class="col-md-2 d-flex justify-content-md-end">
                             <button class="btn btn-sm btn-primary d-flex align-items-center w-auto"
                                 onclick="downloadSeletedReport('daily_floor_stock_report')">
                                 <i class="icon-base bx bx-export icon-sm me-1"></i>
                                 <span class="d-sm-none d-md-inline">Download report</span>
                                 <span class="d-md-none d-sm-inline">Export</span>
                             </button>
-                        </div>
+                        </div> --}}
 
 
                     </div>
@@ -405,7 +419,7 @@
             form.method = 'POST';
             form.action = "{{ route('reports.export') }}";
             form.style.display = 'none';
-            form.target = '_blank'; // open in new tab/window so file download starts
+            //form.target = '_blank'; // open in new tab/window so file download starts
 
             // csrf
             const tokenInput = document.createElement('input');
@@ -423,6 +437,41 @@
                 selectedDaterange: document.getElementById('selectedDaterange') ? document.getElementById(
                     'selectedDaterange').value : '',
                 status: $('#filterQcStatus').length ? $('#filterQcStatus').val() : '',
+                stage: $('#filterCurrentStage').length ? $('#filterCurrentStage').val() : ''
+            };
+
+            for (const name in inputs) {
+                const el = document.createElement('input');
+                el.type = 'hidden';
+                el.name = name;
+                el.value = inputs[name] ?? '';
+                form.appendChild(el);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        }
+
+        function downloadDefectReport() {
+            // create a temporary form and submit POST to trigger file download
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('reports.defect_export') }}";
+            form.style.display = 'none';
+            // form.target = '_blank'; // open in new tab/window so file download starts
+
+            // csrf
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = "{{ csrf_token() }}";
+            form.appendChild(tokenInput);
+
+            // required values
+            const inputs = {
+                selectedDaterange: document.getElementById('selectedDaterange') ? document.getElementById(
+                    'selectedDaterange').value : '',
                 stage: $('#filterCurrentStage').length ? $('#filterCurrentStage').val() : ''
             };
 

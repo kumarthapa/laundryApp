@@ -51,8 +51,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products/update-qa-code', [ProductsApiController::class, 'updateQaCode'])
         ->name('products.updateQaCode');
 
-    // Updating product name
-    Route::post('/products/update-product-name', [RFIDtagDetailsApiController::class, 'updateProductName'])
-        ->name('products.updateProductName');
+    // Updating product details
+    Route::post('/products/update-product-details', [RFIDtagDetailsApiController::class, 'updateProductDetails'])
+        ->name('products.updateProductDetails');
 
 });

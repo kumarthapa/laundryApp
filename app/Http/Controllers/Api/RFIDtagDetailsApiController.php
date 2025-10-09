@@ -228,15 +228,16 @@ class RFIDtagDetailsApiController extends Controller
         }
     }
 
-    public function updateProductName(Request $request)
+    public function updateProductDetails(Request $request)
     {
-        Log::info('updateProductName request: '.json_encode($request->all()));
+        Log::info('updateProductDetails request: '.json_encode($request->all()));
 
         try {
             // Validation: only require tag_id and product_name for this endpoint
             $validator = Validator::make($request->all(), [
                 'tag_id' => 'required|string',
-                'product_name' => 'required|string|max:255',
+                'product_name' => 'nullable|string|max:255',
+                'sku' => 'nullable|string|max:100',
             ]);
 
             if ($validator->fails()) {
@@ -249,15 +250,17 @@ class RFIDtagDetailsApiController extends Controller
 
             $tagId = trim($request->input('tag_id'));
             $productName = trim($request->input('product_name'));
+            $sku = trim($request->input('sku'));
 
             // basic sanitization (strip HTML tags)
             $productName = strip_tags($productName);
+            $sku = strip_tags($sku);
 
             // Find product by RFID tag
             $product = $this->products->where('rfid_tag', $tagId)->first();
 
             if (! $product) {
-                Log::warning("updateProductName: product not found for tag_id={$tagId}");
+                Log::warning("updateProductDetails: product not found for tag_id={$tagId}");
 
                 return response()->json([
                     'success' => false,
@@ -266,27 +269,27 @@ class RFIDtagDetailsApiController extends Controller
             }
 
             // If name is same, return success without extra DB write
-            if ($product->product_name !== $productName) {
-                $product->product_name = $productName;
+            if ($productName || $sku) {
+                $updateData = [
+                    'product_name' => $productName ?: $product->product_name,
+                    'sku' => $sku ?: $product->sku,
+                    'qc_status_updated_by' => auth()->id() ?? null,
+                ];
+                $product->update($updateData);
 
-                // Optional: track who changed the name if you have such columns
-                // $product->name_updated_by = auth()->id() ?? null;
-                // $product->name_updated_at = now();
-
-                $product->save();
-                Log::info("updateProductName: product_name updated for product_id={$product->id}", [
+                Log::info("updateProductDetails: product_name updated for product_id={$product->id}", [
                     'old' => $product->getOriginal('product_name'),
                     'new' => $productName,
                     'by' => auth()->id() ?? null,
                 ]);
             } else {
-                Log::info("updateProductName: new name equals existing name for product_id={$product->id}");
+                Log::info("updateProductDetails: new name equals existing name for product_id={$product->id}");
             }
 
             // Return trimmed product payload
             return response()->json([
                 'success' => true,
-                'message' => 'Product name updated successfully',
+                'message' => 'Product details updated successfully',
                 'product' => [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
@@ -301,11 +304,11 @@ class RFIDtagDetailsApiController extends Controller
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('Error in updateProductName: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('Error in updateProductDetails: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update product name',
+                'message' => 'Failed to update product details',
                 'error' => $e->getMessage(),
             ], 500);
         }

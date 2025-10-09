@@ -17,7 +17,6 @@
     @include('content.common.scripts.daterangePicker', [
         'float' => 'right',
         'name' => 'masterTableDaterangePicker',
-        'default_days' => 0,
     ])
     <script>
         // Data passed from server for initial page load
@@ -30,7 +29,7 @@
                 createPermissions: '',
                 fetchId: "FetchData",
                 title: "Recent Process Events",
-                displayLength: 100,
+                displayLength: 31,
                 is_export: "Export All",
             };
 
@@ -291,9 +290,7 @@
             <div class="card">
                 <!--- Filters ------------ START ---------------->
                 <div class="card-header border-bottom">
-
-                    {{-- <h6>Search By Filters</h6> --}}
-                    <div class="d-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
+                    <div class="d-md-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
                         <div class="input-group date">
                             <input class="form-control filter-selected-data" type="text"
                                 name="masterTableDaterangePicker" placeholder="DD/MM/YY" id="selectedDaterange" />
@@ -303,6 +300,7 @@
                         </div>
                     </div>
                 </div>
+
                 <!--- Filters ------------ END ---------------->
                 <div class="card-datatable table-responsive pt-0">
                     <table class="datatables-basic border-top table" id="DataTables2024">

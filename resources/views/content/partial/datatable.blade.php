@@ -142,7 +142,7 @@
             if (filterData.hasOwnProperty(key)) {
                 const filter = filterData[key];
                 dropdownButtonsHtml += `
-                <select id="${key}Filter" class="form-control filter-selected-data select2-filter" style="width: 200px;">
+                <select id="${key}Filter" class="form-control filter-selected-data select2-filter mb-md-0 mb-sm-3" style="width: 200px;">
                     <option value="">${filter.filter_name}</option>
                     ${Object.entries(filter.data)
                         .map(([filterKey, filterValue]) => `<option value="${filterKey}">${filterValue}</option>`)

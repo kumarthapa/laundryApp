@@ -12,7 +12,7 @@
             <div class="card-body">
                 <form class="needs-validation" onsubmit="return false" novalidate>
                     {{ csrf_field() }}
-                    <div class="row px-3 py-3">
+                    <div class="row px-3 py-2">
 
 
                         <div class="mb-4 text-center">
@@ -39,7 +39,7 @@
                                     checked>
                             </div>
                         </div>
-                        <div class="col-12 py-4">
+                        <div class="col-12 py-2">
                             {{-- // To Create new permission --}}
                             {{-- <div class="d-flex justify-content-between">
                                 <h4>Role Permissions</h4>
@@ -86,7 +86,7 @@
                                                         <div class="row mx-0">
                                                             @if ($permission)
                                                                 @foreach ($permission as $permission_id => $permission_name)
-                                                                    <div class="col-6 col-md-3 form-check mb-1">
+                                                                    <div class="col-12 col-md-3 form-check mb-1">
                                                                         <input class="form-check-input" type="checkbox"
                                                                             @if ($module_id == 'roles' && $permission_id == 'create.roles') onclick="return false" @endif
                                                                             name="{{ $module_id }}[]"

@@ -3,6 +3,7 @@
         let daysInMonth = moment().daysInMonth(); // Get the total days in the current month
         let defaultDays =
             "{{ isset($default_days) ? $default_days : 30 }}"; // Get default_days from Blade or use 30
+        console.log(defaultDays);
 
         let startDate;
         if (defaultDays == 0) {
@@ -10,15 +11,15 @@
         } else if (defaultDays == 30) {
             startDate = moment().subtract(30, 'days'); // Last 30 days
         } else if (defaultDays == 180) {
-            startDate = moment().subtract(180, 'days'); // Last 30 days
+            startDate = moment().subtract(180, 'days'); // Last 180 days
         } else if (defaultDays == 360) {
-            startDate = moment().subtract(360, 'days'); // Last 30 days
+            startDate = moment().subtract(360, 'days'); // Last 360 days
         } else {
             startDate = moment().subtract(daysInMonth, 'days'); // Current month days
         }
 
         $('input[name="{{ $name }}"]').daterangepicker({
-            opens: "{{ isset($float) ? $float : "right" }}",
+            opens: "{{ isset($float) ? $float : 'right' }}",
             startDate: startDate,
             endDate: moment(), // Always end with today's date
             locale: {
