@@ -117,22 +117,13 @@
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-warning rounded"><i
                                     class="icon-base bx bx-store-alt icon-lg"></i></span>
-                        </div> Daily Products
+                        </div> Daily Floor Stock
                     </h6>
                     <h3 id="kpi-in-daily-production">
-                        @php
-
-                            $total = $metrics['totalProductsToday'] ?? 0;
-                            // $total = array_sum($metrics['totalProductsToday'] ?? []);
-                            echo $total;
-                            // $shippedOrReady =
-                            //     ($metrics['stageCounts']['Shipped'] ?? 0) +
-                            //     ($metrics['stageCounts']['Ready for Shipment'] ?? 0);
-                            // echo $total - $shippedOrReady;
-                        @endphp
+                        {{ $metrics['totalProductsToday'] ?? 0 }}
                     </h3>
                     {{-- <small class="text-muted">Excludes shipped/ready</small> --}}
-                    <small class="text-muted">Daily Floor Stock</small>
+                    <small class="text-muted">Daily SKU Generated Floor Stock</small>
                 </div>
             </div>
         </div>
@@ -144,10 +135,10 @@
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-primary rounded"><i
                                     class="icon-base bx bx-cube icon-lg"></i></span>
-                        </div> Total Products
+                        </div>All Time Production
                     </h6>
                     <h3 id="kpi-total-products">{{ $metrics['totalProducts'] ?? 0 }}</h3>
-                    <small class="text-muted">Total Floor stock</small>
+                    <small class="text-muted">All Time SKU Generated Stock</small>
                 </div>
             </div>
         </div>
@@ -159,7 +150,7 @@
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-success rounded"><i
                                     class="icon-base bx bx-check-circle icon-lg"></i></span>
-                        </div> QC Pass Rate
+                        </div> All Time Success Rate
                     </h6>
                     <h3 id="kpi-qc-pass">{{ isset($metrics['qcPassRate']) ? $metrics['qcPassRate'] . '%' : 'N/A' }}</h3>
                     <small class="text-muted">Across QC events</small>
@@ -172,9 +163,9 @@
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-danger rounded"><i
+                            <span class="avatar-initial bg-label-dark rounded"><i
                                     class="icon-base bx bxs-truck icon-lg"></i></span>
-                        </div> Total Packaging
+                        </div>Stock In Packaging
                     </h6>
                     <h3 id="kpi-shipped">{{ $metrics['stageCounts']['packaging'] ?? 0 }}</h3>
                     <small class="text-muted">Ready To Shipped</small>

@@ -77,8 +77,8 @@
                 document.getElementById('kpi-shipped').innerText = (m.stageCounts['packaging'] || 0);
                 // in-daily-production calculation
                 let total = 0;
-                Object.values(m.totalProductsToday).forEach(v => total += v);
-                const inProd = total || 0;
+                // Object.values(m.totalProductsToday).forEach(v => total += v);
+                const inProd = total += m.totalProductsToday;
                 document.getElementById('kpi-in-daily-production').innerText = inProd;
             }
             if (m.qcPassRate !== undefined) document.getElementById('kpi-qc-pass').innerText = m.qcPassRate !==
@@ -142,7 +142,7 @@
         //         });
         // }, 30000);
 
-
+        //Poll metrics every 10 seconds (adjust as needed)
         const DASHBOARD_METRICS_URL = "{{ url('dashboard/metrics') }}";
         setInterval(() => {
             axios.get(DASHBOARD_METRICS_URL)
