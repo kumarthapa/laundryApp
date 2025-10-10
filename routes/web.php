@@ -36,6 +36,15 @@ Route::group(['middleware' => ['auth']], function () {
 
     $controller_path = 'App\Http\Controllers';
 
+    // Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    // Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.home');
+    // Route::get('/dashboard/metrics', [DashboardController::class, 'metrics'])->name('dashboard.metrics');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', $controller_path.'\dashboard\DashboardController@index')->name('dashboard');
+    Route::get('/dashboard/metrics', $controller_path.'\dashboard\DashboardController@metrics')->name('metrics'); // JSON for charts (polling)
+    Route::get('/dashboard/list', $controller_path.'\dashboard\DashboardController@list')->name('dashboard.list');
+    Route::get('/dashboard/export-products', $controller_path.'\dashboard\DashboardController@exportProducts')->name('dashboard.exportProducts');
+
     /**
      * --------------------------------------------------------------------
      * EMPLOYEE / DASHBOARD ROUTES
