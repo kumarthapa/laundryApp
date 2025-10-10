@@ -263,52 +263,52 @@ class ReportsController extends Controller
         })->toArray();
     }
 
-    /**
-     * Exports products data to Excel
-     */
-    public function exportProducts(Request $request)
-    {
-        $user = Auth::user();
-        $daterange = $request->input('productsDaterangePicker');
+    // /**
+    //  * Exports products data to Excel
+    //  */
+    // public function exportProducts(Request $request)
+    // {
+    //     $user = Auth::user();
+    //     $daterange = $request->input('productsDaterangePicker');
 
-        $metaInfo = [
-            'date_range' => $daterange ?: 'All time',
-            'generated_by' => $user->fullname ?? 'System',
-        ];
+    //     $metaInfo = [
+    //         'date_range' => $daterange ?: 'All time',
+    //         'generated_by' => $user->fullname ?? 'System',
+    //     ];
 
-        $products = Products::all();
+    //     $products = Products::all();
 
-        $dataRows = $products->map(function ($product) {
-            return [
-                $product->product_name,
-                $product->sku,
-                $product->reference_code,
-                $product->size,
-                $product->qa_code,
-                $product->quantity,
-                $product->status,
-                $product->qc_confirmed_at ? $product->qc_confirmed_at->format('Y-m-d H:i:s') : '',
-                $product->created_at->format('Y-m-d H:i:s'),
-                $product->updated_at->format('Y-m-d H:i:s'),
-            ];
-        })->toArray();
+    //     $dataRows = $products->map(function ($product) {
+    //         return [
+    //             $product->product_name,
+    //             $product->sku,
+    //             $product->reference_code,
+    //             $product->size,
+    //             $product->qa_code,
+    //             $product->quantity,
+    //             $product->status,
+    //             $product->qc_confirmed_at ? $product->qc_confirmed_at->format('Y-m-d H:i:s') : '',
+    //             $product->created_at->format('Y-m-d H:i:s'),
+    //             $product->updated_at->format('Y-m-d H:i:s'),
+    //         ];
+    //     })->toArray();
 
-        $headers = [
-            'Product Name',
-            'SKU',
-            'Reference Code',
-            'Size',
-            'RFID Tag',
-            'Quantity',
-            'QC Status',
-            'Current Stage',
-            'QC Confirmed At',
-            'Created At',
-            'Updated At',
-        ];
+    //     $headers = [
+    //         'Product Name',
+    //         'SKU',
+    //         'Reference Code',
+    //         'Size',
+    //         'RFID Tag',
+    //         'Quantity',
+    //         'QC Status',
+    //         'Current Stage',
+    //         'QC Confirmed At',
+    //         'Created At',
+    //         'Updated At',
+    //     ];
 
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
-    }
+    //     return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
+    // }
 
     public function exportReport(Request $request)
     {
@@ -498,25 +498,26 @@ class ReportsController extends Controller
                 $items = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 break;
         }
-
+        // print_r($items);
+        // exit;
         // Normalize $items (could be Collection or array)
         foreach ($items as $item) {
             // fetch latest history for status/stage if exists
-            $history = ProductProcessHistory::where('product_id', $item->id ?? ($item->product_id ?? null))
-                ->latest('changed_at')
-                ->first();
+            // $history = ProductProcessHistory::where('product_id', $item->id ?? ($item->product_id ?? null))
+            //     ->latest('changed_at')
+            //     ->first();
 
-            $status = $history->status ?? ($item->status ?? '');
-            $stageName = LocaleHelper::getStageName($history->stages ?? ($item->stages ?? '')) ?? '';
+            // $status = $history->status ?? ($item->status ?? '');
+            // $stageName = LocaleHelper::getStageName($history->stages ?? ($item->stages ?? '')) ?? '';
 
-            $createdAt = '';
-            if (! empty($item->created_at)) {
-                try {
-                    $createdAt = \Carbon\Carbon::parse($item->created_at)->format('Y-m-d H:i:s');
-                } catch (\Throwable $e) {
-                    $createdAt = (string) ($item->created_at ?? '');
-                }
-            }
+            // $createdAt = '';
+            // if (! empty($item->created_at)) {
+            //     try {
+            //         $createdAt = \Carbon\Carbon::parse($item->created_at)->format('Y-m-d H:i:s');
+            //     } catch (\Throwable $e) {
+            //         $createdAt = (string) ($item->created_at ?? '');
+            //     }
+            // }
 
             $dataRows[] = [
                 $item->product_name ?? '',
@@ -524,9 +525,9 @@ class ReportsController extends Controller
                 $item->size ?? '',
                 $item->qa_code ?? '',
                 $item->quantity ?? '',
-                $status,
-                $stageName,
-                $createdAt,
+                $item->status ?? '',
+                $item->stages ?? '',
+                $item->created_at ?? '',
             ];
         }
 
