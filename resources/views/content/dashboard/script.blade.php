@@ -129,9 +129,25 @@
         renderAll(metrics);
 
         // Poll metrics every 30 seconds (adjust as needed)
+        // setInterval(() => {
+        //     axios.get('/dashboard/metrics')
+        //         .then(resp => {
+        //             console.log(resp)
+        //             if (resp.data) {
+        //                 renderAll(resp.data);
+        //             }
+        //         })
+        //         .catch(err => {
+        //             console.error('Failed to refresh dashboard metrics', err);
+        //         });
+        // }, 30000);
+
+
+        const DASHBOARD_METRICS_URL = "{{ url('dashboard/metrics') }}";
         setInterval(() => {
-            axios.get('/dashboard/metrics')
+            axios.get(DASHBOARD_METRICS_URL)
                 .then(resp => {
+                    console.log(resp)
                     if (resp.data) {
                         renderAll(resp.data);
                     }
@@ -139,6 +155,6 @@
                 .catch(err => {
                     console.error('Failed to refresh dashboard metrics', err);
                 });
-        }, 30000);
+        }, 10000);
     });
 </script>

@@ -10,7 +10,6 @@ $controller_path = 'App\Http\Controllers';
 Route::get('/auth/login', [AuthController::class, 'index'])->name('auth-login');
 Route::post('/user-login', [AuthController::class, 'userLogin'])->name('user-login');
 Route::get('/user-logout', [AuthController::class, 'userLogout'])->name('user-logout');
-Route::get('/user-punchout-logout', [AuthController::class, 'userPunchoutLogout'])->name('user-punchout-logout');
 
 Route::group(['middleware' => ['auth']], function () {
 

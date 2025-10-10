@@ -12,14 +12,14 @@
     </div> --}}
 
     <div class="app-brand demo">
-        <a href="{{ url("/") }}" class="app-brand-link">
+        <a href="{{ route('dashboard') }}" class="app-brand-link">
             <span class="app-brand-logo demo">
                 <span class="text-primary">
-                    @include("_partials.logo-icon", ["width" => 25, "withbg" => "var(--bs-primary)"])
+                    @include('_partials.logo-icon', ['width' => 25, 'withbg' => 'var(--bs-primary)'])
                 </span>
             </span>
             <span class="app-brand-text demo menu-text fw-bold text-capitalize fs-6 ms-2">
-                {{ config("company_brand_name") }}
+                {{ config('company_brand_name') }}
             </span>
 
         </a>
@@ -45,33 +45,33 @@
                 @php
                     $activeClass = null;
                     $currentRouteName = Route::currentRouteName();
-                    $routeParts = explode(".", $currentRouteName);
+                    $routeParts = explode('.', $currentRouteName);
 
                     if (in_array($menu->slug, $routeParts)) {
-                        $activeClass = "active";
+                        $activeClass = 'active';
                     } elseif (isset($menu->submenu)) {
                         if (is_array($menu->slug)) {
                             foreach ($menu->slug as $slug) {
                                 if (str_starts_with($currentRouteName, $slug)) {
-                                    $activeClass = "active open";
+                                    $activeClass = 'active open';
                                 }
                             }
                         } else {
                             if (str_starts_with($currentRouteName, $menu->slug)) {
-                                $activeClass = "active open";
+                                $activeClass = 'active open';
                             }
                         }
                     }
                 @endphp
 
                 <li class="menu-item {{ $activeClass }}">
-                    <a href="{{ isset($menu->slug) ? url($menu->slug) : "javascript:void(0);" }}"
-                        class="{{ isset($menu->submenu) ? "menu-link menu-toggle" : "menu-link" }}"
+                    <a href="{{ isset($menu->slug) ? url($menu->slug) : 'javascript:void(0);' }}"
+                        class="{{ isset($menu->submenu) ? 'menu-link menu-toggle' : 'menu-link' }}"
                         @if (!empty($menu->target)) target="_blank" @endif>
                         @isset($menu->icon)
                             <i class="menu-icon tf-icons {{ $menu->icon }}"></i>
                         @endisset
-                        <div>{{ isset($menu->module_id) ? __("modules." . $menu->module_id) : "" }}</div>
+                        <div>{{ isset($menu->module_id) ? __('modules.' . $menu->module_id) : '' }}</div>
 
                         @isset($menu->badge)
                             <div class="badge bg-{{ $menu->badge[0] }} rounded-pill ms-auto">{{ $menu->badge[1] }}</div>
@@ -80,7 +80,7 @@
 
                     {{-- Recursive submenu inclusion --}}
                     @isset($menu->submenu)
-                        @include("layouts.sections.menu.submenu", ["menu" => $menu->submenu])
+                        @include('layouts.sections.menu.submenu', ['menu' => $menu->submenu])
                     @endisset
                 </li>
             @endif
