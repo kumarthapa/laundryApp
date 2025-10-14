@@ -7,6 +7,7 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
+use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -227,8 +228,26 @@ class DashboardController extends Controller
         // 1) Total products
         $totalProducts = Products::count();
 
-        // 1) Total products created today
-        $totalProductsToday = Products::whereDate('created_at', Carbon::today())->count();
+        // 1) Today's created products
+        $todays_products = Products::with('processHistory')->whereDate('created_at', Carbon::today())->get();
+        $todaysTotalFloorProducts = $todays_products->count();
+
+        $daily_bonding = $todays_products->sum(function ($product) {
+            return $product->processHistory->where('status', 'PASS')->where('stages', 'bonding_qc')->count();
+        });
+
+        $daily_tape_edge_qc = $todays_products->sum(function ($product) {
+            return $product->processHistory->where('status', 'PASS')->where('stages', 'tape_edge_qc')->count();
+        });
+
+        $daily_zip_cover_qc = $todays_products->sum(function ($product) {
+            return $product->processHistory->where('status', 'PASS')->where('stages', 'zip_cover_qc')->count();
+        });
+        $daily_packaging = $todays_products->sum(function ($product) {
+            return $product->processHistory->where('status', 'PASS')->where('stages', 'packaging')->count();
+        });
+
+        $total_packaging = ProductProcessHistory::where('stages', 'packaging')->where('status', 'PASS')->count();
 
         // Load config arrays for stages and defect points (if needed later)
         $productConfig = UtilityHelper::getProductStagesAndDefectPoints();
@@ -239,6 +258,7 @@ class DashboardController extends Controller
         // Subquery to get the latest history ID for each product
         $latestHistorySubquery = DB::table('product_process_history')
             ->select('product_id', DB::raw('MAX(id) as max_id'))
+            ->where('status', 'PASS')
             ->groupBy('product_id');
 
         // Count products by their latest stage (using the 'stages' column in history)
@@ -283,18 +303,19 @@ class DashboardController extends Controller
         $dailyThroughputRows = DB::table('product_process_history')
             ->select(DB::raw('DATE(changed_at) as day'), DB::raw('COUNT(*) as cnt'))
             ->where('changed_at', '>=', $startDate)
+            ->where('stages', 'bonding_qc') // Exclude packaging stage if needed
             ->groupBy(DB::raw('DATE(changed_at)'))
             ->orderBy('day')
             ->get();
 
         // Format daily series as date => count (fill missing days with 0)
-        $dailySeries = [];
+        $qcEventSeries = [];
         for ($d = 0; $d < 30; $d++) {
             $day = $startDate->copy()->addDays($d)->toDateString();
-            $dailySeries[$day] = 0;
+            $qcEventSeries[$day] = 0;
         }
         foreach ($dailyThroughputRows as $r) {
-            $dailySeries[$r->day] = (int) $r->cnt;
+            $qcEventSeries[$r->day] = (int) $r->cnt;
         }
 
         // 5) Recent activity (last 20 events)
@@ -321,19 +342,15 @@ class DashboardController extends Controller
                 $qcStageValues[] = $stage['value'];
             }
         }
-        $qcPassRate = null;
-        if (! empty($qcStageValues)) {
-            $totalQcChecked = DB::table('product_process_history')
-                ->whereIn('stages', $qcStageValues)
-                ->count();
-            $qcPassCount = DB::table('product_process_history')
-                ->whereIn('stages', $qcStageValues)
-                ->where('status', 'PASS')
-                ->count();
-            $qcPassRate = $totalQcChecked > 0
-              ? round(($qcPassCount / $totalQcChecked) * 100, 1)
-              : null;
-        }
+        // if (! empty($qcStageValues)) {
+        //     $totalQcChecked = DB::table('product_process_history')
+        //         ->whereIn('stages', $qcStageValues)
+        //         ->count();
+        //     $qcPassCount = DB::table('product_process_history')
+        //         ->whereIn('stages', $qcStageValues)
+        //         ->where('status', 'PASS')
+        //         ->count();
+        // }
 
         // 7) Stuck items (not progressed in last N days; default 7)
         $daysStuck = 7;
@@ -398,13 +415,17 @@ class DashboardController extends Controller
         return [
             'totalProducts' => (int) $totalProducts,
             'stageCounts' => $stageCounts,
-            'totalProductsToday' => $totalProductsToday,
             'qcCounts' => $qcCounts,
-            'dailySeries' => $dailySeries,
+            'qcEventSeries' => $qcEventSeries,
             // 'recentActivities' => $recentActivities,
-            'qcPassRate' => $qcPassRate,
             'stuckItems' => $stuckItems,
             'avgStageTimes' => $avgStageTimesFormatted,
+
+            'daily_bonding' => $daily_bonding,
+            'daily_tape_edge_qc' => $daily_tape_edge_qc,
+            'daily_zip_cover_qc' => $daily_zip_cover_qc,
+            'daily_packaging' => $daily_packaging,
+            'total_packaging' => $total_packaging ?? 0,
         ];
     }
 

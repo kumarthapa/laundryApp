@@ -81,12 +81,12 @@
                 },
             };
 
-            // console.log("filterData:", filterData);
+            console.log("filterData:", filterData);
 
             getDataTableS(options1, filterData, tableHeaders, getStats);
 
             function getStats(params) {
-                // console.log("Applied filters:", params);
+                console.log("Applied filters:", params);
             }
 
 
@@ -110,148 +110,71 @@
     <div class="row">
 
 
-        <div class="col-sm-6 col-lg-2 mb-4">
+        <div class="col-sm-6 col-lg-3 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-warning rounded"><i
                                     class="icon-base bx bx-store-alt icon-lg"></i></span>
-                        </div> Daily Bonding
+                        </div> Daily Floor Stock
                     </h6>
-                    <h3 id="daily_bonding">
-                        {{ $metrics['daily_bonding'] ?? 0 }}
+                    <h3 id="kpi-in-daily-production">
+                        {{ $metrics['totalProductsToday'] ?? 0 }}
                     </h3>
-
-                    <small class="text-muted">Daily bonding check records</small>
+                    {{-- <small class="text-muted">Excludes shipped/ready</small> --}}
+                    <small class="text-muted">Daily SKU Generated Floor Stock</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-sm-6 col-lg-2 mb-4">
+        <div class="col-sm-6 col-lg-3 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-primary rounded"><i
                                     class="icon-base bx bx-cube icon-lg"></i></span>
-                        </div>Daily Tape Edge
+                        </div>All Time Production
                     </h6>
-                    <h3 id="daily_tape_edge_qc">{{ $metrics['daily_tape_edge_qc'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Tape Edge check records</small>
+                    <h3 id="kpi-total-products">{{ $metrics['totalProducts'] ?? 0 }}</h3>
+                    <small class="text-muted">All Time SKU Generated Stock</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-sm-6 col-lg-2 mb-4">
+        <div class="col-sm-6 col-lg-3 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-success rounded"><i
                                     class="icon-base bx bx-check-circle icon-lg"></i></span>
-                        </div> Daily Zip Cover
+                        </div> All Time Success Rate
                     </h6>
-                    <h3 id="daily_zip_cover_qc">{{ $metrics['daily_zip_cover_qc'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Zip Cover check records</small>
+                    <h3 id="kpi-qc-pass">{{ isset($metrics['qcPassRate']) ? $metrics['qcPassRate'] . '%' : 'N/A' }}</h3>
+                    <small class="text-muted">Across QC events</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-sm-6 col-lg-2 mb-4">
+        <div class="col-sm-6 col-lg-3 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
                             <span class="avatar-initial bg-label-dark rounded"><i
                                     class="icon-base bx bxs-truck icon-lg"></i></span>
-                        </div> Daily Packaging
+                        </div>Stock In Packaging
                     </h6>
-                    <h3 id="daily_packaging">{{ $metrics['daily_packaging'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Packaging check records</small>
+                    <h3 id="kpi-shipped">{{ $metrics['stageCounts']['packaging'] ?? 0 }}</h3>
+                    <small class="text-muted">Ready To Shipped</small>
                 </div>
             </div>
         </div>
-
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-success rounded"><i
-                                    class="icon-base bx bxs-truck icon-lg"></i></span>
-                        </div> Total Packaging
-                    </h6>
-                    <h3 id="total_packaging">{{ $metrics['total_packaging'] ?? 0 }}</h3>
-                    <small class="text-muted">Total packaging last 30 days</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-danger rounded"><i
-                                    class="icon-base bx bx-error icon-lg"></i></span>
-                        </div>Reprocessed Products
-                    </h6>
-                    <h3 id="reprocessed_products">{{ $metrics['reprocessed_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Reprocessed Records last 30 days</small>
-                </div>
-            </div>
-        </div>
-
     </div>
 
     <div class="row">
-        <div class="col-sm-6 col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Stage Distribution</h5>
-                </div>
-                <div class="card-body">
-                    <div id="stageDonut"></div>
-                    <div class="mt-3">
-                        <h6>Average minutes per stage</h6>
-                        <ul>
-                            @forelse ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
-                                <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }}
-                                    minutes
-                                </li>
-                            @empty
-                                <li>No data available</li>
-                            @endforelse
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-sm-6 col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Bonding QC Event (last 30 days)</h5>
-                </div>
-                <div class="card-body">
-                    <div id="bondingQcEvent"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Tape Edge QC Event (last 30 days)</h5>
-                </div>
-                <div class="card-body">
-                    <div id="tapeEdgeQcEvent"></div>
-                </div>
-            </div>
-        </div>
-
-
-    </div>
-    {{-- <div class="row">
         <div class="col-lg-4 mb-4">
             <div class="card">
                 <div class="card-header">
@@ -278,10 +201,10 @@
         <div class="col-lg-5 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h5>Bonding QC Event (last 30 days)</h5>
+                    <h5>Daily Throughput (last 30 days)</h5>
                 </div>
                 <div class="card-body">
-                    <div id="bondingQcEvent"></div>
+                    <div id="dailyThroughput"></div>
                 </div>
             </div>
         </div>
@@ -315,7 +238,7 @@
                 </div>
             </div>
         </div>
-    </div> --}}
+    </div>
 
     {{-- <div class="row">
         <div class="col-12">

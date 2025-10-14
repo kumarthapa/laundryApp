@@ -3,7 +3,7 @@
         let daysInMonth = moment().daysInMonth(); // Get the total days in the current month
         let defaultDays =
             "{{ isset($default_days) ? $default_days : 30 }}"; // Get default_days from Blade or use 30
-        console.log(defaultDays);
+        // console.log(defaultDays);
 
         let startDate;
         if (defaultDays == 0) {
