@@ -174,7 +174,20 @@ class RFIDtagDetailsApiController extends Controller
                     'success' => false,
                     'message' => 'This stage is already PASS',
                 ]);
+            } elseif (! $existingPass) {
+                // bonding qc must be done first
+                if ($stage !== 'bonding_qc' && $product->processHistory()->where('stages', 'bonding_qc')->where('status', 'PASS')->doesntExist()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Bonding QC is not done yet',
+                    ]);
+                }
             }
+
+            // return response()->json([
+            //     'success' => false,
+            //     'message' => 'All the process is done',
+            // ]);
 
             // Update product stage and QC status
             $product->qc_status_updated_by = auth()->id() ?? null;

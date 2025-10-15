@@ -212,9 +212,9 @@
                 </div>
                 <div class="card-body">
                     <div id="stageDonut"></div>
-                    <div class="mt-3">
-                        <h6>Average minutes per stage</h6>
-                        <ul>
+                    <div class="mt-2 py-2">
+                        <h6 class="text-muted text-center py-1"> Production Process Stages Breakdown</h6>
+                        {{-- <ul>
                             @forelse ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
                                 <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }}
                                     minutes
@@ -222,34 +222,32 @@
                             @empty
                                 <li>No data available</li>
                             @endforelse
-                        </ul>
+                        </ul> --}}
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-sm-6 col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Bonding QC Event (last 30 days)</h5>
+        @if (isset($metrics['qc_stage_series']) && count($metrics['qc_stage_series']) > 0)
+            @foreach ($metrics['qc_stage_series'] as $stage => $series)
+                <div class="col-sm-6 col-lg-4 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>{{ \Illuminate\Support\Str::title(str_replace('_', ' ', $stage)) }} (last 30 days)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="qc-{{ \Illuminate\Support\Str::slug($stage, '_') }}" style="min-height:320px"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div id="bondingQcEvent"></div>
+            @endforeach
+        @else
+            <div class="col-sm-6 col-lg-4 mb-4">
+                <div class="alert alert-info">
+                    No QC data available to display charts.
                 </div>
             </div>
-        </div>
-        <div class="col-sm-6 col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Tape Edge QC Event (last 30 days)</h5>
-                </div>
-                <div class="card-body">
-                    <div id="tapeEdgeQcEvent"></div>
-                </div>
-            </div>
-        </div>
-
-
+        @endif
     </div>
     {{-- <div class="row">
         <div class="col-lg-4 mb-4">

@@ -228,24 +228,21 @@ class DashboardController extends Controller
         // 1) Total products
         $totalProducts = Products::count();
 
-        // 1) Today's created products
-        $todays_products = Products::with('processHistory')->whereDate('created_at', Carbon::today())->get();
-        $todaysTotalFloorProducts = $todays_products->count();
+        $stages = ['bonding_qc', 'tape_edge_qc', 'zip_cover_qc', 'packaging'];
 
-        $daily_bonding = $todays_products->sum(function ($product) {
-            return $product->processHistory->where('status', 'PASS')->where('stages', 'bonding_qc')->count();
-        });
+        $daily_counts = ProductProcessHistory::select('stages', DB::raw('COUNT(*) as total'))
+            ->whereDate('created_at', Carbon::today())
+            ->where('status', 'PASS')
+            ->whereIn('stages', $stages)
+            ->groupBy('stages')
+            ->pluck('total', 'stages')
+            ->toArray();
 
-        $daily_tape_edge_qc = $todays_products->sum(function ($product) {
-            return $product->processHistory->where('status', 'PASS')->where('stages', 'tape_edge_qc')->count();
-        });
-
-        $daily_zip_cover_qc = $todays_products->sum(function ($product) {
-            return $product->processHistory->where('status', 'PASS')->where('stages', 'zip_cover_qc')->count();
-        });
-        $daily_packaging = $todays_products->sum(function ($product) {
-            return $product->processHistory->where('status', 'PASS')->where('stages', 'packaging')->count();
-        });
+        // Access like:
+        $daily_bonding = $daily_counts['bonding_qc'] ?? 0;
+        $daily_tape_edge_qc = $daily_counts['tape_edge_qc'] ?? 0;
+        $daily_zip_cover_qc = $daily_counts['zip_cover_qc'] ?? 0;
+        $daily_packaging = $daily_counts['packaging'] ?? 0;
 
         $total_packaging = ProductProcessHistory::where('stages', 'packaging')->where('status', 'PASS')->count();
 
@@ -298,25 +295,66 @@ class DashboardController extends Controller
 
         $qcCounts = $qcCountsRaw;
 
-        // 4) Daily throughput (last 30 days) from product_process_history
-        $startDate = Carbon::today()->subDays(29)->startOfDay();
-        $dailyThroughputRows = DB::table('product_process_history')
-            ->select(DB::raw('DATE(changed_at) as day'), DB::raw('COUNT(*) as cnt'))
-            ->where('changed_at', '>=', $startDate)
-            ->where('stages', 'bonding_qc') // Exclude packaging stage if needed
-            ->groupBy(DB::raw('DATE(changed_at)'))
+        // 4) OLD --- Daily throughput (last 30 days) from product_process_history
+        // $startDate = Carbon::today()->subDays(29)->startOfDay();
+        // $dailyThroughputRows = DB::table('product_process_history')
+        //     ->select(DB::raw('DATE(changed_at) as day'), DB::raw('COUNT(*) as cnt'))
+        //     ->where('changed_at', '>=', $startDate)
+        //     ->where('stages', 'bonding_qc') // Exclude packaging stage if needed
+        //     ->groupBy(DB::raw('DATE(changed_at)'))
+        //     ->orderBy('day')
+        //     ->get();
+
+        // // Format daily series as date => count (fill missing days with 0)
+        // $qcEventSeries = [];
+        // for ($d = 0; $d < 30; $d++) {
+        //     $day = $startDate->copy()->addDays($d)->toDateString();
+        //     $qcEventSeries[$day] = 0;
+        // }
+        // foreach ($dailyThroughputRows as $r) {
+        //     $qcEventSeries[$r->day] = (int) $r->cnt;
+        // }
+
+        //  4) Daily throughput (last 30 days) QC Event Chart  ========================= Start ========================
+        $startDate2 = Carbon::today()->subDays(29)->startOfDay();
+        $endDate2 = Carbon::today()->endOfDay();
+        // fetch counts grouped by stage + day, exclude packaging if needed
+        $rows = DB::table('product_process_history')
+            ->select('stages', DB::raw('DATE(changed_at) as day'), DB::raw('COUNT(*) as cnt'))
+            ->where('changed_at', '>=', $startDate2)
+            ->where('changed_at', '<=', $endDate2)
+            // ->whereNotIn('stages', ['packaging']) // optional filter
+            ->groupBy('stages', DB::raw('DATE(changed_at)'))
+            ->orderBy('stages')
             ->orderBy('day')
             ->get();
 
-        // Format daily series as date => count (fill missing days with 0)
-        $qcEventSeries = [];
+        // build the 30-day date keys
+        $dates = [];
         for ($d = 0; $d < 30; $d++) {
-            $day = $startDate->copy()->addDays($d)->toDateString();
-            $qcEventSeries[$day] = 0;
+            $dates[] = $startDate2->copy()->addDays($d)->toDateString();
         }
-        foreach ($dailyThroughputRows as $r) {
-            $qcEventSeries[$r->day] = (int) $r->cnt;
+
+        // stage => day => count
+        $stageSeries = [];
+        foreach ($rows as $r) {
+            $stage = $r->stages;
+            $day = $r->day;
+            $stageSeries[$stage][$day] = (int) $r->cnt;
         }
+
+        // ensure every stage has all dates filled (0 default)
+        foreach ($stageSeries as $stage => $dayCounts) {
+            foreach ($dates as $d) {
+                if (! isset($stageSeries[$stage][$d])) {
+                    $stageSeries[$stage][$d] = 0;
+                }
+            }
+            // keep date order consistent
+            ksort($stageSeries[$stage]);
+        }
+
+        // 4) Daily throughput (last 30 days) QC Event Chart  ========================= End ========================
 
         // 5) Recent activity (last 20 events)
         // $recentActivities = DB::table('product_process_history as h')
@@ -416,7 +454,9 @@ class DashboardController extends Controller
             'totalProducts' => (int) $totalProducts,
             'stageCounts' => $stageCounts,
             'qcCounts' => $qcCounts,
-            'qcEventSeries' => $qcEventSeries,
+            // 'qcEventSeries' => $qcEventSeries,
+            'qc_dates' => $dates,
+            'qc_stage_series' => $stageSeries,
             // 'recentActivities' => $recentActivities,
             'stuckItems' => $stuckItems,
             'avgStageTimes' => $avgStageTimesFormatted,

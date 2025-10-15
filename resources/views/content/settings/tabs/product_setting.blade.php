@@ -9,11 +9,11 @@
         <div class="py-2">
             <p><strong class="fs-5">Product Stages</strong></p>
         </div>
-        <div class="d-flex justify-content-between my-0 py-0">
+        {{-- <div class="d-flex justify-content-between my-0 py-0">
             <input type="text" class="form-control me-3" id="product_stage_labelname" placeholder="Enter Stage Name">
             <button class="btn btn-primary btn-sm" type="button" id="add_new_stage_label">
                 <i class="bx bx-plus me-1"></i>Add</button>
-        </div>
+        </div> --}}
         <form class="needs-validation save_setting_data py-2" novalidate id="save_product_stage_form">
             {{ csrf_field() }}
             <input type="hidden" name="submit_form_name" value="save_product_process_stages">
@@ -49,9 +49,9 @@
                     </tbody>
                 </table>
             </div>
-            <div class="py-2 text-end">
+            {{-- <div class="py-2 text-end">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
+            </div> --}}
         </form>
     </div>
 </div>
@@ -63,12 +63,12 @@
         <div class="py-2">
             <p><strong class="fs-5">Product Status</strong></p>
         </div>
-        <div class="d-flex justify-content-between my-0 py-0">
+        {{-- <div class="d-flex justify-content-between my-0 py-0">
             <input type="text" class="form-control me-3" id="product_status_labelname"
                 placeholder="Enter Status Name">
             <button class="btn btn-primary btn-sm" type="button" id="add_new_status_label">
                 <i class="bx bx-plus me-1"></i>Add</button>
-        </div>
+        </div> --}}
         <form class="needs-validation save_setting_data py-2" novalidate id="save_product_status_form">
             {{ csrf_field() }}
             <input type="hidden" name="submit_form_name" value="save_product_status">
@@ -104,9 +104,9 @@
                     </tbody>
                 </table>
             </div>
-            <div class="py-2 text-end">
+            {{-- <div class="py-2 text-end">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
+            </div> --}}
         </form>
     </div>
 </div>
@@ -134,8 +134,8 @@
 
                         <div class="d-flex justify-content-between my-0 py-0">
                             <input type="text" class="form-control product_defect_points_labelname me-3"
-                                placeholder="Enter Defect Point" readonly>
-                            <button class="btn btn-primary btn-sm add_new_defect_label" type="button" disabled>
+                                placeholder="Enter Defect Point">
+                            <button class="btn btn-primary btn-sm add_new_defect_label" type="button">
                                 <i class="bx bx-plus me-1"></i>Add
                             </button>
                         </div>
@@ -156,8 +156,7 @@
                                                 <td class="text-nowrap">
                                                     <input type="text" class="form-control"
                                                         value="{{ $pointValue['name'] }}"
-                                                        name="product_defect_points[{{ $stage_key }}][{{ $pointIndex }}][name]"
-                                                        readonly>
+                                                        name="product_defect_points[{{ $stage_key }}][{{ $pointIndex }}][name]">
 
                                                     <input type="hidden" class="form-control"
                                                         value="{{ $pointValue['value'] }}"

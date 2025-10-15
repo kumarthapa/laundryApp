@@ -24,6 +24,8 @@ class ReportsModel extends Model
      */
     public function reports_search($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'created_at', $order = 'desc', $reportType = '')
     {
+        // print_r($reportType monthly_yearly_report);
+        // exit;
         $query = DB::table('products as p')
             ->join('product_process_history as h', 'h.product_id', '=', 'p.id')
             ->select(
@@ -68,6 +70,9 @@ class ReportsModel extends Model
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
         if (! empty($statusFilter) && $statusFilter !== 'all') {
             $query->where('h.status', strtoupper($statusFilter));
+        } elseif ($reportType != 'monthly_yearly_report') {
+            // Default to exclude 'PASS' if no status filter is set
+            $query->where('h.status', 'PASS');
         }
 
         // 🎯 Defect points filter

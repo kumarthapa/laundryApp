@@ -468,8 +468,11 @@ class BondingPlanProductController extends Controller
 
     public function exportBonding(Request $request)
     {
+        // print_r($request->all());
+        // exit;
         $user = Auth::user();
         $daterange = $request->query('daterange'); // from query string
+        $status = $request->query('status'); // from query string
         $startDate = null;
         $endDate = null;
 
@@ -498,6 +501,11 @@ class BondingPlanProductController extends Controller
         // Filter by date range if provided
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        // Filter by status if provided
+        if ($status) {
+            $query->where('is_write', $status);
         }
 
         $bondingProducts = $query->get();

@@ -179,6 +179,29 @@ class ReportsController extends Controller
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
+            case 'all_bonding_report':
+                $filters['stages'] = 'bonding_qc';
+                $filters['start_date'] = '';
+                $filters['end_date'] = '';
+                $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
+                $total_rows = $this->reports->getStockReportCount($search, $filters);
+
+                foreach ($searchData as $row) {
+                    $data_rows[] = $this->tableHeaderRowData($row);
+                }
+                break;
+            case 'floor_stock_bonding':
+                $filters['stages'] = 'bonding_qc';
+                $filters['status'] = 'PENDING';
+                $filters['start_date'] = '';
+                $filters['end_date'] = '';
+                $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
+                $total_rows = $this->reports->getStockReportCount($search, $filters);
+
+                foreach ($searchData as $row) {
+                    $data_rows[] = $this->tableHeaderRowData($row);
+                }
+                break;
             case 'monthly_yearly_report':
                 $filters['start_date'] = '';
                 $filters['end_date'] = '';
@@ -262,53 +285,6 @@ class ReportsController extends Controller
             ];
         })->toArray();
     }
-
-    // /**
-    //  * Exports products data to Excel
-    //  */
-    // public function exportProducts(Request $request)
-    // {
-    //     $user = Auth::user();
-    //     $daterange = $request->input('productsDaterangePicker');
-
-    //     $metaInfo = [
-    //         'date_range' => $daterange ?: 'All time',
-    //         'generated_by' => $user->fullname ?? 'System',
-    //     ];
-
-    //     $products = Products::all();
-
-    //     $dataRows = $products->map(function ($product) {
-    //         return [
-    //             $product->product_name,
-    //             $product->sku,
-    //             $product->reference_code,
-    //             $product->size,
-    //             $product->qa_code,
-    //             $product->quantity,
-    //             $product->status,
-    //             $product->qc_confirmed_at ? $product->qc_confirmed_at->format('Y-m-d H:i:s') : '',
-    //             $product->created_at->format('Y-m-d H:i:s'),
-    //             $product->updated_at->format('Y-m-d H:i:s'),
-    //         ];
-    //     })->toArray();
-
-    //     $headers = [
-    //         'Product Name',
-    //         'SKU',
-    //         'Reference Code',
-    //         'Size',
-    //         'RFID Tag',
-    //         'Quantity',
-    //         'QC Status',
-    //         'Current Stage',
-    //         'QC Confirmed At',
-    //         'Created At',
-    //         'Updated At',
-    //     ];
-
-    //     return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
-    // }
 
     public function exportReport(Request $request)
     {
@@ -471,6 +447,19 @@ class ReportsController extends Controller
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
 
+            case 'all_bonding_report':
+                $filters['stages'] = 'bonding_qc';
+                $filters['start_date'] = '';
+                $filters['end_date'] = '';
+                $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
+            case 'floor_stock_bonding':
+                $filters['stages'] = 'bonding_qc';
+                $filters['status'] = 'PENDING';
+                $filters['start_date'] = '';
+                $filters['end_date'] = '';
+                $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
+                break;
             case 'daily_packing_report':
                 $filters['stages'] = 'packaging';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
@@ -487,10 +476,10 @@ class ReportsController extends Controller
                 break;
 
             case 'monthly_yearly_report':
-                // monthly/yearly you may want different columns — keeping same basic data for now
-                $filters['start_date'] = $filters['start_date'] ?? '';
-                $filters['end_date'] = $filters['end_date'] ?? '';
-                $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
+                $filters['start_date'] = '';
+                $filters['end_date'] = '';
+                $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
+                // $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
 
             default:
@@ -502,23 +491,6 @@ class ReportsController extends Controller
         // exit;
         // Normalize $items (could be Collection or array)
         foreach ($items as $item) {
-            // fetch latest history for status/stage if exists
-            // $history = ProductProcessHistory::where('product_id', $item->id ?? ($item->product_id ?? null))
-            //     ->latest('changed_at')
-            //     ->first();
-
-            // $status = $history->status ?? ($item->status ?? '');
-            // $stageName = LocaleHelper::getStageName($history->stages ?? ($item->stages ?? '')) ?? '';
-
-            // $createdAt = '';
-            // if (! empty($item->created_at)) {
-            //     try {
-            //         $createdAt = \Carbon\Carbon::parse($item->created_at)->format('Y-m-d H:i:s');
-            //     } catch (\Throwable $e) {
-            //         $createdAt = (string) ($item->created_at ?? '');
-            //     }
-            // }
-
             $dataRows[] = [
                 $item->product_name ?? '',
                 $item->sku ?? '',

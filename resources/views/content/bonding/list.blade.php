@@ -181,10 +181,10 @@
             let exportUrl = "{{ route('bonding.exportBonding') }}";
             $(".exportBtn").click(function() {
                 let selectedDaterange = document.getElementById('selectedDaterange').value || '';
-
+                let statusFilter = document.getElementById('statusFilter').value || '';
                 if (selectedDaterange) {
                     window.location.href =
-                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}`;
+                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}&status=${encodeURIComponent(statusFilter)}`;
                 } else {
                     window.location.href = exportUrl;
                 }
