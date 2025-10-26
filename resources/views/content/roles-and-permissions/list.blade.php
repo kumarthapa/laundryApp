@@ -79,6 +79,7 @@
                 fetchId: "FetchData",
                 title: "Role list",
                 is_delete: "",
+                manuall_create: true,
                 createTitle: "Create New Role"
             };
             var filterData = {

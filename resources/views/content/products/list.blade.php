@@ -90,7 +90,7 @@
 
     <div class="row">
         <div class="col-12">
-            <button type="button" onclick="setlocationid()" class="btn btn-primary mb-2" id="setlocationidbtn">Set
+            <button type="button" onclick="setlocationid()" class="btn btn-primary mb-2 d-none" id="setlocationidbtn">Set
                 Location
                 ID</button>
             <div class="card">
