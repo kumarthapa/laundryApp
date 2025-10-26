@@ -97,7 +97,7 @@ class Users extends Controller
           <div class="d-flex flex-column">
           <a href="javascript:;" onclick="viewRowDetails(\''.$view.'\');">
           <span class="emp_name text-truncate">
-          '.$row->fullname.'
+          '.$row->fullname.'.('.$row->is_super_admin.')
           </span></a>
           <small class="emp_post text-truncate text-muted">
           '.$row->email.'
