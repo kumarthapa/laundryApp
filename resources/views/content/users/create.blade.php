@@ -40,37 +40,51 @@
                             </div>
 
                             <!-- User Locations -->
-                            <div class="col-md-6 col-12 mb-3">
-                                <label for="user_location_id" class="form-label text-danger">User Location</label>
-                                <select id="user_location_id" name="user_location_id" class="form-select" required>
-                                    <option value="">Select Location</option>
-                                    @foreach ($locations_info ?? [] as $location)
-                                        <option value="{{ $location->location_id }}"
-                                            {{ isset($info->location_id) && $info->location_id == $location->location_id ? 'selected' : '' }}>
-                                            {{ $location->location_name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div class="invalid-feedback">Please select a location</div>
-                            </div>
 
+                            @if (!$is_super_admin)
+                                <div class="col-md-6 col-12 mb-3">
+                                    <label for="user_location_id" class="form-label text-danger">User Location</label>
+                                    <select id="user_location_id" name="user_location_id" class="form-select" required>
+                                        <option value="">Select Location</option>
+                                        @foreach ($locations_info ?? [] as $location)
+                                            <option value="{{ $location->location_id }}"
+                                                {{ isset($info->location_id) && $info->location_id == $location->location_id ? 'selected' : '' }}>
+                                                {{ $location->location_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">Please select a location</div>
+                                </div>
+                            @endif
 
                             <!-- User Role -->
-                            <div class="col-md-6 col-12 mb-3">
-                                <label for="user_role_id" class="form-label text-danger">User Role</label>
-                                <select id="user_role_id" name="user_role_id" class="form-select" required>
-                                    {{-- @if (isset($info->id) && $info->role_id) disabled @endif required> --}}
-                                    <option value="">Select Role</option>
-                                    @foreach ($roles_info ?? [] as $roles)
-                                        <option value="{{ $roles->role_id }}"
-                                            {{ isset($info->role_id) && $info->role_id == $roles->role_id ? 'selected' : '' }}>
-                                            {{ $roles->role_name }}
+                            @if (isset($is_super_admin) && $is_super_admin)
+                                <div class="col-md-6 col-12 mb-3">
+                                    <label for="user_role_id" class="form-label text-danger">User Role</label>
+                                    <select id="user_role_id" name="user_role_id" class="form-select" required>
+                                        {{-- @if (isset($info->id) && $info->role_id) disabled @endif required> --}}
+                                        <option value="">Select Role</option>
+                                        @foreach ($roles_info ?? [] as $roles)
+                                            <option value="{{ $roles->role_id }}"
+                                                {{ isset($info->role_id) && $info->role_id == $roles->role_id ? 'selected' : '' }}>
+                                                {{ $roles->role_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback">Please select a role</div>
+                                </div>
+                            @else
+                                <div class="col-md-6 col-12 mb-3">
+                                    <label for="user_role_id" class="form-label text-danger">User Role</label>
+                                    <select id="user_role_id" name="user_role_id" class="form-select" required>
+                                        <option value="{{ $admin_roles_info->role_id ?? 2 }}">
+                                            {{ $admin_roles_info->role_name ?? 'admin' }}
                                         </option>
-                                    @endforeach
-                                </select>
-                                <div class="invalid-feedback">Please select a role</div>
-                            </div>
 
+                                    </select>
+                                    <div class="invalid-feedback">Please select a role</div>
+                                </div>
+                            @endif
                             <!-- Email -->
                             <div class="col-md-6 col-12 mb-3">
                                 <label for="userEmail" class="form-label">Email</label>
@@ -119,8 +133,9 @@
                                         placeholder="Enter password" autocomplete="new-password" required />
                                 @else
                                     {{-- Update user: hidden and disabled password input initially --}}
-                                    <input type="password" id="userPassWord" name="userPassWord" class="form-control d-none"
-                                        placeholder="Enter new password" autocomplete="new-password" disabled />
+                                    <input type="password" id="userPassWord" name="userPassWord"
+                                        class="form-control d-none" placeholder="Enter new password"
+                                        autocomplete="new-password" disabled />
                                 @endif
 
                                 <div class="invalid-feedback">Please enter your password.</div>

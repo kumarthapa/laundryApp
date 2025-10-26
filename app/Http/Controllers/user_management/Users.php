@@ -195,7 +195,6 @@ class Users extends Controller
             'userPassWord' => $id ? 'nullable|string|min:5' : 'required|string|min:5',
             'user_role_id' => 'nullable|exists:roles,role_id',
             'userContact' => 'nullable|string|max:50',
-            'user_location_id' => 'required',
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -318,10 +317,18 @@ class Users extends Controller
     {
         $data = [];
         $roles_info = Role::all();
-        // print_r($roles_info);
+        $authUser = Auth::user();
+        $admin_roles_info = null;
+        if (! $authUser->is_super_admin) {
+            $admin_roles_info = Role::find($authUser->role_id);
+        }
+        // print_r($admin_roles_info);
         // exit;
         $locations_info = Location::select('*')->get();
         $data['roles_info'] = $roles_info ?? null;
+        $data['admin_roles_info'] = $admin_roles_info ?? null;
+        $data['is_super_admin'] = $authUser->is_super_admin ?? null;
+        // $data['role_id'] = !$authUser->is_super_admin ? 2 : null;
         $data['locations_info'] = $locations_info ?? null;
 
         return view('content.users.create', $data);
@@ -337,8 +344,15 @@ class Users extends Controller
             }
 
             $roles_info = Role::all();
+            $authUser = Auth::user();
+            $admin_roles_info = null;
+            if (! $authUser->is_super_admin) {
+                $admin_roles_info = Role::find($authUser->role_id);
+            }
             $locations_info = Location::select('*')->get();
             $data['roles_info'] = $roles_info ?? null;
+            $data['admin_roles_info'] = $admin_roles_info ?? null;
+            $data['is_super_admin'] = $authUser->is_super_admin ?? null;
             $data['info'] = $info;
             $data['user_id'] = $info->id;
             $data['locations_info'] = $locations_info ?? null;

@@ -2,7 +2,9 @@
 
 namespace App\Models\user_management;
 
+use App\Helpers\LocaleHelper;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class UsersModel extends Model
@@ -46,6 +48,7 @@ class UsersModel extends Model
       */
     public function search($search = '', $filters = [], $limit_from = 0, $rows = 0, $sort = 'id', $order = 'desc')
     {
+        $authUser = Auth::user();
         $query = DB::table($this->table)
             ->select('*')
             ->where(function ($q) use ($search) {
@@ -67,6 +70,12 @@ class UsersModel extends Model
         // 	$query->limit($rows)->offset($limit_from);
         // }
         // print_r($query->toSql()); exit;
+        if (! $authUser->is_super_admin) {
+            // USER LOCATION CHECK
+            // $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
+            $query->where('is_super_admin', '!=', 1);
+        }
+
         return $query->get();
     }
 
