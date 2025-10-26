@@ -28,6 +28,8 @@ class User extends Authenticatable
         'login_token',
         'created_at',
         'updated_at',
+        'location_id',
+        'device_id',
     ];
 
     protected $hidden = [
@@ -48,13 +50,14 @@ class User extends Authenticatable
     public function getUserPermissions()
     {
         $permissions = GrantsPermission::where('role_id', $this->role_id)->get();
-        if (!$permissions) {
+        if (! $permissions) {
             return [];
         }
         $user_permissions = [];
         foreach ($permissions as $permission) {
             $user_permissions[$permission->module_id] = json_decode($permission->permission_id);
         }
+
         return $user_permissions;
     }
 }

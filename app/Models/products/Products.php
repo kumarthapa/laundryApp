@@ -2,6 +2,7 @@
 
 namespace App\Models\products;
 
+use App\Helpers\LocaleHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +27,7 @@ class Products extends Model
         'quantity',
         'qc_confirmed_at',
         'qc_status_updated_by',
+        'location_id',
     ];
 
     protected $dates = [
@@ -106,6 +108,8 @@ class Products extends Model
                     ->orWhere('h.defects_points', 'like', "%{$search}%");
             });
         }
+        // USER LOCATION CHECK
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
 
         // Stage filter (match stages string from history)
         if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
@@ -180,7 +184,8 @@ class Products extends Model
                     ->orWhere('h.defects_points', 'like', "%{$search}%");
             });
         }
-
+        // USER LOCATION CHECK
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
         // Stage filter
         if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
             $query->where('h.stages', $filters['stages']);

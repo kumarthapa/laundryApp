@@ -3,46 +3,55 @@
 @section('title', 'Dashboard - Analytics')
 
 @section('vendor-style')
+    <!-- Vendor CSS for charts and datatable styling -->
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
 
 @section('vendor-script')
+    <!-- Vendor JS libraries -->
     <script src="{{ asset('assets/vendor/libs/apex-charts/apexcharts.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 @endsection
 
 @section('page-script')
+    <!-- Datatable setup partial -->
     @include('content.partial.datatable')
+
+    <!-- Date range picker setup partial -->
     @include('content.common.scripts.daterangePicker', [
         'float' => 'right',
         'name' => 'masterTableDaterangePicker',
     ])
+
     <script>
-        // Data passed from server for initial page load
+        // Dashboard metrics data passed from Laravel controller
         let metrics = @json($metrics);
 
         $(document).ready(function() {
+            // Initialize DataTable headers passed from controller
             var tableHeaders = {!! $table_headers !!};
+
+            // Datatable configuration options
             var options1 = {
-                url: "{{ route('dashboard.list') }}",
-                createPermissions: '',
+                url: "{{ route('dashboard.list') }}", // API route to fetch table data
+                createPermissions: '', // not used here
                 fetchId: "FetchData",
-                title: "Recent Process Events",
+                title: "Recent Process Events", // table title
                 displayLength: 30,
-                is_export: "Export All",
+                is_export: "Export All", // export label
             };
 
-            // Get Blade JSON
+            // Load filter dropdown data from backend
             var statusData = @json($status ?? []);
             var stageData = @json($stages ?? []);
             var defectPointsData = @json($defect_points ?? []);
 
-            // Convert array of {name,value} to key:value object
+            // Convert [{name, value}] array to {key:value} format for dropdowns
             function arrayToKeyValue(arr) {
                 var obj = {
                     'ALL': 'ALL'
-                };
+                }; // default ALL filter
                 if (Array.isArray(arr)) {
                     arr.forEach(function(item) {
                         obj[item.value] = item.name;
@@ -51,7 +60,7 @@
                 return obj;
             }
 
-            // Convert defect points (object of arrays) to flattened key:value object
+            // Flatten defect_points object-of-arrays into single key:value structure
             function defectPointsToKeyValue(obj) {
                 var result = {
                     'ALL': 'ALL'
@@ -59,13 +68,15 @@
                 if (obj && typeof obj === 'object') {
                     Object.values(obj).forEach(function(arr) {
                         arr.forEach(function(item) {
-                            if (item.value && item.name) result[item.value] = item.name;
+                            if (item.value && item.name)
+                                result[item.value] = item.name;
                         });
                     });
                 }
                 return result;
             }
 
+            // Define filter data used in table
             var filterData = {
                 'qc_status': {
                     'data': arrayToKeyValue(statusData),
@@ -81,15 +92,15 @@
                 },
             };
 
-            // console.log("filterData:", filterData);
-
+            // Initialize the main datatable with filters and stats callback
             getDataTableS(options1, filterData, tableHeaders, getStats);
 
+            // Optional callback for debugging active filters
             function getStats(params) {
                 // console.log("Applied filters:", params);
             }
 
-
+            // Export button handler - includes date range if selected
             let exportUrl = "{{ route('dashboard.exportProducts') }}";
             $(".exportBtn").click(function() {
                 let selectedDaterange = document.getElementById('selectedDaterange').value || '';
@@ -99,43 +110,46 @@
                 } else {
                     window.location.href = exportUrl;
                 }
-
             });
         });
     </script>
+
+    <!-- Dashboard chart rendering logic -->
     @include('content.dashboard.script')
 @endsection
 
 @section('content')
     <div class="row">
+        <!-- ==== Metric Summary Cards ==== -->
+        <!-- Each card shows quick daily or total counts (last 30 days) -->
 
-
+        <!-- Daily Bonding count -->
         <div class="col-sm-6 col-lg-2 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-warning rounded"><i
-                                    class="icon-base bx bx-store-alt icon-lg"></i></span>
+                            <span class="avatar-initial bg-label-warning rounded">
+                                <i class="icon-base bx bx-store-alt icon-lg"></i>
+                            </span>
                         </div> Daily Bonding
                     </h6>
-                    <h3 id="daily_bonding">
-                        {{ $metrics['daily_bonding'] ?? 0 }}
-                    </h3>
-
+                    <h3 id="daily_bonding">{{ $metrics['daily_bonding'] ?? 0 }}</h3>
                     <small class="text-muted">Daily bonding check records</small>
                 </div>
             </div>
         </div>
 
+        <!-- Daily Tape Edge -->
         <div class="col-sm-6 col-lg-2 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-primary rounded"><i
-                                    class="icon-base bx bx-cube icon-lg"></i></span>
-                        </div>Daily Tape Edge
+                            <span class="avatar-initial bg-label-primary rounded">
+                                <i class="icon-base bx bx-cube icon-lg"></i>
+                            </span>
+                        </div>Daily Tape Edge mattress
                     </h6>
                     <h3 id="daily_tape_edge_qc">{{ $metrics['daily_tape_edge_qc'] ?? 0 }}</h3>
                     <small class="text-muted">Daily Tape Edge check records</small>
@@ -143,14 +157,16 @@
             </div>
         </div>
 
+        <!-- Daily Zip Cover -->
         <div class="col-sm-6 col-lg-2 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-success rounded"><i
-                                    class="icon-base bx bx-check-circle icon-lg"></i></span>
-                        </div> Daily Zip Cover
+                            <span class="avatar-initial bg-label-success rounded">
+                                <i class="icon-base bx bx-check-circle icon-lg"></i>
+                            </span>
+                        </div> Daily Zip Cover mattress
                     </h6>
                     <h3 id="daily_zip_cover_qc">{{ $metrics['daily_zip_cover_qc'] ?? 0 }}</h3>
                     <small class="text-muted">Daily Zip Cover check records</small>
@@ -158,82 +174,92 @@
             </div>
         </div>
 
+        <!-- Daily Packaging -->
         <div class="col-sm-6 col-lg-2 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-dark rounded"><i
-                                    class="icon-base bx bxs-truck icon-lg"></i></span>
-                        </div> Daily Packaging
+                            <span class="avatar-initial bg-label-dark rounded">
+                                <i class="icon-base bx bxs-truck icon-lg"></i>
+                            </span>
+                        </div> Daily Packing
                     </h6>
                     <h3 id="daily_packaging">{{ $metrics['daily_packaging'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Packaging check records</small>
+                    <small class="text-muted">Daily Packing check records</small>
                 </div>
             </div>
         </div>
 
+        <!-- Total Packaging (last 30 days) -->
         <div class="col-sm-6 col-lg-2 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-success rounded"><i
-                                    class="icon-base bx bxs-truck icon-lg"></i></span>
-                        </div> Total Packaging
+                            <span class="avatar-initial bg-label-success rounded">
+                                <i class="icon-base bx bxs-truck icon-lg"></i>
+                            </span>
+                        </div> Total Packing
                     </h6>
                     <h3 id="total_packaging">{{ $metrics['total_packaging'] ?? 0 }}</h3>
-                    <small class="text-muted">Total packaging last 30 days</small>
+                    <small class="text-muted">Total Packing last 30 days</small>
                 </div>
             </div>
         </div>
+
+        <!-- Reprocessed Products -->
         <div class="col-sm-6 col-lg-2 mb-4">
             <div class="card h-100">
                 <div class="card-body">
                     <h6 class="d-flex align-items-center">
                         <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-danger rounded"><i
-                                    class="icon-base bx bx-error icon-lg"></i></span>
-                        </div>Reprocessed Products
+                            <span class="avatar-initial bg-label-danger rounded">
+                                <i class="icon-base bx bx-error icon-lg"></i>
+                            </span>
+                        </div>Reprocessing mattress
                     </h6>
                     <h3 id="reprocessed_products">{{ $metrics['reprocessed_products'] ?? 0 }}</h3>
                     <small class="text-muted">Reprocessed Records last 30 days</small>
                 </div>
             </div>
         </div>
-
     </div>
 
+    <!-- ==== Charts Section ==== -->
     <div class="row">
+        <!-- Overall stage distribution donut chart -->
         <div class="col-sm-6 col-lg-4 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h5>Stage Distribution</h5>
+                    <h5>Mattress Stage Distribution (last 30 days)</h5>
                 </div>
                 <div class="card-body">
                     <div id="stageDonut"></div>
                     <div class="mt-2 py-2">
-                        <h6 class="text-muted text-center py-1"> Production Process Stages Breakdown</h6>
-                        {{-- <ul>
-                            @forelse ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
-                                <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }}
-                                    minutes
-                                </li>
-                            @empty
-                                <li>No data available</li>
-                            @endforelse
-                        </ul> --}}
+                        <h6 class="text-muted text-center py-1">Production Process Stages Breakdown</h6>
                     </div>
                 </div>
             </div>
         </div>
 
+        <?php
+        // Label map for stage-wise chart titles
+        $labelString = [
+            'bonding_qc' => 'Bonding',
+            'tape_edge_qc' => 'Tape Edge',
+            'zip_cover_qc' => 'Zip Cover',
+            'packaging' => 'Packing',
+        ];
+        ?>
+
+        <!-- Dynamic QC stage charts -->
         @if (isset($metrics['qc_stage_series']) && count($metrics['qc_stage_series']) > 0)
             @foreach ($metrics['qc_stage_series'] as $stage => $series)
                 <div class="col-sm-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header">
-                            <h5>{{ \Illuminate\Support\Str::title(str_replace('_', ' ', $stage)) }} (last 30 days)</h5>
+                            <h5>{{ $labelString[$stage] ?? $stage }} (last 30 days)</h5>
                         </div>
                         <div class="card-body">
                             <div id="qc-{{ \Illuminate\Support\Str::slug($stage, '_') }}" style="min-height:320px"></div>
@@ -242,6 +268,7 @@
                 </div>
             @endforeach
         @else
+            <!-- Message when no chart data is available -->
             <div class="col-sm-6 col-lg-4 mb-4">
                 <div class="alert alert-info">
                     No QC data available to display charts.
@@ -249,112 +276,12 @@
             </div>
         @endif
     </div>
-    {{-- <div class="row">
-        <div class="col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Stage Distribution</h5>
-                </div>
-                <div class="card-body">
-                    <div id="stageDonut"></div>
-                    <div class="mt-3">
-                        <h6>Average minutes per stage</h6>
-                        <ul>
-                            @forelse ($metrics['avgStageTimes'] ?? [] as $stage => $mins)
-                                <li><strong>{{ $LocaleHelper->getStageName($stage) }}</strong>: {{ $mins }}
-                                    minutes
-                                </li>
-                            @empty
-                                <li>No data available</li>
-                            @endforelse
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="col-lg-5 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Bonding QC Event (last 30 days)</h5>
-                </div>
-                <div class="card-body">
-                    <div id="bondingQcEvent"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 mb-4">
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h6>QC Status</h6>
-                </div>
-                <div class="card-body">
-                    <div id="qcBar"></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h6>Stuck Items (>{{ 7 }} days)</h6>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group">
-                        @forelse ($metrics['stuckItems'] as $s)
-                            <li class="list-group-item">
-                                <div><strong>{{ $s->sku }}</strong> — {{ $s->product_name }}</div>
-                                <small>{{ $s->current_stage }} • updated
-                                    {{ \Carbon\Carbon::parse($s->updated_at)->diffForHumans() }}</small>
-                            </li>
-                        @empty
-                            <li class="list-group-item">None</li>
-                        @endforelse
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div> --}}
-
-    {{-- <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Recent Process Events</h5>
-                </div>
-                <div class="card-body table-responsive">
-                    <table class="table-striped table">
-                        <thead>
-                            <tr>
-                                <th>Updated Date</th>
-                                <th>SKU</th>
-                                <th>QA Code</th>
-                                <th>Stage</th>
-                                <th>Status</th>
-                                <th>Comments</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-activity-body">
-                            @foreach ($metrics['recentActivities'] as $act)
-                                <tr>
-                                    <td>{{ $act->changed_at }}</td>
-                                    <td>{{ $act->sku }}</td>
-                                    <td>{{ $act->qa_code }}</td>
-                                    <td>{{ $act->stage }}</td>
-                                    <td>{{ $act->status }}</td>
-                                    <td>{{ Str::limit($act->comments, 80) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div> --}}
-
+    <!-- ==== DataTable Section ==== -->
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <!--- Filters ------------ START ---------------->
+                <!-- Filters -->
                 <div class="card-header border-bottom">
                     <div class="d-md-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
                         <div class="input-group date">
@@ -367,10 +294,9 @@
                     </div>
                 </div>
 
-                <!--- Filters ------------ END ---------------->
+                <!-- DataTable displaying process history -->
                 <div class="card-datatable table-responsive pt-0">
-                    <table class="datatables-basic border-top table" id="DataTables2024">
-                    </table>
+                    <table class="datatables-basic border-top table" id="DataTables2024"></table>
                 </div>
             </div>
         </div>

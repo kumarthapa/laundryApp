@@ -181,8 +181,8 @@ class ReportsController extends Controller
                 break;
             case 'all_bonding_report':
                 $filters['stages'] = 'bonding_qc';
-                $filters['start_date'] = '';
-                $filters['end_date'] = '';
+                // $filters['start_date'] = '';
+                // $filters['end_date'] = '';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
 
@@ -193,8 +193,8 @@ class ReportsController extends Controller
             case 'floor_stock_bonding':
                 $filters['stages'] = 'bonding_qc';
                 $filters['status'] = 'PENDING';
-                $filters['start_date'] = '';
-                $filters['end_date'] = '';
+                // $filters['start_date'] = '';
+                // $filters['end_date'] = '';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
 
@@ -203,8 +203,8 @@ class ReportsController extends Controller
                 }
                 break;
             case 'monthly_yearly_report':
-                $filters['start_date'] = '';
-                $filters['end_date'] = '';
+                // $filters['start_date'] = '';
+                // $filters['end_date'] = '';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
                 foreach ($searchData as $row) {
@@ -449,15 +449,15 @@ class ReportsController extends Controller
 
             case 'all_bonding_report':
                 $filters['stages'] = 'bonding_qc';
-                $filters['start_date'] = '';
-                $filters['end_date'] = '';
+                // $filters['start_date'] = '';
+                // $filters['end_date'] = '';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
             case 'floor_stock_bonding':
                 $filters['stages'] = 'bonding_qc';
                 $filters['status'] = 'PENDING';
-                $filters['start_date'] = '';
-                $filters['end_date'] = '';
+                // $filters['start_date'] = '';
+                // $filters['end_date'] = '';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
             case 'daily_packing_report':
@@ -476,8 +476,8 @@ class ReportsController extends Controller
                 break;
 
             case 'monthly_yearly_report':
-                $filters['start_date'] = '';
-                $filters['end_date'] = '';
+                // $filters['start_date'] = '';
+                // $filters['end_date'] = '';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 // $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;

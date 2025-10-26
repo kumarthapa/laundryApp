@@ -90,6 +90,9 @@
 
     <div class="row">
         <div class="col-12">
+            <button type="button" onclick="setlocationid()" class="btn btn-primary mb-2" id="setlocationidbtn">Set
+                Location
+                ID</button>
             <div class="card">
                 <!--- Filters ------------ START ---------------->
                 {{-- <div class="card-header border-bottom">
@@ -264,6 +267,32 @@
                     toastr.success(response.message);
                     if (response.success) {
                         window.location.reload();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    toastr.error("Error: " + error);
+                }
+            });
+        }
+
+
+
+        function setlocationid() {
+            $.ajax({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                url: "{{ route('products.setlocationid') }}",
+                method: 'POST',
+                data: {
+                    location_id: true,
+                },
+                success: function(response) {
+                    console.log("Location response:", response);
+                    toastr.success(response.message);
+                    if (response.success) {
+                        console.log("Location ID set successfully.");
+                        //window.location.reload();
                     }
                 },
                 error: function(xhr, status, error) {

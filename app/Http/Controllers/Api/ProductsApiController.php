@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\LocaleHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\BondingPlanProduct;
@@ -20,12 +21,10 @@ class ProductsApiController extends Controller
     public function __construct()
     {
         $this->products = new Products;
-
     }
 
     /**
-     * Get paginated list of products with optional filters.
-     * Example filters: search term, status, date range
+     * Get paginated list of bonding plan products with optional filters.
      */
     public function getPlanProducts(Request $request)
     {
@@ -58,6 +57,9 @@ class ProductsApiController extends Controller
             // Use BondingPlanProduct model query
             $query = BondingPlanProduct::query();
 
+            // Apply login-user location check to bonding_plan_products
+            $query = LocaleHelper::commonWhereLocationCheck($query, 'bonding_plan_products');
+
             // Apply search filters on BondingPlanProduct fields
             if ($search) {
                 if (ctype_digit($search)) {
@@ -79,6 +81,7 @@ class ProductsApiController extends Controller
             if ($startDate && $endDate) {
                 $query->whereBetween('created_at', [$startDate, $endDate]);
             }
+
             // Only Non Writed Model will  Write
             $query->where('is_write', 0);
 
@@ -86,10 +89,19 @@ class ProductsApiController extends Controller
             $pln_products = $query->orderBy('created_at', 'desc')
                 ->paginate($limit, ['*'], 'page', $page);
 
+            $loginLocationId = LocaleHelper::getLoginUserLocationId();
+
             // Format response data including related latest product info
-            $formattedProducts = $pln_products->map(function ($bondingProduct) {
-                // Get one related product to get RFID tag if exists (or adjust as per logic)
-                $relatedProduct = $bondingProduct->products()->orderBy('created_at', 'desc')->first();
+            $formattedProducts = $pln_products->getCollection()->map(function ($bondingProduct) use ($loginLocationId) {
+                // Get one related product to get RFID tag if exists (location scoped)
+                $relatedProductQuery = $bondingProduct->products();
+
+                // If products table uses location_id, scope it to login location
+                if ($loginLocationId) {
+                    $relatedProductQuery->where('location_id', $loginLocationId);
+                }
+
+                $relatedProduct = $relatedProductQuery->orderBy('created_at', 'desc')->first();
 
                 return [
                     'id' => $bondingProduct->id,
@@ -104,9 +116,10 @@ class ProductsApiController extends Controller
                     'write_date' => $bondingProduct->write_date,
                     'rfid_tag' => $relatedProduct ? $relatedProduct->rfid_tag : null,
                     'quantity' => $bondingProduct->quantity,
-                    'created_at' => $bondingProduct->created_at->toDateTimeString(),
+                    'created_at' => $bondingProduct->created_at ? $bondingProduct->created_at->toDateTimeString() : null,
                 ];
             });
+
             Log::info('formattedProducts '.json_encode($formattedProducts));
 
             return response()->json([
@@ -137,7 +150,6 @@ class ProductsApiController extends Controller
 
     /**
      * Get paginated list of products with optional filters.
-     * Example filters: search term, status, date range
      */
     public function getProducts(Request $request)
     {
@@ -172,6 +184,9 @@ class ProductsApiController extends Controller
 
             $query = $this->products->newQuery();
 
+            // Apply login-user location filter to products table
+            $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
+
             // Apply search filter
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -182,10 +197,10 @@ class ProductsApiController extends Controller
                 });
             }
 
-            // Apply status filter if specified and not 'all'
-            // if ($status && strtolower($status) !== 'all') {
-            //     $query->where('qc_status', $status);
-            // }
+            // Apply qa_code filter if provided
+            if ($qa_code) {
+                $query->where('qa_code', $qa_code);
+            }
 
             // Apply date range filter
             if ($startDate && $endDate) {
@@ -197,8 +212,6 @@ class ProductsApiController extends Controller
                 ->paginate($limit, ['*'], 'page', $page);
 
             Log::info('Total count before paginate: '.$query->count());
-
-            // --- after $products = $query->orderBy(...)->paginate($limit, ['*'], 'page', $page);
 
             // Format each product into simple array
             $formattedCollection = $products->getCollection()->map(function ($product) {
@@ -214,7 +227,7 @@ class ProductsApiController extends Controller
                     'quantity' => $product->quantity,
                     'status' => isset($latestHistory) ? $latestHistory->status : 'PENDING',
                     'stage' => isset($latestHistory) ? $latestHistory->stages : 'bonding_qc',
-                    'created_at' => $product->created_at->toDateTimeString(),
+                    'created_at' => $product->created_at ? $product->created_at->toDateTimeString() : null,
                 ];
             });
 
@@ -327,23 +340,35 @@ class ProductsApiController extends Controller
             $qaCode = $request->input('qa_code');
             $rfidTag = $request->input('rfid_tag');
 
-            // --- Duplicate checks ---
-            $existingQa = BondingPlanProduct::where('qa_code', $qaCode)
-                ->where('id', '<>', $productId)
-                ->first();
+            $loginLocationId = LocaleHelper::getLoginUserLocationId();
+
+            // --- Duplicate checks scoped to location ---
+            $existingQaQuery = BondingPlanProduct::where('qa_code', $qaCode)
+                ->where('id', '<>', $productId);
+
+            if ($loginLocationId) {
+                $existingQaQuery->where('location_id', $loginLocationId);
+            }
+
+            $existingQa = $existingQaQuery->first();
 
             if ($existingQa) {
                 return response()->json([
                     'success' => false,
-                    'message' => "The QA Code '{$qaCode}' is already in use.",
+                    'message' => "The QA Code '{$qaCode}' is already in use at your location.",
                 ], 422);
             }
 
-            $existingRfid = Products::where('rfid_tag', $rfidTag)->first();
+            $existingRfidQuery = Products::where('rfid_tag', $rfidTag);
+            if ($loginLocationId) {
+                $existingRfidQuery->where('location_id', $loginLocationId);
+            }
+            $existingRfid = $existingRfidQuery->first();
+
             if ($existingRfid) {
                 return response()->json([
                     'success' => false,
-                    'message' => "The RFID Tag '{$rfidTag}' is already in use.",
+                    'message' => "The RFID Tag '{$rfidTag}' is already in use at your location.",
                 ], 422);
             }
 
@@ -356,8 +381,8 @@ class ProductsApiController extends Controller
             $bondingProduct->write_date = now();
             $bondingProduct->save();
 
-            // --- Insert into products ---
-            $product = Products::create([
+            // --- Insert into products (include location_id if available) ---
+            $productData = [
                 'bonding_plan_product_id' => $bondingProduct->id,
                 'product_name' => $bondingProduct->product_name,
                 'qa_code' => $qaCode,
@@ -366,7 +391,13 @@ class ProductsApiController extends Controller
                 'size' => $bondingProduct->size,
                 'quantity' => $bondingProduct->quantity ?? 0,
                 'reference_code' => $bondingProduct->reference_code ?? null,
-            ]);
+            ];
+
+            if ($loginLocationId) {
+                $productData['location_id'] = $loginLocationId;
+            }
+
+            $product = Products::create($productData);
 
             // --- Insert into history ---
             ProductProcessHistory::create([

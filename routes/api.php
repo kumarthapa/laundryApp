@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardApiController;
+use App\Http\Controllers\Api\DeviceRegistrationApiController;
 use App\Http\Controllers\Api\ProductsApiController;
 use App\Http\Controllers\Api\RFIDtagDetailsApiController;
 use Illuminate\Support\Facades\Route;
@@ -56,3 +57,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('products.updateProductDetails');
 
 });
+// routes/api.php
+// Public route — anyone can call with license key
+Route::post('device/verify-license', [DeviceRegistrationApiController::class, 'verifyLicense'])
+    ->name('device.verifyLicense');
+// Public route — create a new license for a device
+Route::post('device/create-license', [DeviceRegistrationApiController::class, 'createLicense'])
+    ->name('device.createLicense');
+
+// Public endpoint: check device license by device_id (Android ID)
+Route::post('device/check', [DeviceRegistrationApiController::class, 'checkDevice'])
+    ->name('device.check');

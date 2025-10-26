@@ -2,7 +2,9 @@
 
 namespace App\Helpers;
 
+use App\Models\user_management\UsersModel;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -254,37 +256,47 @@ class LocaleHelper
         $stages = collect($config['stages'] ?? []);
         $defectPoints = collect($config['defect_points'] ?? []);
 
-        $totalProducts = DB::table('products')->count();
+        // 🟢 Total products (with location filter)
+        $totalProductsQuery = DB::table('products');
+        $totalProductsQuery = LocaleHelper::commonWhereLocationCheck($totalProductsQuery);
+        $totalProducts = $totalProductsQuery->count();
 
-        $totalRfidTags = DB::table('products')
-            ->whereNotNull('rfid_tag')
-            ->count();
+        // 🟢 Total RFID tags (with location filter)
+        $totalRfidQuery = DB::table('products')
+            ->whereNotNull('rfid_tag');
+        $totalRfidQuery = LocaleHelper::commonWhereLocationCheck($totalRfidQuery);
+        $totalRfidTags = $totalRfidQuery->count();
 
-        $total_qa_code = DB::table('products')
-            ->whereNotNull('qa_code')
-            ->count();
+        // 🟢 Total QA codes (with location filter)
+        $totalQaQuery = DB::table('products')
+            ->whereNotNull('qa_code');
+        $totalQaQuery = LocaleHelper::commonWhereLocationCheck($totalQaQuery);
+        $totalQaCode = $totalQaQuery->count();
 
-        // Subquery: latest QC + stage per product
+        // 🟢 Subquery: latest QC + stage per product
         $latestHistory = DB::table('product_process_history as h')
             ->select('h.product_id', 'h.status', 'h.stages')
             ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change 
-                         FROM product_process_history 
-                         GROUP BY product_id) latest'), function ($join) {
+                        FROM product_process_history 
+                        GROUP BY product_id) latest'), function ($join) {
                 $join->on('h.product_id', '=', 'latest.product_id')
                     ->on('h.changed_at', '=', 'latest.latest_change');
             });
+
+        // Apply location filter (for user)
+        $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'h');
 
         // Wrap subquery
         $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
             ->mergeBindings($latestHistory);
 
-        // QC status counts
+        // 🟢 QC status counts
         $totalPassed = (clone $latest)->where('t.status', 'PASS')->count();
         $totalFailed = (clone $latest)->where('t.status', 'FAIL')->count();
         $totalRework = (clone $latest)->where('t.status', 'REWORK')->count();
         $totalPending = (clone $latest)->where('t.status', 'PENDING')->count();
 
-        // Stage-wise counts (from config mapping)
+        // 🟢 Stage-wise counts (from config mapping)
         $stageCounts = [];
         foreach ($stages as $stage) {
             $stageCounts[$stage['value']] = (clone $latest)
@@ -292,31 +304,36 @@ class LocaleHelper
                 ->count();
         }
 
+        // ✅ Return all results properly
         return [
             'total_products' => $totalProducts,
             'total_rfid_tags' => $totalRfidTags,
-            'total_qa_code' => $total_qa_code,
+            'total_qa_code' => $totalQaCode,
             'total_passed' => $totalPassed,
             'total_failed' => $totalFailed,
             'total_rework' => $totalRework,
             'total_pending' => $totalPending,
-            'stage_counts' => $stageCounts, // optional: stage breakdown
+            'stage_counts' => $stageCounts,
         ];
     }
 
     public static function getBondingProductSummaryCounts()
     {
+        // Base query with location filter
+        $baseQuery = DB::table('bonding_plan_products');
+        $baseQuery = LocaleHelper::commonWhereLocationCheck($baseQuery);
 
-        $total_qa_code = DB::table('bonding_plan_products')->count();
-        $total_writted = DB::table('bonding_plan_products')->where('is_write', 1)->count();
-        $total_pending = DB::table('bonding_plan_products')->where('is_write', 0)->count();
+        // Apply counts
+        $totalModels = (clone $baseQuery)->count();
+        $totalWritted = (clone $baseQuery)->where('is_write', 1)->count();
+        $totalPending = (clone $baseQuery)->where('is_write', 0)->count();
 
+        // Return structured data
         return [
-
-            'total_model' => $total_qa_code,
-            'total_qa_code' => $total_qa_code,
-            'total_writted' => $total_writted,
-            'total_pending' => $total_pending,
+            'total_model' => $totalModels,
+            'total_qa_code' => $totalModels, // same as total_model for consistency
+            'total_writted' => $totalWritted,
+            'total_pending' => $totalPending,
         ];
     }
 
@@ -335,5 +352,70 @@ class LocaleHelper
         }
 
         return $stageName;
+    }
+
+    /**
+     * Apply location-based filter to any query
+     * Works for both aliased and non-aliased tables.
+     *
+     * Example:
+     *   LocaleHelper::commonWhereLocationCheck($query);          // without alias
+     *   LocaleHelper::commonWhereLocationCheck($query, 'p');     // with alias
+     */
+    public static function commonWhereLocationCheck($query, $tableAlias = null)
+    {
+        $user = Auth::user();
+
+        // If not logged in, skip filtering
+        if (! $user) {
+            return $query;
+        }
+
+        // Super admin should see all data
+        if (! empty($user->is_super_admin) && $user->is_super_admin) {
+            return $query;
+        }
+
+        // Get user location(s)
+        $locationId = $user->location_id ?? null;
+
+        // If user has no location, skip filtering
+        if (is_null($locationId)) {
+            return $query;
+        }
+
+        // Determine the column name
+        $column = $tableAlias ? "{$tableAlias}.location_id" : 'location_id';
+
+        // Apply location filter
+        if (is_array($locationId)) {
+            $query->whereIn($column, $locationId);
+        } else {
+            $query->where($column, $locationId);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get login User Location Id
+     */
+    public static function getLoginUserLocationId($user_id = null)
+    {
+        $user = Auth::user();
+
+        // Get user location(s)
+        return $user->location_id ?? 0;
+    }
+
+    /**
+     * Get User Location Id
+     */
+    public static function getUserLocationId($user_id = null)
+    {
+        $user = UsersModel::find($user_id);
+
+        // Get user location(s)
+        return $user->location_id ?? 0;
     }
 }

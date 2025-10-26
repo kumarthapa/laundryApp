@@ -6,6 +6,7 @@ use App\Helpers\EmailHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
+use App\Models\location\Location;
 use App\Models\User;
 use App\Models\user_management\Role;
 use App\Models\user_management\UserActivity;
@@ -40,7 +41,7 @@ class Users extends Controller
             ['email' => 'Email'],
             ['contact' => 'Contact'],
             ['roles_name' => 'Role'],
-            ['user_code' => 'User Code'],
+            ['location_id' => 'Location'],
             ['status' => 'Status'],
             ['actions' => 'Actions'],
         ];
@@ -119,7 +120,7 @@ class Users extends Controller
             }
         }
         $data['roles_name'] = $role_name;
-        $data['user_code'] = ($row->user_code) ? $row->user_code : '-';
+        $data['location_id'] = ($row->location_id) ? Location::find($row->location_id)->location_name : '-';
         if ($row->status == 'Active') {
             $statusHTML = '<span class="badge rounded bg-label-success" title="Active">Active</span>';
         } else {
@@ -194,6 +195,7 @@ class Users extends Controller
             'userPassWord' => $id ? 'nullable|string|min:5' : 'required|string|min:5',
             'user_role_id' => 'nullable|exists:roles,role_id',
             'userContact' => 'nullable|string|max:50',
+            'user_location_id' => 'required',
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -203,7 +205,7 @@ class Users extends Controller
         }
 
         // Gather inputs
-        $input = $request->only(['fullName', 'userName', 'userEmail', 'userContact', 'status', 'user_role_id']);
+        $input = $request->only(['fullName', 'userName', 'userEmail', 'userContact', 'status', 'user_role_id', 'user_location_id']);
         $input['status'] = $input['status'] ?? 'Active';
 
         // Prepare data for saving
@@ -218,6 +220,9 @@ class Users extends Controller
         if (! empty($input['user_role_id'])) {
             $saveData['role_id'] = $input['user_role_id'];
         }
+        if (! empty($input['user_location_id'])) {
+            $saveData['location_id'] = $input['user_location_id'];
+        }
 
         // Hash password if provided (required on create, optional on update)
         if ($request->filled('userPassWord')) {
@@ -225,7 +230,8 @@ class Users extends Controller
         } elseif (! $id) {
             return response()->json(['success' => false, 'message' => 'Password is required.']);
         }
-
+        // print_r($saveData);
+        // exit;
         $now = now();
         if (! $id) {
             $saveData['created_at'] = $now;
@@ -311,8 +317,12 @@ class Users extends Controller
     public function create(Request $request, $id = '')
     {
         $data = [];
-        $roles_info = Role::select('*')->get();
+        $roles_info = Role::all();
+        // print_r($roles_info);
+        // exit;
+        $locations_info = Location::select('*')->get();
         $data['roles_info'] = $roles_info ?? null;
+        $data['locations_info'] = $locations_info ?? null;
 
         return view('content.users.create', $data);
     }
@@ -327,11 +337,12 @@ class Users extends Controller
             }
 
             $roles_info = Role::all();
-
+            $locations_info = Location::select('*')->get();
             $data['roles_info'] = $roles_info ?? null;
             $data['info'] = $info;
             $data['user_id'] = $info->id;
-            $data['role_id'] = $info->role_id;
+            $data['locations_info'] = $locations_info ?? null;
+            // $data['role_id'] = $info->role_id;
         } else {
             return view('content.common.no-data-found', ['message' => 'User Not Found!']);
         }

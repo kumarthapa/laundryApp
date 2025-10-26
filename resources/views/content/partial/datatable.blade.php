@@ -1,7 +1,7 @@
 <script type="text/javascript">
     // Main DataTable initializer + unified delete support
     function getDataTableS(options, filterData = {}, tableHeaders, getStats = null) {
-        // console.log("DataTable URL:", options.url);
+        console.log("DataTable URL:", options.url);
         // console.log("is_delete", options.is_delete)
         // Generate Select2 filters
         getFilterDropdownButtons(filterData);

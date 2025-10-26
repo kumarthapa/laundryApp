@@ -1,39 +1,44 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // initial data from server
+        // --- INITIAL DATA ---
+        // Metrics data is injected from the server (Laravel Blade)
         const metrics = window.metrics || {};
 
-        // Blade-injected date series and per-stage series (30 days)
+        // Date series (last 30 days) and stage-wise QC event data
         const QC_DATES = {!! json_encode($metrics['qc_dates'] ?? []) !!};
         const QC_STAGE_SERIES = {!! json_encode($metrics['qc_stage_series'] ?? []) !!};
+        console.log(QC_STAGE_SERIES); // Debug output to verify data shape
 
-        // --- global chart/state vars ---
-        let stageChart = null,
-            qcEventChart = null,
-            qcChart = null;
+        // --- CHART VARIABLES ---
+        let stageChart = null, // Donut chart for stage distribution
+            qcEventChart = null, // (Reserved for another chart type if needed)
+            qcChart = null; // Bar chart for QC status
 
-        // map for per-stage small-area-charts (destroy/recreate on update)
+        // Holds per-stage mini area charts (1 per stage)
         let perStageCharts = {};
 
-        // hover state for donut center
+        // State variables for donut hover interactions
         let hoveredIndex = null;
         let hoveredPercent = null;
         let hoveredLabel = null;
 
-        // keep the current series/labels so formatters can read them safely
+        // Current chart labels/series (used by formatters)
         let currentLabels = [];
         let currentSeries = [];
 
-        // small safe timeout runner to avoid DOM-not-ready errors when updating
+        // --- UTIL FUNCTION ---
+        // Executes a function asynchronously (avoids DOM not ready issues)
         function later(fn) {
             window.setTimeout(fn, 0);
         }
 
-        // Build stage donut options and keep currentSeries/currentLabels in sync
+        // --- DONUT CHART BUILDER ---
         function buildStageDonutOptions(stageCounts) {
+            // Convert data to chart-compatible format
             const labels = Object.keys(stageCounts || {});
             const series = labels.map(lbl => Number(stageCounts[lbl] || 0));
 
+            // Store globally for formatters
             currentLabels = labels;
             currentSeries = series;
 
@@ -42,6 +47,7 @@
                     type: 'donut',
                     height: 300,
                     events: {
+                        // When hovering a slice, show % and label in center
                         dataPointMouseEnter: function(_, __, config) {
                             const idx = config.dataPointIndex;
                             if (typeof idx === 'number' && Array.isArray(currentSeries)) {
@@ -52,18 +58,9 @@
                                 updateDonutCenter(hoveredLabel, hoveredPercent.toFixed(1) + '%');
                             }
                         },
-                        dataPointMouseLeave: function() {
-                            hoveredIndex = null;
-                            hoveredPercent = null;
-                            hoveredLabel = null;
-                            setDonutDefaultCenter();
-                        },
-                        mouseLeave: function() {
-                            hoveredIndex = null;
-                            hoveredPercent = null;
-                            hoveredLabel = null;
-                            setDonutDefaultCenter();
-                        }
+                        // Reset donut center when hover ends
+                        dataPointMouseLeave: resetDonutHover,
+                        mouseLeave: resetDonutHover
                     }
                 },
 
@@ -74,14 +71,14 @@
                     enabled: false
                 },
 
+                // Show actual count instead of percentage
                 dataLabels: {
                     enabled: true,
                     formatter: function(val, opts) {
                         try {
                             const idx = opts.seriesIndex;
-                            return (Array.isArray(currentSeries) && typeof currentSeries[idx] !==
-                                'undefined') ? currentSeries[idx] : val;
-                        } catch (e) {
+                            return currentSeries[idx] ?? val;
+                        } catch {
                             return val;
                         }
                     }
@@ -93,88 +90,58 @@
                             labels: {
                                 show: true,
                                 name: {
-                                    show: true,
-                                    formatter: function(name) {
-                                        return name;
-                                    }
+                                    show: true
                                 },
                                 value: {
-                                    show: true,
-                                    formatter: function(val) {
-                                        return val;
-                                    }
+                                    show: true
                                 },
                                 total: {
                                     show: true,
                                     label: 'Total',
-                                    formatter: function() {
-                                        return currentSeries.reduce((a, b) => a + (Number(b) || 0), 0);
-                                    }
+                                    formatter: () =>
+                                        currentSeries.reduce((a, b) => a + (Number(b) || 0), 0)
                                 }
                             }
                         }
                     }
                 },
-
                 legend: {
                     position: 'bottom'
                 }
             };
         }
 
-        // update donut center DOM elements directly (fast, avoids re-render)
+        // --- DONUT CENTER UPDATERS ---
+        // Updates text in the donut chart center
         function updateDonutCenter(name, value) {
             try {
                 const container = document.querySelector('#stageDonut');
                 if (!container) return;
-                const nameEl = container.querySelector('.apexcharts-donut-label .apexcharts-donut-label-name');
-                const valueEl = container.querySelector(
-                    '.apexcharts-donut-label .apexcharts-donut-label-value');
+                const nameEl = container.querySelector('.apexcharts-donut-label-name');
+                const valueEl = container.querySelector('.apexcharts-donut-label-value');
                 if (nameEl) nameEl.textContent = name ?? '';
                 if (valueEl) valueEl.textContent = value ?? '';
-            } catch (e) {
-                // silent
-            }
+            } catch {}
         }
 
+        // Reset donut center to default (first slice)
         function setDonutDefaultCenter() {
             try {
-                const defaultName = (Array.isArray(currentLabels) && currentLabels.length) ? currentLabels[0] :
-                    '';
-                const defaultCount = (Array.isArray(currentSeries) && currentSeries.length) ? (currentSeries[
-                    0] || 0) : 0;
+                const defaultName = currentLabels[0] || '';
+                const defaultCount = currentSeries[0] || 0;
                 updateDonutCenter(defaultName, defaultCount);
-            } catch (e) {}
+            } catch {}
         }
 
-        // Daily throughput (area) - unchanged except made defensive
-        // function buildQCeventyOptions(dailySeries) {
-        //     const categories = Object.keys(dailySeries || {});
-        //     const series = [{
-        //         name: 'QC Events',
-        //         data: Object.values(dailySeries || {})
-        //     }];
-        //     return {
-        //         chart: {
-        //             type: 'area',
-        //             height: 320,
-        //             zoom: {
-        //                 enabled: false
-        //             }
-        //         },
-        //         series: series,
-        //         xaxis: {
-        //             categories: categories
-        //         },
-        //         yaxis: {
-        //             title: {
-        //                 text: 'QC Events'
-        //             }
-        //         }
-        //     };
-        // }
+        // Reset hover-related state
+        function resetDonutHover() {
+            hoveredIndex = null;
+            hoveredPercent = null;
+            hoveredLabel = null;
+            setDonutDefaultCenter();
+        }
 
-        // QC bar chart builder (unchanged)
+        // --- QC STATUS BAR CHART ---
         function buildQcBarOptions(qcCounts) {
             const labels = Object.keys(qcCounts || {});
             const data = Object.values(qcCounts || {});
@@ -185,7 +152,7 @@
                 },
                 series: [{
                     name: 'Count',
-                    data: data
+                    data
                 }],
                 xaxis: {
                     categories: labels
@@ -193,12 +160,12 @@
             };
         }
 
-        // helper: slugify stage names to DOM ids (mirrors server side Str::slug behaviour)
+        // Helper: converts stage name to safe DOM ID
         function safeId(stage) {
             return 'qc-' + (String(stage || '').replace(/[^a-z0-9]+/gi, '_').toLowerCase());
         }
 
-        // create options for a per-stage area chart (30 days)
+        // --- AREA CHART (PER STAGE, 30 DAYS) ---
         function buildPerStageAreaOptions(categories, data, stageLabel) {
             return {
                 chart: {
@@ -210,10 +177,10 @@
                 },
                 series: [{
                     name: stageLabel || 'QC Events',
-                    data: data
+                    data
                 }],
                 xaxis: {
-                    categories: categories
+                    categories
                 },
                 yaxis: {
                     title: {
@@ -228,122 +195,104 @@
             };
         }
 
-        // Render / update per-stage small charts. This is defensive: destroys old chart if options change.
+        // Render / update small area charts for each stage
         function renderPerStageCharts(dates, stageSeries) {
-            // destroy charts that are no longer present in stageSeries
-            const existingStages = Object.keys(perStageCharts);
-            const newStages = Object.keys(stageSeries || {});
-            existingStages.forEach(st => {
-                if (!newStages.includes(st)) {
+            // Destroy charts no longer in stageSeries
+            Object.keys(perStageCharts).forEach(st => {
+                if (!stageSeries[st]) {
                     try {
                         perStageCharts[st].destroy();
-                    } catch (e) {}
+                    } catch {}
                     delete perStageCharts[st];
                 }
             });
 
-            // iterate newStages and create/update
-            newStages.forEach(stage => {
+            // Create/update each stage chart
+            Object.keys(stageSeries || {}).forEach(stage => {
                 const dayMap = stageSeries[stage] || {};
                 const orderedData = dates.map(d => Number(dayMap[d] ?? 0));
-                const elId = safeId(stage);
-                const el = document.querySelector('#' + elId);
-
-                // skip if container not present (server-side rendered)
-                if (!el) return;
+                const el = document.querySelector('#' + safeId(stage));
+                if (!el) return; // skip missing container
 
                 const opts = buildPerStageAreaOptions(dates, orderedData, stage.replace(/_/g, ' '));
                 if (perStageCharts[stage]) {
+                    // Try to update existing chart
                     try {
                         perStageCharts[stage].updateOptions(opts);
-                    } catch (e) {
-                        // if updateOptions fails (rare), destroy + recreate
+                    } catch {
+                        // Fallback: destroy and recreate
                         try {
                             perStageCharts[stage].destroy();
-                        } catch (ee) {}
+                        } catch {}
                         perStageCharts[stage] = new ApexCharts(el, opts);
                         perStageCharts[stage].render();
                     }
                 } else {
+                    // Create new chart
                     perStageCharts[stage] = new ApexCharts(el, opts);
                     perStageCharts[stage].render();
                 }
             });
         }
 
-        // Render all charts (called on initial load and subsequent poll updates)
+        // --- MAIN DASHBOARD RENDER FUNCTION ---
         function renderAll(m) {
             m = m || {};
 
-            // KPI updates (defensive DOM checks)
+            // Update KPI text values (daily counts, totals)
             const setTextIfExists = (id, value) => {
                 const el = document.getElementById(id);
-                if (el) el.innerText = (typeof value !== 'undefined' && value !== null) ? value : 0;
+                if (el) el.innerText = value ?? 0;
             };
-            setTextIfExists('daily_bonding', m.daily_bonding || 0);
-            setTextIfExists('daily_tape_edge_qc', m.daily_tape_edge_qc || 0);
-            setTextIfExists('daily_zip_cover_qc', m.daily_zip_cover_qc || 0);
-            setTextIfExists('daily_packaging', m.daily_packaging || 0);
-            setTextIfExists('total_packaging', m.total_packaging || 0);
+            setTextIfExists('daily_bonding', m.daily_bonding);
+            setTextIfExists('daily_tape_edge_qc', m.daily_tape_edge_qc);
+            setTextIfExists('daily_zip_cover_qc', m.daily_zip_cover_qc);
+            setTextIfExists('daily_packaging', m.daily_packaging);
+            setTextIfExists('total_packaging', m.total_packaging);
 
-            // ---------- stage donut ----------
+            // --- DONUT CHART (STAGE DISTRIBUTION) ---
             const stageCounts = m.stageCounts || {};
             const stageOpts = buildStageDonutOptions(stageCounts);
             const stageContainer = document.querySelector("#stageDonut");
             if (stageContainer) {
                 if (stageChart) {
-                    // update series & labels only (fast)
+                    // Update data if chart already exists
                     try {
                         later(() => stageChart.updateOptions({
                             series: stageOpts.series,
                             labels: stageOpts.labels
                         }));
-                    } catch (e) {
-                        // fallback to re-create
+                    } catch {
+                        // Recreate if update fails
                         try {
                             stageChart.destroy();
-                        } catch (ee) {}
+                        } catch {}
                         stageChart = new ApexCharts(stageContainer, stageOpts);
                         stageChart.render().then(setDonutDefaultCenter);
                     }
-                    // ensure center text is consistent after update
                     later(setDonutDefaultCenter);
                 } else {
+                    // Create new donut chart
                     stageChart = new ApexCharts(stageContainer, stageOpts);
                     stageChart.render().then(setDonutDefaultCenter);
                 }
             }
 
-            // ---------- per-stage (30-day area) charts ----------
-            // Use Blade-provided QC_DATES and QC_STAGE_SERIES as canonical data
-            // BUT if server payload supplies updated qcStageSeries / qcDates, prefer it.
-            const dates = (m.qc_dates && Array.isArray(m.qc_dates)) ? m.qc_dates : QC_DATES;
-            const stageSeries = (m.qc_stage_series && typeof m.qc_stage_series === 'object') ? m
-                .qc_stage_series : QC_STAGE_SERIES;
+            // --- PER STAGE AREA CHARTS (30 DAYS) ---
+            const dates = Array.isArray(m.qc_dates) ? m.qc_dates : QC_DATES;
+            const stageSeries = (m.qc_stage_series && typeof m.qc_stage_series === 'object') ?
+                m.qc_stage_series :
+                QC_STAGE_SERIES;
             renderPerStageCharts(dates, stageSeries);
 
-            // ---------- qc event area (bondingQcEvent) - old single chart (keeps for backward compat) ----------
-            // const qcEventsOpts = buildQCeventyOptions(m.qcEventSeries || {});
-            // const bondingEl = document.querySelector("#bondingQcEvent");
-            // if (bondingEl) {
-            //     if (qcEventChart) {
-            //         try {
-            //             qcEventChart.updateOptions(qcEventsOpts);
-            //         } catch (e) {}
-            //     } else {
-            //         qcEventChart = new ApexCharts(bondingEl, qcEventsOpts);
-            //         qcEventChart.render();
-            //     }
-            // }
-
-            // ---------- qc bar ----------
+            // --- QC STATUS BAR CHART ---
             const qcOpts = buildQcBarOptions(m.qcCounts || {});
             const qcBarEl = document.querySelector("#qcBar");
             if (qcBarEl) {
                 if (qcChart) {
                     try {
                         qcChart.updateOptions(qcOpts);
-                    } catch (e) {}
+                    } catch {}
                 } else {
                     qcChart = new ApexCharts(qcBarEl, qcOpts);
                     qcChart.render();
@@ -351,42 +300,37 @@
             }
         }
 
-        // initial render
+        // --- INITIAL RENDER ---
         renderAll(metrics);
 
-        // Poll metrics every 10 seconds (keeps original behavior)
+        // --- AUTO REFRESH (every 10 seconds) ---
         const DASHBOARD_METRICS_URL = "{{ url('dashboard/metrics') }}";
         setInterval(() => {
             axios.get(DASHBOARD_METRICS_URL)
                 .then(resp => {
                     if (resp.data) {
-                        // reset hover so center shows default for new data
-                        hoveredIndex = null;
-                        hoveredPercent = null;
-                        hoveredLabel = null;
-                        renderAll(resp.data);
+                        resetDonutHover(); // reset donut state for new data
+                        renderAll(resp.data); // re-render dashboard
                     }
                 })
                 .catch(err => {
-                    // keep console output for debugging
                     console.error('Failed to refresh dashboard metrics', err);
                 });
         }, 10000);
 
-        // Optional: destroy charts when page unloads to free memory (good practice)
+        // --- CLEANUP ---
+        // Destroy charts on page unload (avoids memory leaks in SPAs)
         window.addEventListener('beforeunload', function() {
             try {
-                if (stageChart) stageChart.destroy();
-                if (qcEventChart) qcEventChart.destroy();
-                if (qcChart) qcChart.destroy();
-                Object.keys(perStageCharts).forEach(k => {
+                stageChart?.destroy();
+                qcEventChart?.destroy();
+                qcChart?.destroy();
+                Object.values(perStageCharts).forEach(chart => {
                     try {
-                        perStageCharts[k].destroy();
-                    } catch (e) {}
+                        chart.destroy();
+                    } catch {}
                 });
-            } catch (e) {
-                /* ignore */
-            }
+            } catch {}
         });
     });
 </script>

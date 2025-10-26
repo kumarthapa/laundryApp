@@ -2,6 +2,7 @@
 
 namespace App\Models\products;
 
+use App\Helpers\LocaleHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,7 @@ class BondingPlanProduct extends Model
         'reference_code',
         'is_locked',
         'locked_by',
+        'location_id',
     ];
 
     protected $dates = [
@@ -71,6 +73,8 @@ class BondingPlanProduct extends Model
                     ->orWhere('b.product_name', 'like', "%{$search}%");
             });
         }
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'b');
 
         // Date range filter
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
@@ -111,7 +115,8 @@ class BondingPlanProduct extends Model
                     ->orWhere('b.product_name', 'like', "%{$search}%");
             });
         }
-
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'b');
         // Date range filter
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             $query->whereBetween('b.created_at', [$filters['start_date'], $filters['end_date']]);

@@ -319,79 +319,6 @@ class BondingPlanProductController extends Controller
         }
     }
 
-    /* Delete */
-    // public function delete(Request $request, $id = '')
-    // {
-    //     $delete_id = $id ?: $request->input('id');
-    //     Log::info("Delete request for bonding_plan_product ID: $delete_id");
-
-    //     $Model = BondingPlanProduct::with('products')->find($delete_id);
-    //     if (! $Model) {
-    //         Log::warning("BondingPlanProduct not found for ID: $delete_id");
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Delete Failed! Product not found.',
-    //             'bg_color' => 'bg-danger',
-    //         ]);
-    //     }
-    //     if ($Model->is_write) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'This item is already written and cannot be deleted.',
-    //             'bg_color' => 'bg-danger',
-    //         ]);
-    //     }
-
-    //     Log::info('Found BondingPlanProduct: ', ['id' => $Model->id, 'products_count' => $Model->products->count()]);
-
-    //     try {
-    //         foreach ($Model->products as $product) {
-    //             // Delete related product process history explicitly (optional, cascade works if DB ON DELETE CASCADE is set)
-    //             if (method_exists($product, 'processHistory')) {
-    //                 $product->processHistory()->delete();
-    //                 Log::info("Deleted process history for product ID: {$product->id}");
-    //             }
-    //         }
-
-    //         // Delete related products
-    //         $Model->products()->delete();
-    //         Log::info('Related products deleted.');
-
-    //         // Delete the bonding plan product record
-    //         $Model->delete();
-    //         Log::info('BondingPlanProduct deleted.');
-
-    //         // Optional: log user activity here (uncomment and implement UserActivityLog)
-
-    //         $user = Auth::user();
-    //         $this->UserActivityLog($request, [
-    //             'module' => 'bonding',
-    //             'activity_type' => 'delete',
-    //             'message' => 'Deleted product by : '.($user->fullname ?? 'Unknown'),
-    //             'application' => 'web',
-    //             'data' => [
-    //                 'sku' => $Model->sku,
-    //                 'rfid_tag' => $Model->rfid_tag ?? 'N/A',
-    //             ],
-    //         ]);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Record and related histories deleted successfully',
-    //             'bg_color' => 'bg-success',
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         Log::error('Delete exception: '.$e->getMessage());
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Delete Failed! '.$e->getMessage(),
-    //             'bg_color' => 'bg-danger',
-    //         ]);
-    //     }
-    // }
-
     public function delete(Request $request, $id = null)
     {
         // Collect ids from multiple possible sources: route param $id, request 'id', or request 'ids' (array)
@@ -411,10 +338,15 @@ class BondingPlanProductController extends Controller
         Log::info('Delete requested for bonding ids: '.json_encode($ids));
         DB::beginTransaction();
         try {
-            $models = BondingPlanProduct::with('products')->whereIn('id', $ids)->get();
+
+            $query = BondingPlanProduct::with('products')->whereIn('id', $ids);
+            $models = LocaleHelper::commonWhereLocationCheck($query, 'bonding_plan_products');
+            $models = $models->get();
+
             if ($models->isEmpty()) {
                 return response()->json(['success' => false, 'message' => 'No matching records found.'], 404);
             }
+
             $deletedCount = 0;
             $skipped = [];
             foreach ($models as $model) {
@@ -497,6 +429,7 @@ class BondingPlanProductController extends Controller
 
         // Base query
         $query = BondingPlanProduct::with('products');
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'bonding_plan_products');
 
         // Filter by date range if provided
         if ($startDate && $endDate) {
@@ -722,6 +655,7 @@ class BondingPlanProductController extends Controller
                             'quantity' => 1,
                             'created_at' => now(),
                             'updated_at' => now(),
+                            'location_id' => LocaleHelper::getLoginUserLocationId(),
                         ];
                         $sl_no++;
                     }
@@ -778,11 +712,24 @@ class BondingPlanProductController extends Controller
                 } else {
 
                     // Process updates
+                    // foreach ($importData as $item) {
+                    //     if (isset($item['__update_qa_code'])) {
+                    //         BondingPlanProduct::where('qa_code', $item['__update_qa_code'])->update($item['data']);
+                    //     }
+                    // }
+
                     foreach ($importData as $item) {
                         if (isset($item['__update_qa_code'])) {
-                            BondingPlanProduct::where('qa_code', $item['__update_qa_code'])->update($item['data']);
+                            $qaCode = $item['__update_qa_code'];
+                            $locationId = LocaleHelper::getLoginUserLocationId(); // get current user's location
+
+                            // Update only for the given location
+                            BondingPlanProduct::where('qa_code', $qaCode)
+                                ->where('location_id', $locationId)
+                                ->update($item['data']);
                         }
                     }
+
                 }
             }
 

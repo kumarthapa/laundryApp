@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\LocaleHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
@@ -39,14 +40,20 @@ class DashboardApiController extends Controller
         $cacheKey = "dashboard.summary.v2.{$startDate->toDateString()}_{$endDate->toDateString()}";
 
         $data = Cache::remember($cacheKey, $cacheSeconds, function () use ($startDate, $endDate) {
+
             $monthStart = Carbon::now()->startOfMonth();
             $monthEnd = Carbon::now()->endOfMonth();
 
-            // Total products
-            $totalSelected = $this->products->whereBetween('created_at', [$startDate, $endDate])->count();
-            $totalMonth = $this->products->whereBetween('created_at', [$monthStart, $monthEnd])->count();
+            // Total products with location filter
+            $query = $this->products->whereBetween('created_at', [$startDate, $endDate]);
+            $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
+            $totalSelected = $query->count();
 
-            // Latest status per product
+            $monthQuery = $this->products->whereBetween('created_at', [$monthStart, $monthEnd]);
+            $monthQuery = LocaleHelper::commonWhereLocationCheck($monthQuery, 'products');
+            $totalMonth = $monthQuery->count();
+
+            // Latest status per product with location filter
             $latestHistory = DB::table('product_process_history as h')
                 ->select('h.product_id', 'h.status', 'h.stages', 'h.changed_at')
                 ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change 
@@ -55,6 +62,10 @@ class DashboardApiController extends Controller
                     $join->on('h.product_id', '=', 'latest.product_id')
                         ->on('h.changed_at', '=', 'latest.latest_change');
                 });
+
+            // Apply location filter to latestHistory via product table join
+            $latestHistory->join('bonding_plan_products as p', 'h.product_id', '=', 'p.id');
+            $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'p');
 
             $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
                 ->mergeBindings($latestHistory);
@@ -82,9 +93,12 @@ class DashboardApiController extends Controller
                 ->map(fn ($v) => (int) $v)
                 ->toArray();
 
-            // Recent activities (filtered by date range)
+            // Recent activities with location filter
             $recent = ProductProcessHistory::with('product')
                 ->whereBetween('changed_at', [$startDate, $endDate])
+                ->whereHas('product', function ($q) {
+                    LocaleHelper::commonWhereLocationCheck($q, 'products');
+                })
                 ->orderBy('changed_at', 'desc')
                 ->limit(20)
                 ->get()
@@ -111,7 +125,6 @@ class DashboardApiController extends Controller
                     'defects_selected' => $defects,
                     'efficiency_percent' => $efficiency,
                     'defect_rate_percent' => $defectRate,
-
                 ],
                 'stages' => $stagesCounts,
                 'recent_activities' => $recent,
@@ -133,11 +146,16 @@ class DashboardApiController extends Controller
         $latestHistory = DB::table('product_process_history as h')
             ->select('h.product_id', 'h.stages')
             ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change 
-                             FROM product_process_history 
-                             GROUP BY product_id) latest'), function ($join) {
+                         FROM product_process_history 
+                         GROUP BY product_id) latest'), function ($join) {
                 $join->on('h.product_id', '=', 'latest.product_id')
                     ->on('h.changed_at', '=', 'latest.latest_change');
-            });
+            })
+            // Join with products table to apply location filter
+            ->join('bonding_plan_products as p', 'h.product_id', '=', 'p.id');
+
+        // Apply location filter
+        $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'h');
 
         $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
             ->mergeBindings($latestHistory);
@@ -163,7 +181,9 @@ class DashboardApiController extends Controller
         $limit = (int) $request->query('limit', 20);
         $limit = min(100, max(1, $limit));
 
-        $recent = ProductProcessHistory::with('product')
+        $recent = ProductProcessHistory::with(['product' => function ($q) {
+            LocaleHelper::commonWhereLocationCheck($q, 'product_process_history');
+        }])
             ->orderBy('changed_at', 'desc')
             ->limit($limit)
             ->get()

@@ -19,6 +19,7 @@ class ProductProcessHistory extends Model
         'changed_at',
         'changed_by',
         'remarks',
+        'location_id',
     ];
 
     protected $dates = [

@@ -104,6 +104,8 @@
                 createPermissions: "{{ isset($createPermissions) ? $createPermissions : '' }}",
                 fetchId: "FetchData",
                 title: "User list",
+                createTitle: 'Add User',
+                manuall_create: true,
                 is_delete: "",
             };
             getDataTableS(options1, filterData, tableHeaders);

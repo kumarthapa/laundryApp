@@ -8,6 +8,7 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
+use App\Models\products\BondingPlanProduct;
 use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
 use Carbon\Carbon;
@@ -295,90 +296,90 @@ class ProductsController extends Controller
         return view('content.products.edit', ['product' => $product]);
     }
 
-    public function save(Request $request, $id = null)
-    {
-        // Validation base rules
-        $rules = [
-            'product_name' => 'required|string|max:200',
-            'sku' => 'required|string|max:100',
-            'reference_code' => 'nullable|string|max:200',
-            'size' => 'required|string|max:150',
-            'rfid_tag' => 'required|string|max:200',
-            'quantity' => 'nullable|integer|min:0',
-        ];
+    // public function save(Request $request, $id = null)
+    // {
+    //     // Validation base rules
+    //     $rules = [
+    //         'product_name' => 'required|string|max:200',
+    //         'sku' => 'required|string|max:100',
+    //         'reference_code' => 'nullable|string|max:200',
+    //         'size' => 'required|string|max:150',
+    //         'rfid_tag' => 'required|string|max:200',
+    //         'quantity' => 'nullable|integer|min:0',
+    //     ];
 
-        // Unique rules
-        if ($id) {
-            $rules['sku'] .= '|unique:products,sku,'.intval($id);
-            $rules['rfid_tag'] .= '|unique:products,rfid_tag,'.intval($id);
-        } else {
-            $rules['sku'] .= '|unique:products,sku';
-            $rules['rfid_tag'] .= '|unique:products,rfid_tag';
-        }
+    //     // Unique rules
+    //     if ($id) {
+    //         $rules['sku'] .= '|unique:products,sku,'.intval($id);
+    //         $rules['rfid_tag'] .= '|unique:products,rfid_tag,'.intval($id);
+    //     } else {
+    //         $rules['sku'] .= '|unique:products,sku';
+    //         $rules['rfid_tag'] .= '|unique:products,rfid_tag';
+    //     }
 
-        $messages = [
-            'rfid_tag.unique' => 'The RFID Tag has already been taken.',
-            'sku.unique' => 'The SKU has already been taken.',
-        ];
+    //     $messages = [
+    //         'rfid_tag.unique' => 'The RFID Tag has already been taken.',
+    //         'sku.unique' => 'The SKU has already been taken.',
+    //     ];
 
-        $validator = Validator::make($request->all(), $rules, $messages);
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation fail',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+    //     $validator = Validator::make($request->all(), $rules, $messages);
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation fail',
+    //             'errors' => $validator->errors(),
+    //         ], 422);
+    //     }
 
-        $data = $request->only([
-            'product_name',
-            'sku',
-            'reference_code',
-            'size',
-            'rfid_tag',
-            'quantity',
-        ]);
+    //     $data = $request->only([
+    //         'product_name',
+    //         'sku',
+    //         'reference_code',
+    //         'size',
+    //         'rfid_tag',
+    //         'quantity',
+    //     ]);
 
-        $user = Auth::user();
-        $data['qc_status_updated_by'] = $user->id ?? null;
+    //     $user = Auth::user();
+    //     $data['qc_status_updated_by'] = $user->id ?? null;
 
-        DB::beginTransaction();
-        try {
-            if ($id) {
-                $product = Products::findOrFail($id);
-                $product->update($data);
-                $action = 'update';
-            } else {
-                $product = Products::create($data);
-                $action = 'create';
-            }
+    //     DB::beginTransaction();
+    //     try {
+    //         if ($id) {
+    //             $product = Products::findOrFail($id);
+    //             $product->update($data);
+    //             $action = 'update';
+    //         } else {
+    //             $product = Products::create($data);
+    //             $action = 'create';
+    //         }
 
-            // Log activity
-            $this->UserActivityLog($request, [
-                'module' => 'products',
-                'activity_type' => $action,
-                'message' => ucfirst($action).'d product: '.$product->product_name,
-                'application' => 'web',
-                'data' => $data,
-            ]);
+    //         // Log activity
+    //         $this->UserActivityLog($request, [
+    //             'module' => 'products',
+    //             'activity_type' => $action,
+    //             'message' => ucfirst($action).'d product: '.$product->product_name,
+    //             'application' => 'web',
+    //             'data' => $data,
+    //         ]);
 
-            DB::commit();
+    //         DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Product successfully '.($action === 'create' ? 'created' : 'updated').'.',
-                'return_url' => route('products'),
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Product '.($id ? 'update' : 'create').' error: '.$e->getMessage());
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Product successfully '.($action === 'create' ? 'created' : 'updated').'.',
+    //             'return_url' => route('products'),
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         Log::error('Product '.($id ? 'update' : 'create').' error: '.$e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred: '.$e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'An error occurred: '.$e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     /* Delete */
     public function delete(Request $request, $id = null)
@@ -402,7 +403,9 @@ class ProductsController extends Controller
         try {
             // print_r($ids);
             // exit;
-            $models = Products::with('processHistory')->whereIn('id', $ids)->get();
+            $query = Products::with('processHistory')->whereIn('id', $ids);
+            $models = LocaleHelper::commonWhereLocationCheck($query, 'products');
+            $models = $models->get();
             if ($models->isEmpty()) {
                 return response()->json([
                     'success' => false,
@@ -666,6 +669,9 @@ class ProductsController extends Controller
 
         // Eager load latestHistory (we store stages/status as strings)
         $query = Products::with('latestHistory');
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
+        $products = $query->get();
+
         // Filter by date range if provided
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
@@ -768,6 +774,9 @@ class ProductsController extends Controller
 
         // Fetch products with histories
         $query = Products::with('latestHistory');
+        $query = Products::with('latestHistory');
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
+
         // Filter by date range if provided
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
@@ -807,5 +816,47 @@ class ProductsController extends Controller
             new ProductExport($dataRows, $metaInfo, $headers),
             'products_stage_wise_export_'.now()->format('Ymd_His').'.xlsx'
         );
+    }
+
+    public function setlocationid(Request $request, $id = null)
+    {
+        $locationId = 0;
+        $isSetLocation = $request->input('location_id');
+
+        if ($isSetLocation) {
+            $locationId = Auth::user()->location_id ?? null;
+        }
+        // print_r($locationId);
+        // exit;
+        if (! is_numeric($locationId) || intval($locationId) < 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid location ID provided.',
+            ], 422);
+        }
+        $locationId = intval($locationId);
+
+        DB::beginTransaction();
+        try {
+            BondingPlanProduct::query()->update(['location_id' => $locationId]);
+            Products::query()->update(['location_id' => $locationId]);
+            ProductProcessHistory::query()->update(['location_id' => $locationId]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Location ID updated successfully.',
+                'updated' => 1,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Set Location ID exception: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Update failed: '.$e->getMessage(),
+            ], 500);
+        }
     }
 }

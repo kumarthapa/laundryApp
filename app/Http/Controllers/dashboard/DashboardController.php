@@ -7,7 +7,6 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
-use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -143,7 +142,8 @@ class DashboardController extends Controller
                 'h.defects_points',
                 'h.remarks as comments'
             );
-
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'h');
         // 🔍 Search
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -187,7 +187,7 @@ class DashboardController extends Controller
         $searchData = $query->get();
 
         // Count total (for pagination)
-        $total_rows = DB::table('product_process_history as h')
+        $totalrowsQuery = DB::table('product_process_history as h')
             ->join('products as p', 'p.id', '=', 'h.product_id')
             ->when(! empty($search), function ($q) use ($search) {
                 $q->where(function ($q2) use ($search) {
@@ -199,8 +199,10 @@ class DashboardController extends Controller
                         ->orWhere('h.remarks', 'like', "%{$search}%")
                         ->orWhere('h.defects_points', 'like', "%{$search}%");
                 });
-            })
-            ->count();
+            });
+
+        $totalrowsQuery = LocaleHelper::commonWhereLocationCheck($totalrowsQuery, 'h');
+        $total_rows = $totalrowsQuery->count();
 
         // Prepare formatted rows
         $data_rows = [];
@@ -225,63 +227,82 @@ class DashboardController extends Controller
 
     protected function gatherMetrics()
     {
-        // 1) Total products
-        $totalProducts = Products::count();
+        // -----------------------------------------------------
+        // 1) TOTAL PRODUCTS (with location filter)
+        // -----------------------------------------------------
+        $totalProductsQuery = DB::table('products');
+        $totalProductsQuery = LocaleHelper::commonWhereLocationCheck($totalProductsQuery);
+        $totalProducts = $totalProductsQuery->count();
 
         $stages = ['bonding_qc', 'tape_edge_qc', 'zip_cover_qc', 'packaging'];
 
-        $daily_counts = ProductProcessHistory::select('stages', DB::raw('COUNT(*) as total'))
-            ->whereDate('created_at', Carbon::today())
-            ->where('status', 'PASS')
-            ->whereIn('stages', $stages)
-            ->groupBy('stages')
-            ->pluck('total', 'stages')
-            ->toArray();
+        // -----------------------------------------------------
+        // 2) DAILY QC COUNTS (Today’s PASS counts per stage)
+        // -----------------------------------------------------
+        $daily_countsQuery = DB::table('product_process_history as h')
+            ->join('products as p', 'p.id', '=', 'h.product_id')
+            ->select('h.stages', DB::raw('COUNT(*) as total'))
+            ->whereDate('h.created_at', Carbon::today())
+            ->where('h.status', 'PASS')
+            ->whereIn('h.stages', $stages)
+            ->groupBy('h.stages');
 
-        // Access like:
+        $daily_countsQuery = LocaleHelper::commonWhereLocationCheck($daily_countsQuery, 'p');
+        $daily_counts = $daily_countsQuery->pluck('total', 'stages')->toArray();
+
         $daily_bonding = $daily_counts['bonding_qc'] ?? 0;
         $daily_tape_edge_qc = $daily_counts['tape_edge_qc'] ?? 0;
         $daily_zip_cover_qc = $daily_counts['zip_cover_qc'] ?? 0;
         $daily_packaging = $daily_counts['packaging'] ?? 0;
 
-        $total_packaging = ProductProcessHistory::where('stages', 'packaging')->where('status', 'PASS')->count();
+        // -----------------------------------------------------
+        // 3) TOTAL PACKAGING (Overall PASS count for packaging)
+        // -----------------------------------------------------
+        $total_packagingQuery = DB::table('product_process_history as h')
+            ->join('products as p', 'p.id', '=', 'h.product_id')
+            ->where('h.stages', 'packaging')
+            ->where('h.status', 'PASS');
+        $total_packagingQuery = LocaleHelper::commonWhereLocationCheck($total_packagingQuery, 'p');
+        $total_packaging = $total_packagingQuery->count();
 
-        // Load config arrays for stages and defect points (if needed later)
+        // -----------------------------------------------------
+        // 4) CONFIG ARRAYS for stages and defect points
+        // -----------------------------------------------------
         $productConfig = UtilityHelper::getProductStagesAndDefectPoints();
         $stagesConfig = $productConfig['stages'] ?? [];
-        // (Optionally use $productConfig['defect_points'] if needed)
 
-        // 2) Stage distribution (group by latest history entry's 'stages' field)
-        // Subquery to get the latest history ID for each product
-        $latestHistorySubquery = DB::table('product_process_history')
-            ->select('product_id', DB::raw('MAX(id) as max_id'))
-            ->where('status', 'PASS')
-            ->groupBy('product_id');
+        // -----------------------------------------------------
+        // 5) STAGE DISTRIBUTION (last 30 days actual counts)
+        //    ✅ FIXED: previously only counted latest stage.
+        //    Now counts all product-stage entries in last 30 days.
+        // -----------------------------------------------------
+        $startDate = Carbon::today()->subDays(29)->startOfDay();
+        $endDate = Carbon::today()->endOfDay();
 
-        // Count products by their latest stage (using the 'stages' column in history)
-        $stageCountsRaw = DB::table('products as p')
-            ->joinSub($latestHistorySubquery, 'latest_h', function ($join) {
-                $join->on('p.id', '=', 'latest_h.product_id');
-            })
-            ->join('product_process_history as h', 'h.id', '=', 'latest_h.max_id')
-            ->select('h.stages as stage', DB::raw('COUNT(p.id) as cnt'))
-            ->groupBy('h.stages')
+        $stageCountsRaw = DB::table('product_process_history as h')
+            ->join('products as p', 'p.id', '=', 'h.product_id')
+            ->select('h.stages as stage', DB::raw('COUNT(DISTINCT h.product_id) as cnt'))
+            ->whereBetween('h.changed_at', [$startDate, $endDate])
+            ->where('h.status', 'PASS')
+            ->groupBy('h.stages');
+
+        $stageCountsRaw = LocaleHelper::commonWhereLocationCheck($stageCountsRaw, 'p')
             ->pluck('cnt', 'stage')
             ->toArray();
 
-        // Optionally, map stage codes to display names (if needed)
-        // For example, to use stage 'name' as key:
-        // $stageCounts = [];
-        // foreach ($stagesConfig as $stage) {
-        //     $key = $stage['value'];
-        //     $label = $stage['name'];
-        //     $stageCounts[$label] = isset($stageCountsRaw[$key]) ? $stageCountsRaw[$key] : 0;
-        // }
-
-        // Use raw counts with stage codes as keys:
         $stageCounts = $stageCountsRaw;
 
-        // 3) QC status counts (using 'status' field from history)
+        // -----------------------------------------------------
+        // 6) QC STATUS COUNTS (PASS/FAIL/REWORK etc.)
+        //    Based on latest history per product.
+        // -----------------------------------------------------
+        $latestHistorySubquery = DB::table('product_process_history as h')
+            ->join('products as p', 'p.id', '=', 'h.product_id')
+            ->select('h.product_id', DB::raw('MAX(h.id) as max_id'))
+            ->where('h.status', 'PASS')
+            ->groupBy('h.product_id');
+        $latestHistorySubquery = LocaleHelper::commonWhereLocationCheck($latestHistorySubquery, 'p');
+
         $qcCountsRaw = DB::table('products as p')
             ->joinSub($latestHistorySubquery, 'latest_h', function ($join) {
                 $join->on('p.id', '=', 'latest_h.product_id');
@@ -295,47 +316,27 @@ class DashboardController extends Controller
 
         $qcCounts = $qcCountsRaw;
 
-        // 4) OLD --- Daily throughput (last 30 days) from product_process_history
-        // $startDate = Carbon::today()->subDays(29)->startOfDay();
-        // $dailyThroughputRows = DB::table('product_process_history')
-        //     ->select(DB::raw('DATE(changed_at) as day'), DB::raw('COUNT(*) as cnt'))
-        //     ->where('changed_at', '>=', $startDate)
-        //     ->where('stages', 'bonding_qc') // Exclude packaging stage if needed
-        //     ->groupBy(DB::raw('DATE(changed_at)'))
-        //     ->orderBy('day')
-        //     ->get();
+        // -----------------------------------------------------
+        // 7) DAILY THROUGHPUT (Last 30 days, stage-wise)
+        // -----------------------------------------------------
+        $rows = DB::table('product_process_history as h')
+            ->join('products as p', 'p.id', '=', 'h.product_id')
+            ->select('h.stages', DB::raw('DATE(h.changed_at) as day'), DB::raw('COUNT(*) as cnt'))
+            ->where('h.status', 'PASS')
+            ->whereBetween('h.changed_at', [$startDate, $endDate])
+            ->groupBy('h.stages', DB::raw('DATE(h.changed_at)'))
+            ->orderBy('h.stages')
+            ->orderBy('day');
 
-        // // Format daily series as date => count (fill missing days with 0)
-        // $qcEventSeries = [];
-        // for ($d = 0; $d < 30; $d++) {
-        //     $day = $startDate->copy()->addDays($d)->toDateString();
-        //     $qcEventSeries[$day] = 0;
-        // }
-        // foreach ($dailyThroughputRows as $r) {
-        //     $qcEventSeries[$r->day] = (int) $r->cnt;
-        // }
+        $rows = LocaleHelper::commonWhereLocationCheck($rows, 'p')->get();
 
-        //  4) Daily throughput (last 30 days) QC Event Chart  ========================= Start ========================
-        $startDate2 = Carbon::today()->subDays(29)->startOfDay();
-        $endDate2 = Carbon::today()->endOfDay();
-        // fetch counts grouped by stage + day, exclude packaging if needed
-        $rows = DB::table('product_process_history')
-            ->select('stages', DB::raw('DATE(changed_at) as day'), DB::raw('COUNT(*) as cnt'))
-            ->where('changed_at', '>=', $startDate2)
-            ->where('changed_at', '<=', $endDate2)
-            // ->whereNotIn('stages', ['packaging']) // optional filter
-            ->groupBy('stages', DB::raw('DATE(changed_at)'))
-            ->orderBy('stages')
-            ->orderBy('day')
-            ->get();
-
-        // build the 30-day date keys
+        // Generate date range for last 30 days
         $dates = [];
         for ($d = 0; $d < 30; $d++) {
-            $dates[] = $startDate2->copy()->addDays($d)->toDateString();
+            $dates[] = $startDate->copy()->addDays($d)->toDateString();
         }
 
-        // stage => day => count
+        // Build stage-wise series data
         $stageSeries = [];
         foreach ($rows as $r) {
             $stage = $r->stages;
@@ -343,54 +344,19 @@ class DashboardController extends Controller
             $stageSeries[$stage][$day] = (int) $r->cnt;
         }
 
-        // ensure every stage has all dates filled (0 default)
+        // Fill missing dates with 0
         foreach ($stageSeries as $stage => $dayCounts) {
             foreach ($dates as $d) {
                 if (! isset($stageSeries[$stage][$d])) {
                     $stageSeries[$stage][$d] = 0;
                 }
             }
-            // keep date order consistent
             ksort($stageSeries[$stage]);
         }
 
-        // 4) Daily throughput (last 30 days) QC Event Chart  ========================= End ========================
-
-        // 5) Recent activity (last 20 events)
-        // $recentActivities = DB::table('product_process_history as h')
-        //     ->join('products as p', 'p.id', '=', 'h.product_id')
-        //     ->select(
-        //         DB::raw("DATE_FORMAT(h.changed_at, '%Y-%m-%d %H:%i:%s') as changed_at"),
-        //         'p.sku',
-        //         'p.product_name',
-        //         'p.qa_code',
-        //         'h.stages as stage',
-        //         'h.status as status',
-        //         'h.remarks as comments'
-        //     )
-        //     ->orderBy('h.changed_at', 'desc')
-        //     ->limit(30)
-        //     ->get();
-
-        // 6) QC pass rate (across all QC stages from config)
-        // Identify all stages considered QC from config (assuming 'value' contains 'qc')
-        $qcStageValues = [];
-        foreach ($stagesConfig as $stage) {
-            if (stripos($stage['value'], 'qc') !== false) {
-                $qcStageValues[] = $stage['value'];
-            }
-        }
-        // if (! empty($qcStageValues)) {
-        //     $totalQcChecked = DB::table('product_process_history')
-        //         ->whereIn('stages', $qcStageValues)
-        //         ->count();
-        //     $qcPassCount = DB::table('product_process_history')
-        //         ->whereIn('stages', $qcStageValues)
-        //         ->where('status', 'PASS')
-        //         ->count();
-        // }
-
-        // 7) Stuck items (not progressed in last N days; default 7)
+        // -----------------------------------------------------
+        // 8) STUCK ITEMS (not progressed in last 7 days)
+        // -----------------------------------------------------
         $daysStuck = 7;
         $stuckCutoff = Carbon::now()->subDays($daysStuck);
         $stuckItems = DB::table('products as p')
@@ -410,168 +376,65 @@ class DashboardController extends Controller
                 'p.updated_at',
             ]);
 
-        // 8) Average time per stage (in minutes)
-        // We group by the 'stages' field from history.
+        // -----------------------------------------------------
+        // 9) AVERAGE TIME PER STAGE (in minutes)
+        // -----------------------------------------------------
         $avgStageTimesQuery = DB::select('
+        SELECT
+            h.stages AS stage,
+            AVG(TIMESTAMPDIFF(MINUTE, h.changed_at, h_next.next_change)) AS avg_minutes
+        FROM (
             SELECT
-                h.stages AS stage,
-                AVG(TIMESTAMPDIFF(MINUTE, h.changed_at, h_next.next_change)) AS avg_minutes
-            FROM (
-                SELECT
-                    ph.id,
-                    ph.product_id,
-                    ph.stages,
-                    ph.changed_at,
-                    (
-                        SELECT MIN(p2.changed_at)
-                        FROM product_process_history p2
-                        WHERE p2.product_id = ph.product_id
-                          AND p2.changed_at > ph.changed_at
-                    ) AS next_change
-                FROM product_process_history ph
-            ) AS h
-            JOIN (
-                SELECT
-                    ph.id,
-                    (
-                        SELECT MIN(p2.changed_at)
-                        FROM product_process_history p2
-                        WHERE p2.product_id = ph.product_id
-                          AND p2.changed_at > ph.changed_at
-                    ) AS next_change
-                FROM product_process_history ph
-            ) AS h_next ON h.id = h_next.id
-            WHERE h.next_change IS NOT NULL
-            GROUP BY h.stages
-        ');
+                ph.id,
+                ph.product_id,
+                ph.stages,
+                ph.changed_at,
+                (
+                    SELECT MIN(p2.changed_at)
+                    FROM product_process_history p2
+                    WHERE p2.product_id = ph.product_id
+                      AND p2.changed_at > ph.changed_at
+                ) AS next_change
+            FROM product_process_history ph
+        ) AS h
+        JOIN (
+            SELECT
+                ph.id,
+                (
+                    SELECT MIN(p2.changed_at)
+                    FROM product_process_history p2
+                    WHERE p2.product_id = ph.product_id
+                      AND p2.changed_at > ph.changed_at
+                ) AS next_change
+            FROM product_process_history ph
+        ) AS h_next ON h.id = h_next.id
+        WHERE h.next_change IS NOT NULL
+        GROUP BY h.stages
+    ');
 
         $avgStageTimesFormatted = [];
         foreach ($avgStageTimesQuery as $row) {
             $avgStageTimesFormatted[$row->stage] = round((float) $row->avg_minutes, 1);
         }
 
+        // -----------------------------------------------------
+        // 10) RETURN METRICS SUMMARY
+        // -----------------------------------------------------
         return [
             'totalProducts' => (int) $totalProducts,
             'stageCounts' => $stageCounts,
             'qcCounts' => $qcCounts,
-            // 'qcEventSeries' => $qcEventSeries,
             'qc_dates' => $dates,
             'qc_stage_series' => $stageSeries,
-            // 'recentActivities' => $recentActivities,
             'stuckItems' => $stuckItems,
             'avgStageTimes' => $avgStageTimesFormatted,
-
             'daily_bonding' => $daily_bonding,
             'daily_tape_edge_qc' => $daily_tape_edge_qc,
             'daily_zip_cover_qc' => $daily_zip_cover_qc,
             'daily_packaging' => $daily_packaging,
-            'total_packaging' => $total_packaging ?? 0,
+            'total_packaging' => $total_packaging,
         ];
     }
-
-    // public function recentActivities_search($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'h.changed_at', $order = 'desc')
-    // {
-    //     $query = DB::table('product_process_history as h')
-    //         ->join('products as p', 'p.id', '=', 'h.product_id')
-    //         ->select(
-    //             DB::raw("DATE_FORMAT(h.changed_at, '%Y-%m-%d %H:%i:%s') as updated_date"),
-    //             'p.sku',
-    //             'p.qa_code',
-    //             'p.product_name',
-    //             'h.stages as stage',
-    //             'h.status as status',
-    //             'h.defects_points',
-    //             'h.remarks as comments'
-    //         );
-
-    //     // Search filter
-    //     if (! empty($search)) {
-    //         $query->where(function ($q) use ($search) {
-    //             $q->where('p.product_name', 'like', "%{$search}%")
-    //                 ->orWhere('p.sku', 'like', "%{$search}%")
-    //                 ->orWhere('p.qa_code', 'like', "%{$search}%")
-    //                 ->orWhere('h.status', 'like', "%{$search}%")
-    //                 ->orWhere('h.stages', 'like', "%{$search}%")
-    //                 ->orWhere('h.remarks', 'like', "%{$search}%")
-    //                 ->orWhere('h.defects_points', 'like', "%{$search}%");
-    //         });
-    //     }
-
-    //     // Stage filter
-    //     if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
-    //         $query->where('h.stages', $filters['stages']);
-    //     }
-
-    //     // Status filter
-    //     $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
-    //     if (! empty($statusFilter) && $statusFilter !== 'all') {
-    //         $query->where('h.status', strtoupper($statusFilter));
-    //     }
-
-    //     // Defect points filter (JSON)
-    //     if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
-    //         $jsonVal = json_encode($filters['defects_points']);
-    //         $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
-    //     }
-
-    //     // Date range filter (based on updated_date/changed_at)
-    //     if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
-    //         $query->whereBetween('h.changed_at', [$filters['start_date'], $filters['end_date']]);
-    //     }
-
-    //     // Order + pagination
-    //     $allowedOrders = ['asc', 'desc'];
-    //     $order = in_array(strtolower($order), $allowedOrders) ? $order : 'desc';
-
-    //     $query->orderBy($sort, $order)
-    //         ->limit(intval($limit))
-    //         ->offset(intval($offset));
-
-    //     return $query->get();
-    // }
-
-    // public function get_found_rows($search = '', $filters = [])
-    // {
-    //     $query = DB::table('product_process_history as h')
-    //         ->join('products as p', 'p.id', '=', 'h.product_id')
-    //         ->select('h.id');
-
-    //     if (! empty($search)) {
-    //         $query->where(function ($q) use ($search) {
-    //             $q->where('p.product_name', 'like', "%{$search}%")
-    //                 ->orWhere('p.sku', 'like', "%{$search}%")
-    //                 ->orWhere('p.qa_code', 'like', "%{$search}%")
-    //                 ->orWhere('h.status', 'like', "%{$search}%")
-    //                 ->orWhere('h.stages', 'like', "%{$search}%")
-    //                 ->orWhere('h.remarks', 'like', "%{$search}%")
-    //                 ->orWhere('h.defects_points', 'like', "%{$search}%");
-    //         });
-    //     }
-
-    //     // Stage filter
-    //     if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
-    //         $query->where('h.stages', $filters['stages']);
-    //     }
-
-    //     // Status filter
-    //     $statusFilter = $filters['qc_status'] ?? ($filters['status'] ?? null);
-    //     if (! empty($statusFilter) && $statusFilter !== 'all') {
-    //         $query->where('h.status', strtoupper($statusFilter));
-    //     }
-
-    //     // Defect points filter
-    //     if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
-    //         $jsonVal = json_encode($filters['defects_points']);
-    //         $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
-    //     }
-
-    //     // Date range filter
-    //     if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
-    //         $query->whereBetween('h.changed_at', [$filters['start_date'], $filters['end_date']]);
-    //     }
-
-    //     return $query->count();
-    // }
 
     public function exportProducts(Request $request)
     {

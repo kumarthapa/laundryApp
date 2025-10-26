@@ -2,6 +2,7 @@
 
 namespace App\Models\reports;
 
+use App\Helpers\LocaleHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -45,7 +46,8 @@ class ReportsModel extends Model
                 'h.changed_at',
                 'p.created_at as created_at',
             );
-
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
         // 🔍 Text search
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -121,7 +123,8 @@ class ReportsModel extends Model
         $query = DB::table('products as p')
             ->join('product_process_history as h', 'h.product_id', '=', 'p.id')
             ->select(DB::raw('COUNT(DISTINCT h.id) as total_rows'));
-
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
         // 🔍 Text search
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -230,7 +233,8 @@ class ReportsModel extends Model
                 'h.defects_points as defects_points',
                 'h.changed_at as last_changed_at'
             );
-
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
         // search
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -317,7 +321,8 @@ class ReportsModel extends Model
                 'h.defects_points as defects_points',
                 'h.changed_at as last_changed_at'
             );
-
+        // Apply location filter (for user)
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
         // Apply filters if any
         if (! empty($filters)) {
             // Stage filter

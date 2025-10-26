@@ -30,4 +30,5 @@ return [
     'products' => 'Products',
     'bonding' => 'Bonding',
     'reports' => 'Reports',
+    'locations' => 'Plant Location',
 ];
