@@ -34,8 +34,10 @@ class UsersModel extends Model
         'fcm_token',
         'created_by',
         'updated_by',
+        'is_super_admin',
         'location_id',
         'device_id',
+
     ];
 
     public function activity()

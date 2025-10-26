@@ -92,7 +92,7 @@
         <div class="col-12">
             <button type="button" onclick="setlocationid()" class="btn btn-primary mb-2 d-none" id="setlocationidbtn">Set
                 Location
-                ID</button>
+                ID Roleid: {{ $role_id ?? '' }}</button>
             <div class="card">
                 <!--- Filters ------------ START ---------------->
                 {{-- <div class="card-header border-bottom">

