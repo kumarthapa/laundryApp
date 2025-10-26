@@ -59,7 +59,7 @@ class UsersModel extends Model
                     ->orWhere('email', 'like', "%$search%")
                     ->orWhere('username', 'like', "%$search%");
             });
-
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
         // print_r($order); exit;
         // if ($sort) {
         // 	$query->orderBy($sort, $order);
@@ -72,11 +72,11 @@ class UsersModel extends Model
         // 	$query->limit($rows)->offset($limit_from);
         // }
         // print_r($query->toSql()); exit;
-        if (! $authUser->is_super_admin) {
-            // USER LOCATION CHECK
-            $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
-            $query->where('is_super_admin', '!=', 1);
-        }
+        // if (! $authUser->is_super_admin) {
+        //     // USER LOCATION CHECK
+        //     $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
+        //     $query->where('is_super_admin', '!=', 1);
+        // }
 
         return $query->get();
     }
