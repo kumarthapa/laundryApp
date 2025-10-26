@@ -74,7 +74,7 @@ class UsersModel extends Model
         // print_r($query->toSql()); exit;
         if (! $authUser->is_super_admin) {
             // USER LOCATION CHECK
-            // $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
+            $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
             $query->where('is_super_admin', '!=', 1);
         }
 

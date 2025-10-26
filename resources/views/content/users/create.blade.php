@@ -116,15 +116,7 @@
                                         {{ isset($info->status) && strtolower($info->status) === 'Active' ? 'checked' : 'checked' }}>
                                 </div>
                             </div>
-                            <!-- set super admin Switch -->
-                            <div class="col-md-6 col-12 mb-3">
-                                <label for="status" class="form-label d-block">Is Super admin</label>
-                                <div class="form-check form-switch ms-3">
-                                    <input type="checkbox" id="is_super_admin" name="is_super_admin"
-                                        class="form-check-input fs-4" value="1"
-                                        {{ isset($info->is_super_admin) && strtolower($info->is_super_admin) === 1 ? 'checked' : '' }}>
-                                </div>
-                            </div>
+
                             <!-- Password Change Section -->
                             <div class="col-md-6 col-12 mb-3">
                                 <label class="form-label d-flex align-items-center" for="userPassWord">
@@ -141,9 +133,8 @@
                                         placeholder="Enter password" autocomplete="new-password" required />
                                 @else
                                     {{-- Update user: hidden and disabled password input initially --}}
-                                    <input type="password" id="userPassWord" name="userPassWord"
-                                        class="form-control d-none" placeholder="Enter new password"
-                                        autocomplete="new-password" disabled />
+                                    <input type="password" id="userPassWord" name="userPassWord" class="form-control d-none"
+                                        placeholder="Enter new password" autocomplete="new-password" disabled />
                                 @endif
 
                                 <div class="invalid-feedback">Please enter your password.</div>

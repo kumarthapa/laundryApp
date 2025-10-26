@@ -2,6 +2,7 @@
 
 namespace App\Models\location;
 
+use App\Helpers\LocaleHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +37,9 @@ class Location extends Model
                     ->orWhere('address', 'like', "%$search%")
                     ->orWhere('city', 'like', "%$search%");
             });
+
+        // USER LOCATION CHECK
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'locations');
 
         // print_r($order); exit;
         // if ($sort) {
