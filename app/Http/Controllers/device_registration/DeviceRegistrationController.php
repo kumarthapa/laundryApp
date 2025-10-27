@@ -278,23 +278,15 @@ class DeviceRegistrationController extends Controller
                 if ($end->lessThan($now)) {
                     return 'EXPIRE';
                 } else {
-                    return 'ACTIVE';
+                    $valid = in_array($requestedStatus, ['ACTIVE', 'INACTIVE']);
+
+                    return $valid ? $requestedStatus : 'INACTIVE';
+                    // return $requestedStatus;
                 }
             } catch (Exception $e) {
                 // ignore parse error, fallthrough
             }
         }
-
-        // if ($startDate) {
-        //     try {
-        //         $start = Carbon::parse($startDate)->startOfDay();
-        //         if ($start->greaterThan($now)) {
-        //             return 'INACTIVE';
-        //         }
-        //     } catch (Exception $e) {
-        //         // ignore parse error, fallthrough
-        //     }
-        // }
 
         // If no dates or dates indicate active period, respect requested status if provided and valid, else ACTIVE
         $valid = in_array($requestedStatus, ['ACTIVE', 'INACTIVE', 'EXPIRE']);

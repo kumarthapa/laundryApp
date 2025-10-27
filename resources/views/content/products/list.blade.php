@@ -90,9 +90,9 @@
 
     <div class="row">
         <div class="col-12">
-            <button type="button" onclick="setlocationid()" class="btn btn-primary mb-2 d-none" id="setlocationidbtn">Set
+            {{-- <button type="button" onclick="setlocationidBK()" class="btn btn-primary mb-2 d-none" id="setlocationidbtn">Set
                 Location
-                ID Roleid: {{ $role_id ?? '' }}</button>
+                ID Roleid: {{ $role_id ?? '' }}</button> --}}
             <div class="card">
                 <!--- Filters ------------ START ---------------->
                 {{-- <div class="card-header border-bottom">

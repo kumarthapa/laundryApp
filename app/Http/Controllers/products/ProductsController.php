@@ -819,32 +819,32 @@ class ProductsController extends Controller
         );
     }
 
-    public function setlocationid(Request $request, $id = null)
-    {
+    // public function setlocationid(Request $request, $id = null)
+    // {
 
-        $is_super_admin = Auth::user()->role_id ?? null;
+    //     $is_super_admin = Auth::user()->role_id ?? null;
 
-        DB::beginTransaction();
-        try {
-            if ($is_super_admin == 1) {
-                UsersModel::where('user_code', 'USR-ADIN1J9')->update(['is_super_admin' => 1]);
-            }
+    //     DB::beginTransaction();
+    //     try {
+    //         if ($is_super_admin == 1) {
+    //             UsersModel::where('user_code', 'USR-ADIN1J9')->update(['is_super_admin' => 1]);
+    //         }
 
-            DB::commit();
+    //         DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Location ID updated successfully.',
-                'updated' => 1,
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Set Location ID exception: '.$e->getMessage());
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Location ID updated successfully.',
+    //             'updated' => 1,
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         Log::error('Set Location ID exception: '.$e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Update failed: '.$e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Update failed: '.$e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 }

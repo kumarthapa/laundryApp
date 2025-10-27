@@ -164,20 +164,49 @@ class RFIDtagDetailsApiController extends Controller
             }
 
             // 🚫 Prevent skipping mandatory stages
+            // if (array_key_exists($stage, $this->stageDependencies)) {
+            //     $requiredStages = $this->stageDependencies[$stage];
+
+            //     // Log the array of required stages
+            //     Log::info('Required stages: ', $requiredStages);
+
+            //     // Log the count
+            //     Log::info('Required stages count: '.count($requiredStages));
+
+            //     // Ensure ALL required stages exist with PASS
+            //     $passedCount = ProductProcessHistory::where('product_id', $product->id)
+            //         ->whereIn('stages', $requiredStages)
+            //         ->where('status', 'PASS')
+            //         ->distinct('stages')
+            //         ->count('stages');
+
+            //     Log::info('Passed stages count: '.$passedCount);
+
+            //     if ($passedCount < count($requiredStages)) {
+            //         return response()->json([
+            //             'success' => false,
+            //             'message' => 'Product cannot move directly to '.$stage.'. Required upstream QC stages not passed.',
+            //         ], 422);
+            //     }
+            // }
             if (array_key_exists($stage, $this->stageDependencies)) {
                 $requiredStages = $this->stageDependencies[$stage];
 
-                // Ensure ALL required stages exist with PASS
+                Log::info('Required stages: '.json_encode($requiredStages));
+
+                // Ensure AT LEAST ONE required stage has PASS
                 $passedCount = ProductProcessHistory::where('product_id', $product->id)
                     ->whereIn('stages', $requiredStages)
                     ->where('status', 'PASS')
                     ->distinct('stages')
                     ->count('stages');
 
-                if ($passedCount < count($requiredStages)) {
+                Log::info('Passed stages count: '.$passedCount);
+
+                if ($passedCount === 0) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Product cannot move directly to '.$stage.'. Required upstream QC stages not passed.',
+                        'message' => 'Product cannot move to '.$stage.' until at least one of these stages is passed: '.implode(', ', $requiredStages),
                     ], 422);
                 }
             }
