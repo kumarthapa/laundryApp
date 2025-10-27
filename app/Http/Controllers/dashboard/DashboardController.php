@@ -441,27 +441,22 @@ class DashboardController extends Controller
         $user = Auth::user();
         $daterange = $request->query('daterange');
         $status = $request->query('status');
-        $stages = $request->query('stages');
+        $stages = $request->query('stage');
         $defectsPoints = $request->query('defects_points');
         $search = $request->query('search');
         $startDate = null;
         $endDate = null;
-
-        if (! empty($daterange)) {
-            try {
-                [$start, $end] = array_map('trim', explode('-', $daterange));
-                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
-                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Invalid date range format. Expected 'DD/MM/YYYY - DD/MM/YYYY'.",
-                ]);
-            }
+        // print_r($request->all());
+        // exit;
+        $selectedDate = $request->get('daterange') ?? $request->get('default_dateRange');
+        $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
+        if ($daterange) {
+            $filters['start_date'] = $daterange['start_date'] ?? '';
+            $filters['end_date'] = $daterange['end_date'] ?? '';
         }
 
         $metaInfo = [
-            'date_range' => $daterange ?: 'All time',
+            'date_range' => $selectedDate ?: 'All time',
             'generated_by' => $user->fullname ?? 'System',
         ];
 
@@ -504,9 +499,15 @@ class DashboardController extends Controller
                     ->orWhere('p.qa_code', 'like', "%{$search}%");
             });
         }
-
-        if ($startDate && $endDate) {
-            $query->whereBetween('h.created_at', [$startDate, $endDate]);
+        // print_r($stages);
+        // exit;
+        // if ($startDate && $endDate) {
+        //     $query->whereBetween('h.created_at', [$startDate, $endDate]);
+        // }
+        // 📅 Date range filter
+        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
+            // filter by history date if viewing stage data
+            $query->whereBetween('h.created_at', [$filters['start_date'], $filters['end_date']]);
         }
 
         // ✅ Get filtered records
@@ -561,7 +562,7 @@ class DashboardController extends Controller
             'Size',
             'QA Code',
             'Quantity',
-            'QC Status',
+            'Status',
             'Stage',
             'Defect Points',
             'QC Confirmed At',

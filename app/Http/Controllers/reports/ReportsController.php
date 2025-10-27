@@ -191,17 +191,21 @@ class ReportsController extends Controller
                 }
                 break;
             case 'floor_stock_bonding':
+                // Use latest-history join and only keep products whose latest stage is bonding_qc + PASS
                 $filters['stages'] = 'bonding_qc';
-                $filters['status'] = 'PENDING';
-                // $filters['start_date'] = '';
-                // $filters['end_date'] = '';
-                $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
-                $total_rows = $this->reports->getStockReportCount($search, $filters);
+                $filters['status'] = 'PASS';
+
+                // rows: use daily_floor_stock_report_search which joins the *latest* history row per product
+                $searchData = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
+
+                // total rows: count products whose latest history is bonding_qc + PASS
+                $total_rows = $this->reports->getFloorStockBondingCount($search, $filters);
 
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
+
             case 'monthly_yearly_report':
                 // $filters['start_date'] = '';
                 // $filters['end_date'] = '';
@@ -334,8 +338,8 @@ class ReportsController extends Controller
             'Size',
             'QA Code',
             'Quantity',
-            'QC Status',
-            'Current Stage',
+            // 'Current Status',
+            'Failed Stage',
             'Defect Points',
             'Changed Date',
         ];
@@ -355,15 +359,16 @@ class ReportsController extends Controller
 
         foreach ($groupedData as $date => $items) {
             // ✅ Add a section header row for each date
-            $dataRows[] = ["Date: $date", '', '', '', '', '', '', '', ''];
+            // $dataRows[] = ["Date: $date", '', '', '', '', '', '', '', ''];
 
             foreach ($items as $item) {
                 // Latest history
                 $history = ProductProcessHistory::where('product_id', $item->id ?? ($item->product_id ?? null))
+                    ->where('stages', $item->stages)
                     ->latest('changed_at')
                     ->first();
 
-                $status = $history->status ?? ($item->status ?? '');
+                $status = $item->status ?? ($item->status ?? '');
                 $stageName = LocaleHelper::getStageName($history->stages ?? ($item->stages ?? '')) ?? '';
 
                 // ✅ Decode and join defect points
@@ -388,7 +393,7 @@ class ReportsController extends Controller
                     $item->size ?? '',
                     $item->qa_code ?? '',
                     $item->quantity ?? '',
-                    $status,
+                    // $status,
                     $stageName,
                     $defectPoints,
                     $createdAt,
@@ -396,7 +401,7 @@ class ReportsController extends Controller
             }
 
             // Blank line between date groups
-            $dataRows[] = ['', '', '', '', '', '', '', '', ''];
+            // $dataRows[] = ['', '', '', '', '', '', '', '', ''];
         }
 
         $user = Auth::user();
@@ -406,6 +411,8 @@ class ReportsController extends Controller
         ];
 
         $fileName = 'defects_report_'.now()->format('Ymd_His').'.xlsx';
+        // print_r($dataRows);
+        // exit;
 
         return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), $fileName);
     }
@@ -454,12 +461,13 @@ class ReportsController extends Controller
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
             case 'floor_stock_bonding':
+                // Use latest-history join and only keep products whose latest stage is bonding_qc + PASS
                 $filters['stages'] = 'bonding_qc';
-                $filters['status'] = 'PENDING';
-                // $filters['start_date'] = '';
-                // $filters['end_date'] = '';
-                $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
+                $filters['status'] = 'PASS';
+                // rows: use daily_floor_stock_report_search which joins the *latest* history row per product
+                $items = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 break;
+
             case 'daily_packing_report':
                 $filters['stages'] = 'packaging';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);

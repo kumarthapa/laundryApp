@@ -102,15 +102,41 @@
 
             // Export button handler - includes date range if selected
             let exportUrl = "{{ route('dashboard.exportProducts') }}";
+
             $(".exportBtn").click(function() {
-                let selectedDaterange = document.getElementById('selectedDaterange').value || '';
-                if (selectedDaterange) {
-                    window.location.href =
-                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}`;
-                } else {
-                    window.location.href = exportUrl;
-                }
+                // collect params
+                const params = {};
+
+                const selectedDaterange = $('#selectedDaterange').val();
+                if (selectedDaterange) params.daterange = selectedDaterange;
+
+                const status = $('#qc_statusFilter').length ? $('#qc_statusFilter').val() : '';
+                if (status && status !== 'all') params.status = status;
+
+                const stage = $('#current_stageFilter').length ? $('#current_stageFilter').val() : '';
+                if (stage && stage !== 'all') params.stage = stage;
+
+                // optional: include search or report_type if present on page
+                const search = $('input[type="search"]').length ? $('input[type="search"]').val() : '';
+                if (search) params.search = search;
+
+
+                const defect_points = $('#defect_pointsFilter').length ? $('#defect_pointsFilter').val() :
+                    '';
+                if (defect_points && defect_points !== 'all') params.defect_points = defect_points;
+
+                const reportType = $('#reportType').length ? $('#reportType').val() : '';
+                if (reportType) params.report_type = reportType;
+
+                // build query string
+                const qs = Object.keys(params)
+                    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+                    .join('&');
+
+                // redirect to export url (with params if any)
+                window.location.href = qs ? `${exportUrl}?${qs}` : exportUrl;
             });
+
         });
     </script>
 

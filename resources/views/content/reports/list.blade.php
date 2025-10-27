@@ -281,7 +281,7 @@
                         <div>
                             <p class="mb-0">
                                 <span class="text-heading fw-medium me-2">Overall</span>
-                                <span class="text-body-secondary">Ready to bonding QC</span>
+                                <span class="text-body-secondary">Ready to next QC</span>
                             </p>
                         </div>
                         <button type="button" onclick="commonGenerateReports('floor_stock_bonding')"

@@ -775,7 +775,7 @@ class ProductsController extends Controller
 
         // Fetch products with histories
         $query = Products::with('latestHistory');
-        $query = Products::with('latestHistory');
+
         $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
 
         // Filter by date range if provided

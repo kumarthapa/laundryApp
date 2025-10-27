@@ -25,7 +25,7 @@ class ReportsModel extends Model
      */
     public function reports_search($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'created_at', $order = 'desc', $reportType = '')
     {
-        // print_r($reportType monthly_yearly_report);
+        // $reportType = 'monthly_yearly_report';
         // exit;
         $query = DB::table('products as p')
             ->join('product_process_history as h', 'h.product_id', '=', 'p.id')
@@ -72,7 +72,7 @@ class ReportsModel extends Model
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
         if (! empty($statusFilter) && $statusFilter !== 'all') {
             $query->where('h.status', strtoupper($statusFilter));
-        } elseif ($reportType != 'monthly_yearly_report') {
+        } else {
             // Default to exclude 'PASS' if no status filter is set
             $query->where('h.status', 'PASS');
         }
@@ -307,6 +307,8 @@ class ReportsModel extends Model
      */
     public function getDefectiveProducts(array $filters = [])
     {
+        // print_r($filters);
+        // exit;
         $query = DB::table('products as p')
             ->leftJoin('product_process_history as h', 'h.product_id', '=', 'p.id')
             ->select(
@@ -346,5 +348,53 @@ class ReportsModel extends Model
             ->orderBy('h.changed_at', 'desc'); // descending order
 
         return $query->get();
+    }
+
+    /**
+     * Count products whose latest history row is bonding_qc + PASS.
+     *
+     * @param  string  $search
+     * @param  array  $filters
+     * @return int
+     */
+    public function getFloorStockBondingCount($search = '', $filters = [])
+    {
+        // correlated subquery: latest changed_at per product
+        $subLatest = '(
+        SELECT MAX(ch2.changed_at)
+        FROM product_process_history ch2
+        WHERE ch2.product_id = p.id
+    )';
+
+        $q = DB::table('products as p')
+            ->leftJoin('product_process_history as h', function ($join) use ($subLatest) {
+                $join->on('h.product_id', '=', 'p.id')
+                    ->whereRaw("h.changed_at = {$subLatest}");
+            })
+            ->select(DB::raw('COUNT(*) as total_rows'))
+            ->where('h.stages', 'bonding_qc')
+            ->where('h.status', 'PASS');
+
+        // apply same location scope helper you already use
+        $q = LocaleHelper::commonWhereLocationCheck($q, 'p');
+
+        // apply search filter (optional — same fields as other reports)
+        if (! empty($search)) {
+            $q->where(function ($qq) use ($search) {
+                $qq->where('p.product_name', 'like', "%{$search}%")
+                    ->orWhere('p.sku', 'like', "%{$search}%")
+                    ->orWhere('p.size', 'like', "%{$search}%")
+                    ->orWhere('p.qa_code', 'like', "%{$search}%");
+            });
+        }
+
+        // product-created date range (optional)
+        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
+            $q->whereBetween('p.created_at', [$filters['start_date'], $filters['end_date']]);
+        }
+
+        $res = $q->first();
+
+        return $res ? (int) $res->total_rows : 0;
     }
 }
