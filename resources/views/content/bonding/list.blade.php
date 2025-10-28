@@ -118,7 +118,7 @@
                 </div>
                 <!--- Filters ------------ END ---------------->
                 <div class="card-datatable table-responsive pt-0">
-                    <table class="datatables-basic border-top table" id="DataTables2024">
+                    <table class="datatables-basic border-top table" id="DataTables2025">
                     </table>
                 </div>
             </div>
@@ -177,18 +177,50 @@
                 window.location.href = '{{ route('create.bonding') }}';
             });
 
-            // Export bonding data
+
+            // ========== Export bonding data via POST form submit (works for file download) ============= START ==================
             let exportUrl = "{{ route('bonding.exportBonding') }}";
+
             $(".exportBtn").click(function() {
-                let selectedDaterange = document.getElementById('selectedDaterange').value || '';
-                let statusFilter = document.getElementById('statusFilter').value || '';
-                if (selectedDaterange) {
-                    window.location.href =
-                        `${exportUrl}?daterange=${encodeURIComponent(selectedDaterange)}&status=${encodeURIComponent(statusFilter)}`;
-                } else {
-                    window.location.href = exportUrl;
-                }
+                const selectedDaterange = document.getElementById('selectedDaterange')?.value || '';
+                const statusFilter = document.getElementById('statusFilter')?.value || '';
+
+                // create form
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = exportUrl;
+                form.style.display = 'none';
+                // optional: open in new tab (may be blocked by popup blockers)
+                // form.target = '_blank';
+
+                // CSRF token
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    '{{ csrf_token() }}';
+                const _token = document.createElement('input');
+                _token.type = 'hidden';
+                _token.name = '_token';
+                _token.value = token;
+                form.appendChild(_token);
+
+                // daterange
+                const dr = document.createElement('input');
+                dr.type = 'hidden';
+                dr.name = 'daterange';
+                dr.value = selectedDaterange;
+                form.appendChild(dr);
+
+                // status
+                const st = document.createElement('input');
+                st.type = 'hidden';
+                st.name = 'status';
+                st.value = statusFilter;
+                form.appendChild(st);
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
             });
+            // ========== Export bonding data via POST form submit (works for file download) ============= END ==================
 
 
             $(".bulkImportBtn").click(function() {

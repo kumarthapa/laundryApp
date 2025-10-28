@@ -14,14 +14,14 @@
         // -------------------------------------------------------------------------------------
 
 
-        var dataTable = $("#DataTables2024").DataTable({
+        var dataTable = $("#DataTables2025").DataTable({
             ajax: {
                 "url": options.url,
                 "error": function(jqXHR, textStatus, errorThrown) {
                     // Handle error here
-                    $('#DataTables2024').DataTable().draw(false);
+                    $('#DataTables2025').DataTable().draw(false);
                     console.error("AJAX Error: ", textStatus, errorThrown);
-                    $('#DataTables2024').append(
+                    $('#DataTables2025').append(
                         `<tr>
                           <td colspan="100%" class="">
                             <div class = "alert alert-danger text-center" role="alert" >
@@ -99,7 +99,7 @@
         $(document).on('click', '.dropdown-item', function() {
             const selectedValue = $(this).text().trim().toLowerCase();
             console.log(selectedValue)
-            $('#DataTables2024 tbody tr').filter(function() {
+            $('#DataTables2025 tbody tr').filter(function() {
                 if (selectedValue === 'all') {
                     $(this).toggle(true);
                 } else {

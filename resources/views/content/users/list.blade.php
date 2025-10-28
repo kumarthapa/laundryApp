@@ -71,7 +71,7 @@
                     <!-- Add more options as needed -->
                 </select> --}}
                 <div class="card-datatable table-responsive pt-0">
-                    <table class="datatables-basic border-top table" id="DataTables2024">
+                    <table class="datatables-basic border-top table" id="DataTables2025">
                     </table>
                 </div>
             </div>

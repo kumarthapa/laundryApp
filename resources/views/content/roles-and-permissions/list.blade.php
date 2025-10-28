@@ -56,7 +56,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-datatable table-responsive pt-0">
-                    <table class="datatables-basic table border-top" id="DataTables2024">
+                    <table class="datatables-basic table border-top" id="DataTables2025">
                     </table>
                 </div>
             </div>

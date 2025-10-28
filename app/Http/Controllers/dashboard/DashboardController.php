@@ -436,143 +436,143 @@ class DashboardController extends Controller
         ];
     }
 
-    public function exportProducts(Request $request)
-    {
-        $user = Auth::user();
-        $daterange = $request->query('daterange');
-        $status = $request->query('status');
-        $stages = $request->query('stage');
-        $defectsPoints = $request->query('defects_points');
-        $search = $request->query('search');
-        $startDate = null;
-        $endDate = null;
-        // print_r($request->all());
-        // exit;
-        $selectedDate = $request->get('daterange') ?? $request->get('default_dateRange');
-        $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
-        if ($daterange) {
-            $filters['start_date'] = $daterange['start_date'] ?? '';
-            $filters['end_date'] = $daterange['end_date'] ?? '';
-        }
+    // public function exportProducts(Request $request)
+    // {
+    //     $user = Auth::user();
+    //     $daterange = $request->query('daterange');
+    //     $status = $request->query('status');
+    //     $stages = $request->query('stage');
+    //     $defectsPoints = $request->query('defects_points');
+    //     $search = $request->query('search');
+    //     $startDate = null;
+    //     $endDate = null;
+    //     // print_r($request->all());
+    //     // exit;
+    //     $selectedDate = $request->get('daterange') ?? $request->get('default_dateRange');
+    //     $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
+    //     if ($daterange) {
+    //         $filters['start_date'] = $daterange['start_date'] ?? '';
+    //         $filters['end_date'] = $daterange['end_date'] ?? '';
+    //     }
 
-        $metaInfo = [
-            'date_range' => $selectedDate ?: 'All time',
-            'generated_by' => $user->fullname ?? 'System',
-        ];
+    //     $metaInfo = [
+    //         'date_range' => $selectedDate ?: 'All time',
+    //         'generated_by' => $user->fullname ?? 'System',
+    //     ];
 
-        // Base query from product_process_history joined with products
-        $query = DB::table('product_process_history as h')
-            ->join('products as p', 'p.id', '=', 'h.product_id')
-            ->select(
-                'p.product_name',
-                'p.sku',
-                'p.reference_code',
-                'p.size',
-                'p.qa_code',
-                'p.quantity',
-                'h.status',
-                'h.stages',
-                'h.defects_points',
-                'p.qc_confirmed_at',
-                'p.created_at',
-                'p.updated_at'
-            );
+    //     // Base query from product_process_history joined with products
+    //     $query = DB::table('product_process_history as h')
+    //         ->join('products as p', 'p.id', '=', 'h.product_id')
+    //         ->select(
+    //             'p.product_name',
+    //             'p.sku',
+    //             'p.reference_code',
+    //             'p.size',
+    //             'p.qa_code',
+    //             'p.quantity',
+    //             'h.status',
+    //             'h.stages',
+    //             'h.defects_points',
+    //             'p.qc_confirmed_at',
+    //             'p.created_at',
+    //             'p.updated_at'
+    //         );
 
-        // ✅ Filters
-        if ($status) {
-            $query->where('h.status', $status);
-        }
+    //     // ✅ Filters
+    //     if ($status) {
+    //         $query->where('h.status', $status);
+    //     }
 
-        if ($stages) {
-            $query->where('h.stages', $stages);
-        }
+    //     if ($stages) {
+    //         $query->where('h.stages', $stages);
+    //     }
 
-        if ($defectsPoints) {
-            $query->where('h.defects_points', 'like', "%{$defectsPoints}%");
-        }
+    //     if ($defectsPoints) {
+    //         $query->where('h.defects_points', 'like', "%{$defectsPoints}%");
+    //     }
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('p.product_name', 'like', "%{$search}%")
-                    ->orWhere('p.sku', 'like', "%{$search}%")
-                    ->orWhere('p.reference_code', 'like', "%{$search}%")
-                    ->orWhere('p.qa_code', 'like', "%{$search}%");
-            });
-        }
-        // print_r($stages);
-        // exit;
-        // if ($startDate && $endDate) {
-        //     $query->whereBetween('h.created_at', [$startDate, $endDate]);
-        // }
-        // 📅 Date range filter
-        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
-            // filter by history date if viewing stage data
-            $query->whereBetween('h.created_at', [$filters['start_date'], $filters['end_date']]);
-        }
+    //     if ($search) {
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('p.product_name', 'like', "%{$search}%")
+    //                 ->orWhere('p.sku', 'like', "%{$search}%")
+    //                 ->orWhere('p.reference_code', 'like', "%{$search}%")
+    //                 ->orWhere('p.qa_code', 'like', "%{$search}%");
+    //         });
+    //     }
+    //     // print_r($stages);
+    //     // exit;
+    //     // if ($startDate && $endDate) {
+    //     //     $query->whereBetween('h.created_at', [$startDate, $endDate]);
+    //     // }
+    //     // 📅 Date range filter
+    //     if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
+    //         // filter by history date if viewing stage data
+    //         $query->whereBetween('h.created_at', [$filters['start_date'], $filters['end_date']]);
+    //     }
 
-        // ✅ Get filtered records
-        $records = $query->orderByDesc('h.created_at')->get();
+    //     // ✅ Get filtered records
+    //     $records = $query->orderByDesc('h.created_at')->get();
 
-        if ($records->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No records found for the selected filters.',
-            ]);
-        }
+    //     if ($records->isEmpty()) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'No records found for the selected filters.',
+    //         ]);
+    //     }
 
-        // ✅ Prepare data rows
-        $dataRows = $records->map(function ($row) {
-            $statusNormalized = strtoupper(trim((string) $row->status));
-            if ($statusNormalized === 'FAIL') {
-                $statusNormalized = 'FAIL';
-            }
+    //     // ✅ Prepare data rows
+    //     $dataRows = $records->map(function ($row) {
+    //         $statusNormalized = strtoupper(trim((string) $row->status));
+    //         if ($statusNormalized === 'FAIL') {
+    //             $statusNormalized = 'FAIL';
+    //         }
 
-            // Convert defects_points into readable comma-separated list
-            $defects = '';
-            if (! empty($row->defects_points)) {
-                $decoded = json_decode($row->defects_points, true);
-                if (is_array($decoded)) {
-                    $defects = implode(', ', $decoded);
-                } else {
-                    // Handle already-comma or text format
-                    $defects = str_replace(['[', ']', '"'], '', $row->defects_points);
-                }
-            }
+    //         // Convert defects_points into readable comma-separated list
+    //         $defects = '';
+    //         if (! empty($row->defects_points)) {
+    //             $decoded = json_decode($row->defects_points, true);
+    //             if (is_array($decoded)) {
+    //                 $defects = implode(', ', $decoded);
+    //             } else {
+    //                 // Handle already-comma or text format
+    //                 $defects = str_replace(['[', ']', '"'], '', $row->defects_points);
+    //             }
+    //         }
 
-            return [
-                $row->product_name,
-                $row->sku,
-                $row->reference_code,
-                $row->size,
-                $row->qa_code,
-                $row->quantity,
-                $statusNormalized,
-                $row->stages,
-                $defects,
-                $row->qc_confirmed_at ? LocaleHelper::formatDateWithTime($row->qc_confirmed_at) : '',
-                LocaleHelper::formatDateWithTime($row->created_at),
-                LocaleHelper::formatDateWithTime($row->updated_at),
-            ];
-        })->toArray();
+    //         return [
+    //             $row->product_name,
+    //             $row->sku,
+    //             $row->reference_code,
+    //             $row->size,
+    //             $row->qa_code,
+    //             $row->quantity,
+    //             $statusNormalized,
+    //             $row->stages,
+    //             $defects,
+    //             $row->qc_confirmed_at ? LocaleHelper::formatDateWithTime($row->qc_confirmed_at) : '',
+    //             LocaleHelper::formatDateWithTime($row->created_at),
+    //             LocaleHelper::formatDateWithTime($row->updated_at),
+    //         ];
+    //     })->toArray();
 
-        $headers = [
-            'Product Name',
-            'SKU',
-            'Reference Code',
-            'Size',
-            'QA Code',
-            'Quantity',
-            'Status',
-            'Stage',
-            'Defect Points',
-            'QC Confirmed At',
-            'Created At',
-            'Updated At',
-        ];
+    //     $headers = [
+    //         'Product Name',
+    //         'SKU',
+    //         'Reference Code',
+    //         'Size',
+    //         'QA Code',
+    //         'Quantity',
+    //         'Status',
+    //         'Stage',
+    //         'Defect Points',
+    //         'QC Confirmed At',
+    //         'Created At',
+    //         'Updated At',
+    //     ];
 
-        return Excel::download(
-            new ProductExport($dataRows, $metaInfo, $headers),
-            'recentProcessActivity_'.now()->format('Ymd_His').'.xlsx'
-        );
-    }
+    //     return Excel::download(
+    //         new ProductExport($dataRows, $metaInfo, $headers),
+    //         'recentProcessActivity_'.now()->format('Ymd_His').'.xlsx'
+    //     );
+    // }
 }

@@ -200,7 +200,8 @@ class BondingPlanProductController extends Controller
             $filters['start_date'] = $daterange['start_date'] ?? '';
             $filters['end_date'] = $daterange['end_date'] ?? '';
         }
-
+        // print_r($search);
+        // exit;
         $searchData = $this->bondingPlanProduct->search($search, $filters, $limit, $offset, $sort, $order);
         $total_rows = $this->bondingPlanProduct->get_found_rows($search, $filters);
 
@@ -400,17 +401,18 @@ class BondingPlanProductController extends Controller
 
     public function exportBonding(Request $request)
     {
-        // print_r($request->all());
-        // exit;
         $user = Auth::user();
-        $daterange = $request->query('daterange'); // from query string
-        $status = $request->query('status'); // from query string
+
+        // Use input() so it works for both POST body and query string
+        $daterange = $request->input('daterange');
+        $status = $request->input('status');
+
         $startDate = null;
         $endDate = null;
 
         if (! empty($daterange)) {
             try {
-                // Example: "08/09/2025 - 08/10/2025"
+                // Expected format "DD/MM/YYYY - DD/MM/YYYY"
                 [$start, $end] = array_map('trim', explode('-', $daterange));
                 $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
                 $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
@@ -431,13 +433,13 @@ class BondingPlanProductController extends Controller
         $query = BondingPlanProduct::with('products');
         $query = LocaleHelper::commonWhereLocationCheck($query, 'bonding_plan_products');
 
-        // Filter by date range if provided
+        // Date filter
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
         }
 
-        // Filter by status if provided
-        if ($status) {
+        // Status filter (ensure you treat 'all' or empty)
+        if ($status !== null && $status !== '' && $status !== 'all') {
             $query->where('is_write', $status);
         }
 
@@ -459,16 +461,7 @@ class BondingPlanProductController extends Controller
         })->toArray();
 
         $headers = [
-            'Serial No',
-            'SKU',
-            'Product Name',
-            'Model',
-            'Size',
-            'QA Code',
-            'Is Write',
-            'Reference Code',
-            'Created At',
-            'Updated At',
+            'Serial No', 'SKU', 'Product Name', 'Model', 'Size', 'QA Code', 'Is Write', 'Reference Code', 'Created At', 'Updated At',
         ];
 
         return Excel::download(

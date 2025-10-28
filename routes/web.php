@@ -89,7 +89,7 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
     Route::get('/bonding/create/{id?}', $controller_path.'\products\BondingPlanProductController@create')->name('create.bonding')->middleware('permission:bonding,create.bonding');
     Route::get('/bonding/edit/{id?}', $controller_path.'\products\BondingPlanProductController@edit')->name('edit.bonding')->middleware('permission:bonding,edit.bonding');
     Route::get('/bonding/view/{code?}', $controller_path.'\products\BondingPlanProductController@view')->name('view.bonding')->middleware('permission:bonding,view.bonding');
-    Route::get('/bonding/export-bonding', $controller_path.'\products\BondingPlanProductController@exportBonding')->name('bonding.exportBonding');
+    Route::post('/bonding/export-bonding', $controller_path.'\products\BondingPlanProductController@exportBonding')->name('bonding.exportBonding');
 
     // AJAX routes
     Route::post('/bonding/save/{id?}', $controller_path.'\products\BondingPlanProductController@save')->name('bonding.save')->middleware('permission:bonding,create.bonding');
