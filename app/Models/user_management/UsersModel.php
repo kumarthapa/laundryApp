@@ -94,13 +94,17 @@ class UsersModel extends Model
  */
     public function getUserOverview()
     {
+        $user = Auth::user();
         // Aggregate counts for each status
         $statusCounts = DB::table($this->table)
             ->select(DB::raw('COALESCE(NULLIF(status, \'\'), \'No Status\') as status, COUNT(*) as count'))
             ->groupBy('status')
-            ->whereNot('is_super_admin', 1)
             ->get()
             ->pluck('count', 'status');
+
+        if (! $user->is_super_admin) {
+            $statusCounts->whereNot('is_super_admin', 1);
+        }
         $statusCounts = LocaleHelper::commonWhereLocationCheck($statusCounts, 'users');
         // Adjust keys based on actual status values
         $totalActive = $statusCounts->get('Active', 0);

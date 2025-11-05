@@ -377,7 +377,7 @@ class LocaleHelper
         //     return $query;
         // }
 
-        if ($role_info->role_type == 'super_role' || $role_info->role_type == 'admin_role') {
+        if ($role_info->role_type == 'super_role') {
             return $query;
         }
 
