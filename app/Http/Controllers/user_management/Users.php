@@ -47,8 +47,6 @@ class Users extends Controller
         ];
         $data = [];
         $usersOverview = $this->users->getUserOverview();
-        $users_info = UsersModel::select('*')->get();
-        $roles_info = Role::select('*')->get();
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper;
@@ -62,11 +60,9 @@ class Users extends Controller
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
-            ->with('users_info', $users_info)
             ->with('createPermissions', $createPermissions)
             ->with('deletePermissions', $deletePermissions)
-            ->with('usersOverview', $usersOverview)
-            ->with('roles_info', $roles_info);
+            ->with('usersOverview', $usersOverview);
     }
 
     protected function tableHeaderRowData($row)
@@ -97,7 +93,7 @@ class Users extends Controller
           <div class="d-flex flex-column">
           <a href="javascript:;" onclick="viewRowDetails(\''.$view.'\');">
           <span class="emp_name text-truncate">
-          '.$row->fullname.'.('.$row->is_super_admin.')
+          '.$row->fullname.'
           </span></a>
           <small class="emp_post text-truncate text-muted">
           '.$row->email.'
@@ -315,53 +311,61 @@ class Users extends Controller
 
     public function create(Request $request, $id = '')
     {
-        $data = [];
-        $roles_info = Role::all();
         $authUser = Auth::user();
-        $admin_roles_info = null;
-        if (! $authUser->is_super_admin) {
-            $admin_roles_info = Role::find($authUser->role_id);
-        }
-        // print_r($admin_roles_info);
-        // exit;
-        $locations_info = Location::select('*')->get();
-        $data['roles_info'] = $roles_info ?? null;
-        $data['admin_roles_info'] = $admin_roles_info ?? null;
-        $data['is_super_admin'] = $authUser->is_super_admin ?? null;
-        // $data['role_id'] = !$authUser->is_super_admin ? 2 : null;
-        $data['locations_info'] = $locations_info ?? null;
 
-        return view('content.users.create', $data);
+        // Fetch roles based on user type
+        if ($authUser->is_super_admin) {
+            // Super admin can see all roles
+            $roles_info = Role::all();
+        } else {
+            // Admin user can only see their assigned role or restricted roles super admin
+            $roles_info = Role::whereNot('role_type', 'super_role')->get();
+        }
+
+        // Fetch locations
+        $locations_info = Location::all();
+
+        return view('content.users.create', [
+            'roles_info' => $roles_info,
+            'locations_info' => $locations_info,
+            'is_super_admin' => $authUser->is_super_admin,
+        ]);
     }
 
     public function edit_user(Request $request, $user_code = '')
     {
-        $data = [];
-        if ($user_code) {
-            $info = UsersModel::where('user_code', $user_code)->first();
-            if (! $info) {
-                return view('content.common.no-data-found', ['message' => 'User Not Found!']);
-            }
-
-            $roles_info = Role::all();
-            $authUser = Auth::user();
-            $admin_roles_info = null;
-            if (! $authUser->is_super_admin) {
-                $admin_roles_info = Role::find($authUser->role_id);
-            }
-            $locations_info = Location::select('*')->get();
-            $data['roles_info'] = $roles_info ?? null;
-            $data['admin_roles_info'] = $admin_roles_info ?? null;
-            $data['is_super_admin'] = $authUser->is_super_admin ?? null;
-            $data['info'] = $info;
-            $data['user_id'] = $info->id;
-            $data['locations_info'] = $locations_info ?? null;
-            // $data['role_id'] = $info->role_id;
-        } else {
+        if (empty($user_code)) {
             return view('content.common.no-data-found', ['message' => 'User Not Found!']);
         }
 
-        return view('content.users.create', $data);
+        $info = UsersModel::where('user_code', $user_code)->first();
+
+        if (! $info) {
+            return view('content.common.no-data-found', ['message' => 'User Not Found!']);
+        }
+
+        $authUser = Auth::user();
+
+        // Fetch roles depending on user type
+        if ($authUser->is_super_admin) {
+            // Super admin can edit users of any role
+            $roles_info = Role::all();
+        } else {
+            // Normal user can only see or assign their own role
+            $roles_info = Role::whereNot('role_type', 'super_role')->get();
+        }
+
+        // Fetch all locations
+        $locations_info = Location::all();
+
+        // Prepare view data
+        return view('content.users.create', [
+            'roles_info' => $roles_info,
+            'locations_info' => $locations_info,
+            'is_super_admin' => $authUser->is_super_admin,
+            'info' => $info,
+            'user_id' => $info->id,
+        ]);
     }
 
     public function view(Request $request, $id = '')

@@ -10,6 +10,7 @@ use App\Models\user_management\Permission;
 use App\Models\user_management\Role;
 use App\Models\user_management\UsersModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -38,7 +39,8 @@ class Roles extends Controller
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('roles', 'create.roles');
-        // print_r($createPermissions); exit;
+        // print_r($createPermissions);
+        // exit;
         foreach ($role_info as $_role) {
             $users_info = UsersModel::select('*')->where('role_id', $_role->role_id)->get();
             if (isset($users_info) && $users_info->count() > 0) {
@@ -74,7 +76,7 @@ class Roles extends Controller
         $initials = preg_match_all('/\b\w/', $name, $matches) ? $matches[0] : [];
         $initials = (array_shift($initials) ?: '').(array_pop($initials) ?: '');
         $initials = strtoupper($initials);
-        $edit_route = route('roles.create', ['id' => $row->role_id]);
+        $edit_route = route('roles.edit', ['id' => $row->role_id]);
         $view = route('roles.view', ['id' => $row->role_id]);
         $delete = route('roles.delete', ['id' => $row->role_id]);
         $userNameHtml =
@@ -152,53 +154,138 @@ class Roles extends Controller
         echo json_encode($response);
     }
 
-    public function create(Request $request, $role_id = '')
+    public function edit(Request $request, $role_id = '')
     {
+        $authUser = Auth::user();
         $data = [];
-        // Get module and permission
-        $permissions = Permission::select('*')->get();
+
+        // 🧩 1. Get all permissions
+        $permissions = Permission::all();
+
+        // 🧩 2. Prepare array for module -> permissions mapping
         $module_permission_array = [];
+
         foreach ($permissions as $per) {
+
+            // --- Skip restricted modules and permissions for non-super-admin ---
+            if (! $authUser->is_super_admin) {
+
+                // Skip whole modules (Roles and Locations)
+                // $restrictedModules = ['roles', 'locations'];
+
+                // if (in_array($per->module_id, $restrictedModules)) {
+                //     continue; // Don’t include this module
+                // }
+
+                // Skip specific permission IDs
+                $restrictedPermissions = ['create.roles', 'delete.roles', 'add.permission', 'locations.create'];
+
+                if (in_array($per->permission_id, $restrictedPermissions)) {
+                    continue; // Don’t include this permission
+                }
+            }
+
+            // --- Add allowed permission to grouped array ---
             $module_permission_array[$per->module_id][] = [
                 $per->permission_id => $per->permission_name,
             ];
         }
-        // Convert array format
+
+        // 🧩 3. Convert grouped array into a clean key=>value array
         $module_permission = [];
         foreach ($module_permission_array as $resource => $actions) {
             $module_permission[$resource] = array_reduce($actions, 'array_merge', []);
         }
-        $data['module_permission'] = $module_permission;
 
-        $role_info = Role::select('*')->get();
-        $data['role_info'] = $role_info;
+        // 🧩 4. Assign data to view
+        $data['module_permission'] = $module_permission;
         $data['role_id'] = $role_id;
 
+        // 🧩 5. Load role info if editing
         if ($role_id) {
             $role_info = Role::find($role_id);
             if (! $role_info) {
                 return view('content.common.no-data-found', ['message' => 'Role Not Found!']);
             }
 
+            $data['role_info'] = $role_info;
             $data['role_name'] = $role_info->role_name;
             $data['role_id'] = $role_info->role_id;
             $data['status'] = $role_info->status;
 
-            // Get Selected grants permission_id
+            // --- Fetch granted permissions ---
             $GrantsPermission = GrantsPermission::select('*')->where('role_id', $role_id)->get();
+
             $GrantsPermissionData = [];
-            if (isset($GrantsPermission)) {
+            if ($GrantsPermission) {
                 foreach ($GrantsPermission as $per) {
-                    // print_r($per->module_id); exit;
                     $per_ids = json_decode($per->permission_id, true);
                     foreach ($per_ids as $_name) {
                         $GrantsPermissionData[$per->module_id][$_name] = $_name;
                     }
                 }
             }
-            // print_r($GrantsPermissionData); exit;
+
             $data['grants_permission'] = $GrantsPermissionData;
         }
+
+        // 🧩 6. Additional data
+        $data['is_super_admin'] = $authUser->is_super_admin;
+        $data['role_types'] = UtilityHelper::getRoleType();
+
+        return view('content.roles-and-permissions.create', $data);
+    }
+
+    public function create(Request $request, $role_id = '')
+    {
+        $authUser = Auth::user();
+        $data = [];
+
+        // 🧩 1. Get all permissions
+        $permissions = Permission::all();
+
+        // 🧩 2. Prepare array for module -> permissions mapping
+        $module_permission_array = [];
+
+        foreach ($permissions as $per) {
+
+            // --- Skip restricted modules and permissions for non-super-admin ---
+            if (! $authUser->is_super_admin) {
+
+                // Skip whole modules (Roles and Locations)
+                // $restrictedModules = ['roles', 'locations'];
+
+                // if (in_array($per->module_id, $restrictedModules)) {
+                //     continue; // Don’t include this module
+                // }
+
+                // Skip specific permission IDs
+                $restrictedPermissions = ['create.roles', 'delete.roles', 'add.permission', 'locations.create'];
+
+                if (in_array($per->permission_id, $restrictedPermissions)) {
+                    continue; // Don’t include this permission
+                }
+            }
+
+            // --- Add allowed permission to grouped array ---
+            $module_permission_array[$per->module_id][] = [
+                $per->permission_id => $per->permission_name,
+            ];
+        }
+
+        // 🧩 3. Convert grouped array into a clean key=>value array
+        $module_permission = [];
+        foreach ($module_permission_array as $resource => $actions) {
+            $module_permission[$resource] = array_reduce($actions, 'array_merge', []);
+        }
+
+        // 🧩 4. Assign data to view
+        $data['module_permission'] = $module_permission;
+        $data['role_id'] = $role_id;
+
+        // 🧩 6. Additional data
+        $data['is_super_admin'] = $authUser->is_super_admin;
+        $data['role_types'] = UtilityHelper::getRoleType();
 
         return view('content.roles-and-permissions.create', $data);
     }
@@ -276,6 +363,10 @@ class Roles extends Controller
         } else {
             $post_data['updated_at'] = date('Y-m-d H:i:s');
         }
+        $role_type = $request->post('role_type');
+        if ($role_type) {
+            $post_data['role_type'] = $role_type;
+        }
 
         $permission_data = [];
         $permission_postData = [];
@@ -292,6 +383,8 @@ class Roles extends Controller
         }
         DB::beginTransaction();
         try {
+            // print_r($post_data);
+            // exit;
             if (! $role_id) {
                 // Check this role name is exist or not
                 $roleName = $request->post('RoleName');
@@ -313,6 +406,7 @@ class Roles extends Controller
                     }
                 }
             } else {
+
                 $roleModel = Role::find($role_id);
                 $roleModel->update($post_data);
 
@@ -465,8 +559,8 @@ class Roles extends Controller
         }
         try {
             if ($post_data) {
-                print_r($post_data);
-                exit;
+                // print_r($post_data);
+                // exit;
                 Permission::updateOrInsert(
                     ['permission_name' => $permission_name, 'permission_id' => $permission_id, 'module_id' => $module_id],
                     $post_data

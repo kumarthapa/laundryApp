@@ -72,7 +72,7 @@
                 fetchId: "FetchData",
                 title: "Plant Locations",
                 createTitle: 'Add Location',
-                manuall_create: true,
+                manuall_create: "{{ $createPermissions ? 1 : '' }}",
                 is_delete: "",
             };
 

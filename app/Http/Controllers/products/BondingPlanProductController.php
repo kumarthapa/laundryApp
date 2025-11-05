@@ -8,7 +8,9 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
+use App\Models\location\Location;
 use App\Models\products\BondingPlanProduct;
+use App\Models\user_management\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +35,9 @@ class BondingPlanProductController extends Controller
 
     public function index(Request $request)
     {
+        $authUser = Auth::user();
+        $role_info = Role::find($authUser->role_id);
+
         $headers = [
             ['serial_no' => 'SL NO'],
             ['created_at' => 'Created Date'],
@@ -47,6 +52,11 @@ class BondingPlanProductController extends Controller
             ['qc_confirmed_at' => 'qc_confirmed_at'],
             // ['actions' => 'Actions'],
         ];
+        // Fetch locations for admins
+        $locations_info = [];
+        if ($role_info->role_type == 'super_role' || $role_info->role_type == 'admin_role') {
+            $locations_info = Location::all();
+        }
 
         $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
 
@@ -72,6 +82,7 @@ class BondingPlanProductController extends Controller
             ->with('currentUrl', $currentUrl)
             ->with('productsOverview', $productsOverview)
             ->with('createPermissions', $createPermissions)
+            ->with('locations_info', $locations_info)
             ->with('deletePermissions', $deletePermissions);
     }
 
@@ -200,8 +211,7 @@ class BondingPlanProductController extends Controller
             $filters['start_date'] = $daterange['start_date'] ?? '';
             $filters['end_date'] = $daterange['end_date'] ?? '';
         }
-        // print_r($search);
-        // exit;
+
         $searchData = $this->bondingPlanProduct->search($search, $filters, $limit, $offset, $sort, $order);
         $total_rows = $this->bondingPlanProduct->get_found_rows($search, $filters);
 
@@ -524,6 +534,7 @@ class BondingPlanProductController extends Controller
         }
 
         $actionType = $request->input('action_type');
+        $location_id = $request->input('user_location_id');
         $file = $request->file('file');
 
         DB::beginTransaction();
@@ -648,7 +659,7 @@ class BondingPlanProductController extends Controller
                             'quantity' => 1,
                             'created_at' => now(),
                             'updated_at' => now(),
-                            'location_id' => LocaleHelper::getLoginUserLocationId(),
+                            'location_id' => $location_id ? $location_id : LocaleHelper::getLoginUserLocationId(),
                         ];
                         $sl_no++;
                     }
@@ -714,7 +725,7 @@ class BondingPlanProductController extends Controller
                     foreach ($importData as $item) {
                         if (isset($item['__update_qa_code'])) {
                             $qaCode = $item['__update_qa_code'];
-                            $locationId = LocaleHelper::getLoginUserLocationId(); // get current user's location
+                            $locationId = $location_id ? $location_id : LocaleHelper::getLoginUserLocationId();
 
                             // Update only for the given location
                             BondingPlanProduct::where('qa_code', $qaCode)

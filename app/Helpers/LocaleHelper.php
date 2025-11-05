@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\user_management\Role;
 use App\Models\user_management\UsersModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -365,14 +366,18 @@ class LocaleHelper
     public static function commonWhereLocationCheck($query, $tableAlias = null)
     {
         $user = Auth::user();
-
+        $role_info = Role::find($user->role_id);
         // If not logged in, skip filtering
         if (! $user) {
             return $query;
         }
 
         // Super admin should see all data
-        if (! empty($user->is_super_admin) && $user->is_super_admin) {
+        // if (! empty($user->is_super_admin) && $user->is_super_admin) {
+        //     return $query;
+        // }
+
+        if ($role_info->role_type == 'super_role' || $role_info->role_type == 'admin_role') {
             return $query;
         }
 

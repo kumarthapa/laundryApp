@@ -24,19 +24,21 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
      */
 
     // Main Page Route
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard', $controller_path.'\dashboard\DashboardController@index')->name('dashboard');
+    // Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard_admin,view.dashboard_admin');
+    Route::get('/', $controller_path.'\dashboard\DashboardController@index')->name('dashboard')->middleware('permission:dashboard,view.dashboard_admin');
+    Route::get('/dashboard', $controller_path.'\dashboard\DashboardController@index')->name('dashboard')->middleware('permission:dashboard,view.dashboard_admin');
     Route::get('/dashboard/metrics', $controller_path.'\dashboard\DashboardController@metrics')->name('metrics'); // JSON for charts (polling)
     Route::get('/dashboard/list', $controller_path.'\dashboard\DashboardController@list')->name('dashboard.list');
     Route::get('/dashboard/export-products', $controller_path.'\dashboard\DashboardController@exportProducts')->name('dashboard.exportProducts');
 
     // Roles And Permissions
     Route::get('/roles', $controller_path.'\user_management\Roles@index')->name('roles')->middleware('permission:roles,view.roles');
-    Route::get('/roles/list', $controller_path.'\user_management\Roles@list')->name('roles.list');
-    Route::post('/roles/save/{id?}', $controller_path.'\user_management\Roles@save')->name('roles.save')->middleware('permission:roles,view.roles');
+    Route::get('/roles/list', $controller_path.'\user_management\Roles@list')->name('roles.list')->middleware('permission:roles,view.roles');
+    Route::post('/roles/save/{id?}', $controller_path.'\user_management\Roles@save')->name('roles.save');
     Route::get('/roles/view/{id?}/{details?}', $controller_path.'\user_management\Roles@view')->name('roles.view')->middleware('permission:roles,view.roles');
-    Route::get('/roles/create/{id?}', $controller_path.'\user_management\Roles@create')->name('roles.create')->middleware('permission:roles,view.roles');
-    Route::post('/roles/delete/{id?}', $controller_path.'\user_management\Roles@delete')->name('roles.delete')->middleware('permission:roles,create.roles');
+    Route::get('/roles/create', $controller_path.'\user_management\Roles@create')->name('roles.create')->middleware('permission:roles,create.roles');
+    Route::get('/roles/edit/{id?}', $controller_path.'\user_management\Roles@edit')->name('roles.edit')->middleware('permission:roles,edit.roles');
+    Route::post('/roles/delete/{id?}', $controller_path.'\user_management\Roles@delete')->name('roles.delete')->middleware('permission:roles,delete.roles');
     Route::post('/roles/saveModulePermissions/{id?}', $controller_path.'\user_management\Roles@saveModulePermissions')->name('roles.saveModulePermissions')->middleware('permission:roles,create.roles');
 
     Route::get('/users', $controller_path.'\user_management\Users@index')->name('users')->middleware('permission:users,view.users');
@@ -45,7 +47,7 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
     Route::get('/users/list', $controller_path.'\user_management\Users@list')->name('users.list');
     Route::get('/users/create/{id?}', $controller_path.'\user_management\Users@create')->name('users.create')->middleware('permission:users,create.users');
     Route::get('/users/edit/{user_code?}', $controller_path.'\user_management\Users@edit_user')->name('users.edit')->middleware('permission:users,edit.users');
-    Route::post('/users/save/{id?}', $controller_path.'\user_management\Users@save')->name('users.save')->middleware('permission:users,create.users');
+    Route::post('/users/save/{id?}', $controller_path.'\user_management\Users@save')->name('users.save');
     Route::post('/users/delete/{id?}', $controller_path.'\user_management\Users@delete')->name('users.delete')->middleware('permission:users,create.users');
     Route::get('/profile/{user_code?}', [Users::class, 'profile'])->name('profile');
 
@@ -56,7 +58,7 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
     // Routes for Config Settings Controller
     Route::get('/settings', $controller_path.'\settings\SettingsController@index')->name('settings')->middleware('permission:config_settings,view.config_settings');
     Route::get('/settings/list', $controller_path.'\settings\SettingsController@list')->name('settings.list')->middleware('permission:config_settings,view.settings');
-    Route::post('/settings/save', $controller_path.'\settings\SettingsController@save')->name('settings.save')->middleware('permission:config_settings,create.config_settings');
+    Route::post('/settings/save', $controller_path.'\settings\SettingsController@save')->name('settings.save');
     Route::get('/settings/save/locations', $controller_path.'\settings\SettingsController@saveLocations')->name('settings.save-locations')->middleware('permission:config_settings,create.config_settings');
     Route::post('/settings/save_config', $controller_path.'\settings\SettingsController@save_config')->name('settings.save_config')->middleware('permission:config_settings,create.config_settings');
     Route::get('/settings/view/{id?}', $controller_path.'\settings\SettingsController@view')->name('settings.view')->middleware('permission:config_settings,create.config_settings');
@@ -78,7 +80,7 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
     Route::get('/products/export-products-stagewise', $controller_path.'\products\ProductsController@exportProductsStageWise')->name('products.exportProductsStageWise');
 
     // AJAX routes
-    Route::post('/products/save/{id?}', $controller_path.'\products\ProductsController@save')->name('products.save')->middleware('permission:products,create.products');
+    Route::post('/products/save/{id?}', $controller_path.'\products\ProductsController@save')->name('products.save');
     Route::post('/products/delete/{id?}', $controller_path.'\products\ProductsController@delete')->name('delete.products')->middleware('permission:products,delete.products');
     Route::post('/products/setlocationid', $controller_path.'\products\ProductsController@setlocationid')->name('products.setlocationid');
 
@@ -115,7 +117,7 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
     Route::get('/locations/view/{id?}', $controller_path.'\locations\LocationController@view')->name('locations.view')->middleware('permission:locations,locations.view');
     Route::get('/locations/create', $controller_path.'\locations\LocationController@create')->name('locations.create')->middleware('permission:locations,locations.create');
     Route::get('/locations/edit/{id?}', $controller_path.'\locations\LocationController@edit')->name('locations.edit')->middleware('permission:locations,locations.edit');
-    Route::post('/locations/save/{id?}', $controller_path.'\locations\LocationController@save')->name('locations.save')->middleware('permission:locations,locations.create');
+    Route::post('/locations/save/{id?}', $controller_path.'\locations\LocationController@save')->name('locations.save');
     Route::post('/locations/delete/{id?}', $controller_path.'\locations\LocationController@delete')->name('locations.delete')->middleware('permission:locations,locations.delete');
     Route::get('/locations/getLocationOverview', $controller_path.'\locations\LocationController@getLocationOverview')->name('locations.getLocationOverview')->middleware('permission:locations,locations.view');
 

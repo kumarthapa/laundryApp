@@ -681,4 +681,10 @@ class UtilityHelper
             'status' => $status_map,
         ];
     }
+
+    public static function getRoleType()
+    {
+
+        return ['admin_role' => 'Admin role', 'user_role' => 'User role', 'super_role' => 'Super role'];
+    }
 }

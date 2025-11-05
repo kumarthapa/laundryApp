@@ -37,8 +37,8 @@ class LocationController extends Controller
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
-        $UtilityHelper = new UtilityHelper;
-        $createPermissions = $UtilityHelper::CheckModulePermissions('locations', 'locations.create');
+
+        $createPermissions = UtilityHelper::CheckModulePermissions('locations', 'locations.create');
         // print_r($createPermissions);
         // exit;
         // Get table headers

@@ -79,7 +79,7 @@
                 fetchId: "FetchData",
                 title: "Role list",
                 is_delete: "",
-                manuall_create: true,
+                manuall_create: "{{ $createPermissions ? 1 : '' }}",
                 createTitle: "Create New Role"
             };
             var filterData = {

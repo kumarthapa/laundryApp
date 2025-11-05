@@ -73,6 +73,7 @@ class BondingPlanProduct extends Model
                     ->orWhere('b.product_name', 'like', "%{$search}%");
             });
         }
+
         // Apply location filter (for user)
         $query = LocaleHelper::commonWhereLocationCheck($query, 'b');
 
@@ -94,6 +95,7 @@ class BondingPlanProduct extends Model
             ->limit(intval($limit))
             ->offset(intval($offset))
             ->get();
+
     }
 
     /**

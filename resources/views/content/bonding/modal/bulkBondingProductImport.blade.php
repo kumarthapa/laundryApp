@@ -1,10 +1,10 @@
-<form method="POST" action="{{ route("bonding.bulkBondingPlanUpload") }}" enctype="multipart/form-data" id="bondingImport">
+<form method="POST" action="{{ route('bonding.bulkBondingPlanUpload') }}" enctype="multipart/form-data" id="bondingImport">
     @csrf
     <div class="modal fade" id="bulkProductImportModal" tabindex="-1" aria-modal="true" role="dialog">
         <div class="modal-dialog modal-dialog-centered modal-md">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title" id="modalCenterTitle">Bulk Product Upload</h4>
+                    <h4 class="modal-title" id="modalCenterTitle">Bulk bonding material upload</h4>
                     <button type="button" class="btn btn-label-danger p-2" data-bs-dismiss="modal" aria-label="Close">
                         <i class='bx bx-x'></i>
                     </button>
@@ -14,6 +14,18 @@
                         <label for="formFile" class="form-label">(xlsx/xls) These Format Are Accepted</label>
                         <input class="form-control" type="file" id="formFile" name="file" required>
                     </div>
+                    <div class="mb-3">
+                        @if (isset($locations_info) && $locations_info)
+                            <select id="user_location_id" name="user_location_id" class="form-select" required>
+                                <option value="">Select Location</option>
+                                @foreach ($locations_info ?? [] as $location)
+                                    <option value="{{ $location->location_id }}">
+                                        {{ $location->location_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                    </div>
+                    @endif
                     <div class="mb-3">
                         <div class="demo-inline-spacing">
                             <small class="fw-medium d-block">What action would you like to perform?</small>
@@ -103,7 +115,7 @@
                             $("#submit-button").attr('disabled', true).html('Uploaded');
                             setTimeout(function() {
                                 window.location.href =
-                                    "{{ route("bonding") }}";
+                                    "{{ route('bonding') }}";
                             }, 2000);
                         }
                     },
@@ -121,9 +133,12 @@
                 });
             }
         });
-
+        $("#user_location_id").select2({
+            dropdownParent: $('#bulkProductImportModal'),
+            allowClear: true
+        });
         $("#import-format").click(function() {
-            window.location.href = "{{ route("bonding.bondingPlanImportFormat") }}";
+            window.location.href = "{{ route('bonding.bondingPlanImportFormat') }}";
         });
     });
 </script>

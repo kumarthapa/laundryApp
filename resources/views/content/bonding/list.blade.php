@@ -130,7 +130,7 @@
     $is_export = 1;
 @endphp
 @section('page-script')
-    @include('content.bonding.modal.bulkProductImport')
+    @include('content.bonding.modal.bulkBondingProductImport')
     @include('content.partial.datatable')
     @include('content.common.scripts.daterangePicker', [
         'float' => 'right',

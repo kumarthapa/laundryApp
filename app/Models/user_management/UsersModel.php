@@ -98,9 +98,10 @@ class UsersModel extends Model
         $statusCounts = DB::table($this->table)
             ->select(DB::raw('COALESCE(NULLIF(status, \'\'), \'No Status\') as status, COUNT(*) as count'))
             ->groupBy('status')
+            ->whereNot('is_super_admin', 1)
             ->get()
             ->pluck('count', 'status');
-
+        $statusCounts = LocaleHelper::commonWhereLocationCheck($statusCounts, 'users');
         // Adjust keys based on actual status values
         $totalActive = $statusCounts->get('Active', 0);
         $total_pending = $statusCounts->get('Pending', 0);

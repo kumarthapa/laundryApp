@@ -589,8 +589,8 @@ class SettingsController extends Controller
                 'user_id' => $user_id,
             ];
         }
-        print_r($form_data);
-        exit;
+        // print_r($form_data);
+        // exit;
         $response['form_data'] = $form_data;
         $response['success'] = true;
 
