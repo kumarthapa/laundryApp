@@ -102,9 +102,9 @@ class UsersModel extends Model
             ->get()
             ->pluck('count', 'status');
 
-        if (! $user->is_super_admin) {
-            $statusCounts->whereNot('is_super_admin', 1);
-        }
+        // if (! $user->is_super_admin) {
+        //     $statusCounts->whereNot('is_super_admin', 1);
+        // }
         $statusCounts = LocaleHelper::commonWhereLocationCheck($statusCounts, 'users');
         // Adjust keys based on actual status values
         $totalActive = $statusCounts->get('Active', 0);
