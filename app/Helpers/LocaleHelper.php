@@ -373,11 +373,11 @@ class LocaleHelper
         }
 
         // Super admin should see all data
-        // if (! empty($user->is_super_admin) && $user->is_super_admin) {
-        //     return $query;
-        // }
+        if (! empty($user->is_super_admin) || $user->is_super_admin) {
+            return $query;
+        }
 
-        if ($role_info->role_type == 'super_role') {
+        if ($role_info->role_type == 'admin_role') {
             return $query;
         }
 

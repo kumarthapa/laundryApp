@@ -50,7 +50,8 @@ class UsersModel extends Model
       */
     public function search($search = '', $filters = [], $limit_from = 0, $rows = 0, $sort = 'id', $order = 'desc')
     {
-        $authUser = Auth::user();
+        $user = Auth::user();
+        $role_info = Role::find($user->role_id);
         $query = DB::table($this->table)
             ->select('*')
             ->where(function ($q) use ($search) {
@@ -59,6 +60,10 @@ class UsersModel extends Model
                     ->orWhere('email', 'like', "%$search%")
                     ->orWhere('username', 'like', "%$search%");
             });
+
+        if ($role_info->role_type == 'admin_role') {
+            $query->where('is_super_admin', '!=', 1);
+        }
         $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
         // print_r($order); exit;
         // if ($sort) {
@@ -95,29 +100,34 @@ class UsersModel extends Model
     public function getUserOverview()
     {
         $user = Auth::user();
-        // Aggregate counts for each status
-        $statusCounts = DB::table($this->table)
-            ->select(DB::raw('COALESCE(NULLIF(status, \'\'), \'No Status\') as status, COUNT(*) as count'))
+        $role_info = Role::find($user->role_id);
+        $query = DB::table($this->table);
+
+        // // Non-super admin should not see super admin users
+        // if (! $user->is_super_admin) {
+        //     $query->where('is_super_admin', '!=', 1);
+        // }
+
+        if ($role_info->role_type == 'admin_role') {
+            $query->where('is_super_admin', '!=', 1);
+        }
+
+        // Location-level filter
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'users');
+
+        // Group count
+        $statusCounts = $query
+            ->select(
+                DB::raw("COALESCE(NULLIF(status, ''), 'No Status') as status"),
+                DB::raw('COUNT(*) as count')
+            )
             ->groupBy('status')
-            ->get()
             ->pluck('count', 'status');
 
-        // if (! $user->is_super_admin) {
-        //     $statusCounts->whereNot('is_super_admin', 1);
-        // }
-        $statusCounts = LocaleHelper::commonWhereLocationCheck($statusCounts, 'users');
-        // Adjust keys based on actual status values
-        $totalActive = $statusCounts->get('Active', 0);
-        $total_pending = $statusCounts->get('Pending', 0);
-
-        // Calculate the total number of users
-        $totalUsers = $statusCounts->sum();
-
-        // Return the results
         return [
-            'total_active' => $totalActive,
-            'total_pending' => $total_pending,
-            'total_users' => $totalUsers,
+            'total_active' => $statusCounts->get('Active', 0),
+            'total_pending' => $statusCounts->get('Pending', 0),
+            'total_users' => $statusCounts->sum(),
         ];
     }
 }
