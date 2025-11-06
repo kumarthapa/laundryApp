@@ -117,7 +117,16 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'User account is not valid',
+                'message' => 'Invalid account details!',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (empty($user->location_id) || $user->location_id == 0) {
+            Log::info('Location Is Not Assigned!', ['location_id' => $user->location_id]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid account details!',
             ], Response::HTTP_FORBIDDEN);
         }
 
