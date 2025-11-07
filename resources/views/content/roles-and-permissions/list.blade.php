@@ -141,7 +141,7 @@
         function EditPermissions2() {
             let roleid = $('#edit_role_id_2').val();
             if (!roleid) return false;
-            window.location.href = "{{ route('roles.create') }}" + '/' + roleid;
+            window.location.href = "{{ route('roles.edit') }}" + '/' + roleid;
         }
 
         function viewRowDetails(url) {

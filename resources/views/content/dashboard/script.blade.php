@@ -7,7 +7,7 @@
         // Date series (last 30 days) and stage-wise QC event data
         const QC_DATES = {!! json_encode($metrics['qc_dates'] ?? []) !!};
         const QC_STAGE_SERIES = {!! json_encode($metrics['qc_stage_series'] ?? []) !!};
-        console.log(QC_STAGE_SERIES); // Debug output to verify data shape
+        //  console.log(QC_STAGE_SERIES); // Debug output to verify data shape
 
         // --- CHART VARIABLES ---
         let stageChart = null, // Donut chart for stage distribution
@@ -88,7 +88,7 @@
                     pie: {
                         donut: {
                             labels: {
-                                show: true,
+                                show: false, // Donut center data (Make true if required)
                                 name: {
                                     show: true
                                 },
@@ -172,7 +172,7 @@
                     type: 'area',
                     height: 320,
                     zoom: {
-                        enabled: false
+                        enabled: true
                     }
                 },
                 series: [{
