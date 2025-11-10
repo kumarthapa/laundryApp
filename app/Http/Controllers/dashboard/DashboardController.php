@@ -277,9 +277,9 @@ class DashboardController extends Controller
         //    ✅ FIXED: previously only counted latest stage.
         //    Now counts all product-stage entries in last 30 days.
         // -----------------------------------------------------
-        $startDate = Carbon::today()->subDays(30)->startOfDay();
+        $startDate = Carbon::today()->subDays(29)->startOfDay();
         $endDate = Carbon::today()->endOfDay();
-
+        Log::info('Gathering stage counts between '.$startDate.' and '.$endDate);
         $stageCountsRaw = DB::table('product_process_history as h')
             ->join('products as p', 'p.id', '=', 'h.product_id')
             ->select('h.stages as stage', DB::raw('COUNT(DISTINCT h.product_id) as cnt'))
