@@ -300,6 +300,7 @@ class DashboardController extends Controller
         $latestHistorySubquery = DB::table('product_process_history as h')
             ->join('products as p', 'p.id', '=', 'h.product_id')
             ->select('h.product_id', DB::raw('MAX(h.id) as max_id'))
+            ->whereBetween('h.changed_at', [$startDate, $endDate])
             ->where('h.status', 'PASS')
             ->groupBy('h.product_id');
         $latestHistorySubquery = LocaleHelper::commonWhereLocationCheck($latestHistorySubquery, 'p');
