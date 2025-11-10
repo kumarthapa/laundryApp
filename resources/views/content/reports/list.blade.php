@@ -429,8 +429,9 @@
                 responsive: true,
                 processing: true,
                 serverSide: false,
+                displayLength: 30,
                 lengthMenu: [7, 10, 25, 50, 75, 100],
-                pageLength: 10,
+                // pageLength: 30,
                 // remove default "Search:" label and set placeholder
                 language: {
                     search: "",

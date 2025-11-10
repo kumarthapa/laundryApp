@@ -12,6 +12,7 @@ use App\Models\products\Products;
 use App\Models\reports\ReportsModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportsController extends Controller
@@ -122,7 +123,7 @@ class ReportsController extends Controller
     {
         $reportType = $request->input('report_type', 'default_report');
         $search = $request->get('search') ?? '';
-        $limit = 100;
+        $limit = 10000;
         $offset = 0;
         $sort = $request->get('sort') ?? 'created_at';
         $order = $request->get('order') ?? 'desc';
@@ -251,6 +252,9 @@ class ReportsController extends Controller
                 }
                 break;
         }
+        Log::info('total_rows: '.json_encode($total_rows));
+        // print_r($data_rows);
+        // exit;
 
         return response()->json([
             'data' => $data_rows,
@@ -437,7 +441,7 @@ class ReportsController extends Controller
 
         // empty search / use internal model methods; adapt as needed
         $search = '';
-        $limit = 200;    // pass 0 or large number depending on model implementation
+        $limit = 10000;    // pass 0 or large number depending on model implementation
         $offset = 0;
         $sort = 'created_at';
         $order = 'desc';

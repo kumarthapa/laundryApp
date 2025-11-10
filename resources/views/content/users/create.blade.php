@@ -149,6 +149,8 @@
                                 </div>
                             </div>
 
+
+
                             <!-- Password Change Section  ------ START------------>
                             <div class="col-md-6 col-12 mb-3">
                                 <label class="form-label d-flex align-items-center" for="userPassWord">
@@ -182,6 +184,27 @@
                             </div>
                             <!-- Password Change Section  ------ END------------>
 
+                            <!-- Working Stage Section  ------ START------------>
+                            @php
+                                $working_stage = [];
+                                if (isset($info->working_stage) && $info->working_stage) {
+                                    $working_stage = json_decode($info->working_stage, true);
+                                }
+                            @endphp
+
+                            <div class="col-md-6 col-12 mb-3">
+                                <label for="working_stage" class="form-label">Working Stage</label>
+                                <select id="working_stage" name="working_stage[]" class="form-select" multiple>
+                                    @foreach ($stages ?? [] as $value => $stage_name)
+                                        <option value="{{ $value }}"
+                                            {{ in_array($value, $working_stage) ? 'selected' : '' }}>
+                                            {{ $stage_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback">Please select a stage</div>
+                            </div>
+                            <!-- Working Stage Section  ------ END------------>
                         </div>
 
                         <div class="row">
@@ -253,7 +276,11 @@
                 allowClear: true,
                 width: '100%'
             });
-
+            $('#working_stage').select2({
+                placeholder: "Select qc stage",
+                allowClear: true,
+                width: '100%'
+            });
             // Clear invalid state when select2 value changes
             $('#user_location_id').on('change.select2', function() {
                 if ($(this).val() && $(this).val().length) {

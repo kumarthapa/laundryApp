@@ -37,6 +37,7 @@ class UsersModel extends Model
         'is_super_admin',
         'location_id',
         'device_id',
+        'working_stage',
 
     ];
 

@@ -70,6 +70,8 @@ class ReportsModel extends Model
 
         // 🎯 Status filter
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
+        // print_r($statusFilter);
+        // exit;
         if (! empty($statusFilter) && $statusFilter !== 'all') {
             $query->where('h.status', strtoupper($statusFilter));
         } else {
@@ -103,9 +105,13 @@ class ReportsModel extends Model
         } else {
             $query->orderBy('p.created_at', $order);
         }
-
+        // print_r($limit);
+        // print_r($offset);
+        // exit;
         // Apply limit + offset
         $query->limit(intval($limit))->offset(intval($offset));
+        // print_r($query->get());
+        // exit;
 
         return $query->get();
     }

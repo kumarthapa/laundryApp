@@ -30,6 +30,7 @@ class User extends Authenticatable
         'updated_at',
         'location_id',
         'device_id',
+        'working_stage',
     ];
 
     protected $hidden = [

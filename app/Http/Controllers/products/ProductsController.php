@@ -79,8 +79,31 @@ class ProductsController extends Controller
 
     public function index(Request $request)
     {
-        // $productsOverview = UtilityHelper::getProductStagesAndStatus();
-        // print_r($productsOverview);
+        // $stages = UtilityHelper::getProductStagesAndStatus('bonding_qc', 'PASS');
+        // print_r($stages);
+        // exit;
+        // // ✅ which stages to keep
+        // $allowed = ['bonding_qc'];
+        // // OR if it is comma separated from input:  explode(",", $request->stages);
+
+        // $new = [
+        //     'stages' => [],
+        //     'defect_points' => [],
+        //     'status' => $stages['status'],   // keep same
+        // ];
+
+        // // filter stages
+        // foreach ($allowed as $key) {
+        //     if (isset($stages['stages'][$key])) {
+        //         $new['stages'][$key] = $stages['stages'][$key];
+        //     }
+
+        //     if (isset($stages['defect_points'][$key])) {
+        //         $new['defect_points'][$key] = $stages['defect_points'][$key];
+        //     }
+        // }
+
+        // print_r($new);
         // exit;
         $headers = [
             ['created_at' => 'Created Date'],

@@ -202,6 +202,7 @@ class Users extends Controller
         // Gather inputs
         $input = $request->only(['fullName', 'userName', 'userEmail', 'userContact', 'status', 'user_role_id', 'user_location_id']);
         $input['status'] = $input['status'] ?? 'Active';
+        $working_stage = $request->input('working_stage'); // Array[]
 
         // Prepare data for saving
         $saveData = [
@@ -212,6 +213,13 @@ class Users extends Controller
             'status' => $input['status'],
         ];
 
+        // Saving working stage if user wise set
+        if ($working_stage && count($working_stage) > 0) {
+            $saveData['working_stage'] = json_encode($working_stage);
+        }
+
+        // print_r($saveData);
+        // exit;
         if (! empty($input['user_role_id'])) {
             $saveData['role_id'] = $input['user_role_id'];
         }
@@ -312,7 +320,9 @@ class Users extends Controller
     public function create(Request $request, $id = '')
     {
         $authUser = Auth::user();
-
+        $stages = UtilityHelper::getProductStagesAndStatus();
+        // print_r($stages['stages']);
+        // exit;
         // Fetch roles based on user type
         if ($authUser->is_super_admin) {
             // Super admin can see all roles
@@ -329,6 +339,7 @@ class Users extends Controller
             'roles_info' => $roles_info,
             'locations_info' => $locations_info,
             'is_super_admin' => $authUser->is_super_admin,
+            'stages' => $stages['stages'] ?? [],
         ]);
     }
 
@@ -345,7 +356,7 @@ class Users extends Controller
         }
 
         $authUser = Auth::user();
-
+        $stages = UtilityHelper::getProductStagesAndStatus();
         // Fetch roles depending on user type
         if ($authUser->is_super_admin) {
             // Super admin can edit users of any role
@@ -365,6 +376,7 @@ class Users extends Controller
             'is_super_admin' => $authUser->is_super_admin,
             'info' => $info,
             'user_id' => $info->id,
+            'stages' => $stages['stages'] ?? [],
         ]);
     }
 
