@@ -30,7 +30,7 @@
                                         <h3 class="mb-1">
                                             {{ $productsOverview['total_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Products</p>
+                                        <p class="mb-0">Total Mattress</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-store-alt bx-sm"></i>
@@ -43,9 +43,9 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_qa_code'] ?? '0' }}
+                                            {{ $productsOverview['total_pending'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total QA Code</p>
+                                        <p class="mb-0">Total Pending</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
                                         <i class="bx bx-crown bx-sm"></i>

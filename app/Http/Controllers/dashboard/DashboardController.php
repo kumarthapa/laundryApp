@@ -11,7 +11,8 @@ use App\Models\products\Products;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // Assuming this is where getProductStagesAndDefectPoints is defined
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; // Assuming this is where getProductStagesAndDefectPoints is defined
 use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
@@ -276,7 +277,7 @@ class DashboardController extends Controller
         //    ✅ FIXED: previously only counted latest stage.
         //    Now counts all product-stage entries in last 30 days.
         // -----------------------------------------------------
-        $startDate = Carbon::today()->subDays(29)->startOfDay();
+        $startDate = Carbon::today()->subDays(30)->startOfDay();
         $endDate = Carbon::today()->endOfDay();
 
         $stageCountsRaw = DB::table('product_process_history as h')
@@ -313,7 +314,7 @@ class DashboardController extends Controller
             ->groupBy('h.status')
             ->pluck('cnt', 'status')
             ->toArray();
-
+        // Log::info('QC total: '.print_r($qcCountsRaw, true));
         $qcCounts = $qcCountsRaw;
 
         // -----------------------------------------------------
