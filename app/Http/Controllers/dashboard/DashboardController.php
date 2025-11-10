@@ -280,10 +280,16 @@ class DashboardController extends Controller
         $startDate = Carbon::today()->subDays(29)->startOfDay();
         $endDate = Carbon::today()->endOfDay();
         Log::info('Gathering stage counts between '.$startDate.' and '.$endDate);
+        $start = Carbon::today()->subDays(29)->startOfDay();
+        $end = Carbon::today()->endOfDay();
+
+        Log::info("Gathering stage counts between $start and $end");
+
         $stageCountsRaw = DB::table('product_process_history as h')
             ->join('products as p', 'p.id', '=', 'h.product_id')
             ->select('h.stages as stage', DB::raw('COUNT(DISTINCT h.product_id) as cnt'))
-            ->whereBetween('h.changed_at', [$startDate, $endDate])
+            ->where('h.changed_at', '>=', $start)
+            ->where('h.changed_at', '<=', $end)
             ->where('h.status', 'PASS')
             ->groupBy('h.stages');
 
@@ -292,6 +298,19 @@ class DashboardController extends Controller
             ->toArray();
 
         $stageCounts = $stageCountsRaw;
+
+        // $stageCountsRaw = DB::table('product_process_history as h')
+        //     ->join('products as p', 'p.id', '=', 'h.product_id')
+        //     ->select('h.stages as stage', DB::raw('COUNT(DISTINCT h.product_id) as cnt'))
+        //     ->whereBetween('h.changed_at', [$startDate, $endDate])
+        //     ->where('h.status', 'PASS')
+        //     ->groupBy('h.stages');
+
+        // $stageCountsRaw = LocaleHelper::commonWhereLocationCheck($stageCountsRaw, 'p')
+        //     ->pluck('cnt', 'stage')
+        //     ->toArray();
+
+        // $stageCounts = $stageCountsRaw;
 
         // -----------------------------------------------------
         // 6) QC STATUS COUNTS (PASS/FAIL/REWORK etc.)
