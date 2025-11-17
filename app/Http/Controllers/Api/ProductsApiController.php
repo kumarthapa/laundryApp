@@ -224,6 +224,7 @@ class ProductsApiController extends Controller
                     'size' => $product->size,
                     'tag_id' => $product->rfid_tag,
                     'qa_code' => $product->qa_code,
+                    'reference_code' => $product->reference_code,
                     'quantity' => $product->quantity,
                     'status' => isset($latestHistory) ? $latestHistory->status : 'PENDING',
                     'stage' => isset($latestHistory) ? $latestHistory->stages : 'bonding_qc',
