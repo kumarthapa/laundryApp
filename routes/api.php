@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AppUpdateController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\DeviceRegistrationApiController;
@@ -68,3 +69,6 @@ Route::post('device/create-license', [DeviceRegistrationApiController::class, 'c
 // Public endpoint: check device license by device_id (Android ID)
 Route::post('device/check', [DeviceRegistrationApiController::class, 'checkDevice'])
     ->name('device.check');
+
+Route::post('device/check-update', [AppUpdateController::class, 'checkUpdate']);
+Route::post('device/mark-updated', [AppUpdateController::class, 'markUpdated']);

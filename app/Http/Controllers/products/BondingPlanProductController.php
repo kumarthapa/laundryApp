@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\location\Location;
 use App\Models\products\BondingPlanProduct;
 use App\Models\user_management\Role;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -207,10 +208,8 @@ class BondingPlanProductController extends Controller
         // Date range
         $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');
         $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
-        if ($daterange) {
-            $filters['start_date'] = $daterange['start_date'] ?? '';
-            $filters['end_date'] = $daterange['end_date'] ?? '';
-        }
+        $filters['start_date'] = $daterange['start_date'] ?? Carbon::today()->subDays(29)->startOfDay();
+        $filters['end_date'] = $daterange['end_date'] ?? Carbon::today()->endOfDay();
 
         $searchData = $this->bondingPlanProduct->search($search, $filters, $limit, $offset, $sort, $order);
         $total_rows = $this->bondingPlanProduct->get_found_rows($search, $filters);

@@ -20,6 +20,8 @@ class DeviceRegistration extends Model
         'status',
         'start_date',
         'end_date',
+        'is_update_required',
+        'latest_version_code',
     ];
 
     protected $dates = [
@@ -27,6 +29,7 @@ class DeviceRegistration extends Model
         'end_date',
         'created_at',
         'updated_at',
+        'last_updated_at',
     ];
 
     /**

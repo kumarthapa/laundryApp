@@ -185,7 +185,7 @@ class DeviceRegistrationController extends Controller
             return response()->json(['errors' => $validator->errors()->all()], 422);
         }
 
-        $input = $request->only(['device_id', 'serial_number', 'start_date', 'end_date', 'status']);
+        $input = $request->only(['device_id', 'serial_number', 'start_date', 'end_date', 'status', 'is_update_required', 'latest_version_code']);
 
         DB::beginTransaction();
         try {
@@ -208,7 +208,16 @@ class DeviceRegistrationController extends Controller
                     'end_date' => $input['end_date'] ?? null,
                     'created_at' => $now,
                     'updated_at' => $now,
+                    'is_update_required' => $input['is_update_required'] ?? 0,
+                    'latest_version_code' => $input['latest_version_code'] ?? 1,
                 ];
+
+                if (! isset($createData['is_update_required'])) {
+                    $createData['is_update_required'] = 0;
+                }
+                if (! isset($createData['latest_version_code'])) {
+                    $createData['latest_version_code'] = 1;
+                }
 
                 $model = DeviceRegistration::create($createData);
                 if (! $model) {
@@ -230,8 +239,20 @@ class DeviceRegistrationController extends Controller
                     'start_date' => $input['start_date'] ?? null,
                     'end_date' => $input['end_date'] ?? null,
                     'updated_at' => $now,
+
                 ];
 
+                if (isset($input['is_update_required'])) {
+                    $updateData['is_update_required'] = $input['is_update_required'];
+                }
+                if (isset($input['latest_version_code'])) {
+                    $updateData['latest_version_code'] = $input['latest_version_code'];
+                }
+                if (isset($updateData['is_update_required']) && isset($updateData['latest_version_code'])) {
+                    $updateData['last_updated_at'] = $now;
+                }
+                // print_r($updateData);
+                // exit;
                 $model->update($updateData);
                 $action = 'Edit';
                 $saved = $model;

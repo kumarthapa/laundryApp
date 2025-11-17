@@ -135,6 +135,7 @@
     @include('content.common.scripts.daterangePicker', [
         'float' => 'right',
         'name' => 'masterTableDaterangePicker',
+        'default_days' => 30,
     ])
     <script>
         $(document).ready(function() {

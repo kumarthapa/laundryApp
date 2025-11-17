@@ -48,6 +48,7 @@
                                     required>
                             </div>
 
+
                             <div class="col-md-3">
                                 <label class="form-label d-block">Status</label>
                                 <select name="status" class="form-select">
@@ -60,6 +61,26 @@
                                         {{ isset($info) && $info->status == 'EXPIRE' ? 'selected' : '' }}>EXPIRE</option>
                                 </select>
                             </div>
+
+
+                            {{-- // Deveice Update Fields ------------- START -------------------- --}}
+                            <div class="col-md-3">
+                                <label class="form-label">App Update Required</label>
+                                <select name="is_update_required" class="form-select">
+                                    <option value="1"
+                                        {{ isset($info) && $info->is_update_required == 1 ? 'selected' : '' }}>YES</option>
+                                    <option value="0"
+                                        {{ isset($info) && $info->is_update_required == 0 ? 'selected' : '' }}>NO
+                                    </option>
+
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">App Version Code</label>
+                                <input type="text" name="latest_version_code" class="form-control"
+                                    value="{{ $info->latest_version_code ?? 1 }}">
+                            </div>
+                            {{-- // Deveice Update Fields ------------- END -------------------- --}}
 
                         </div>
 
