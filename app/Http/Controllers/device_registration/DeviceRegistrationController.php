@@ -211,14 +211,13 @@ class DeviceRegistrationController extends Controller
                     'created_at' => $now,
                     'updated_at' => $now,
                     'is_update_required' => $input['is_update_required'] ?? 0,
-                    'latest_version_code' => $input['latest_version_code'] ?? 1,
                 ];
 
                 if (! isset($createData['is_update_required'])) {
                     $createData['is_update_required'] = 0;
                 }
                 if (! isset($createData['latest_version_code'])) {
-                    $createData['latest_version_code'] = 1;
+                    $createData['latest_version_code'] = $input['latest_version_code'] ?? 0;
                 }
 
                 $model = DeviceRegistration::create($createData);
@@ -250,7 +249,7 @@ class DeviceRegistrationController extends Controller
                 if (isset($input['latest_version_code'])) {
                     $updateData['latest_version_code'] = $input['latest_version_code'];
                 }
-                if (isset($updateData['is_update_required']) && isset($updateData['latest_version_code'])) {
+                if (isset($updateData['is_update_required'])) {
                     $updateData['last_updated_at'] = $now;
                 }
                 // print_r($updateData);

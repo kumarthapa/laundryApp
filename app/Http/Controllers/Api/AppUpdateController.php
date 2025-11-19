@@ -31,7 +31,7 @@ class AppUpdateController extends Controller
             ]);
         }
 
-        if ($device->is_update_required == 1 && $request->current_version_code < $device->latest_version_code) {
+        if ($device->is_update_required == 1) {
             $mustUpdate = true;
         } else {
             $mustUpdate = false;

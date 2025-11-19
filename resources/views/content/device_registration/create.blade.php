@@ -78,7 +78,7 @@
                             <div class="col-md-3">
                                 <label class="form-label">App Version Code</label>
                                 <input type="text" name="latest_version_code" class="form-control"
-                                    value="{{ $info->latest_version_code ?? 1 }}">
+                                    value="{{ $info->latest_version_code ?? 0 }}" disabled>
                             </div>
                             {{-- // Deveice Update Fields ------------- END -------------------- --}}
 
