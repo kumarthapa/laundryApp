@@ -41,7 +41,7 @@ class AppUpdateController extends Controller
             return response()->json([
                 'update_required' => true,
                 'latest_version_code' => (int) $device->latest_version_code,
-                'apk_url' => 'https://apps.galla.ai/sleepcompany/assets/apk/rfidapp/app-debug.apk',
+                'apk_url' => 'https://apps.galla.ai/sleepcompany/assets/apk/rfidapp/galla_rfid_app.apk',
                 'message' => 'A new update is available. Please update the app.',
             ]);
         } else {
