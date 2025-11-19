@@ -15,8 +15,11 @@ class AppUpdateController extends Controller
      */
     public function checkUpdate(Request $request)
     {
-        Log::info('App update check', ['request' => $request->all()]);
+        Log::info('--- CHECK UPDATE CALLED ---', [
+            'incoming_request' => $request->all(),
+        ]);
 
+        // Validate request
         $request->validate([
             'device_id' => 'required|string|max:150',
             'current_version_code' => 'required|integer',
@@ -25,35 +28,44 @@ class AppUpdateController extends Controller
         $deviceId = $request->input('device_id');
         $currentVersion = (int) $request->input('current_version_code');
 
+        Log::info('Validated request', [
+            'device_id' => $deviceId,
+            'current_version_code' => $currentVersion,
+        ]);
+
+        // Check device exists
         $device = DeviceRegistration::where('device_id', $deviceId)->first();
 
         if (! $device) {
-            // 404 might be more appropriate; keeping 200 JSON for compatibility if you prefer
+            Log::warning('Device not found', [
+                'device_id' => $deviceId,
+            ]);
+
             return response()->json([
                 'update_required' => false,
                 'message' => 'Device not registered',
             ], 404);
         }
 
-        // Log the current version the device reported (useful for debugging)
-        Log::info('Device update check', ['device_id' => $deviceId, 'current_version_code' => $currentVersion]);
+        Log::info('Device found', [
+            'device_id' => $deviceId,
+            'registered_version_code' => $device->latest_version_code,
+            'is_update_required_flag' => $device->is_update_required,
+        ]);
 
-        // Only rely on the `is_update_required` flag (as you requested)
+        // Only rely on flag (your requirement)
         $mustUpdate = ($device->is_update_required == 1);
 
         if ($mustUpdate) {
-            // Build the APK URL using asset() so it's consistent with app URL configuration.
-            // If your APK is located in public/sleepcompany/assets/apk/rfidapp/galla-rfid-app.apk
-            // asset() will produce the correct absolute URL.
-            $apkRelativePath = 'sleepcompany/assets/apk/rfidapp/galla-rfid-app.apk';
-            $apkUrl = asset($apkRelativePath);
 
-            // Optionally check file existence if APK lives in public/...
-            $apkFileExists = file_exists(public_path($apkRelativePath));
-            if (! $apkFileExists) {
-                Log::warning('APK file not found on server: '.public_path($apkRelativePath));
-                // You may still return update_required true but leave apk_url empty or return an error.
-            }
+            $apkUrl = 'https://apps.galla.ai/sleepcompany/assets/apk/rfidapp/galla-rfid-app.apk';
+
+            Log::info('Update REQUIRED', [
+                'device_id' => $deviceId,
+                'device_current_version' => $currentVersion,
+                'server_latest_version' => $device->latest_version_code,
+                'apk_url_sent_to_device' => $apkUrl,
+            ]);
 
             return response()->json([
                 'update_required' => true,
@@ -61,12 +73,18 @@ class AppUpdateController extends Controller
                 'apk_url' => $apkUrl,
                 'message' => 'A new update is available. Please update the app.',
             ]);
-        } else {
-            return response()->json([
-                'update_required' => false,
-                'message' => 'Your app is up to date.',
-            ]);
         }
+
+        // No update needed
+        Log::info('Device is up to date', [
+            'device_id' => $deviceId,
+            'current_version' => $currentVersion,
+        ]);
+
+        return response()->json([
+            'update_required' => false,
+            'message' => 'Your app is up to date.',
+        ]);
     }
 
     /**
