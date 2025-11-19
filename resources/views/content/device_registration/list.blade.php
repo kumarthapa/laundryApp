@@ -14,7 +14,7 @@
     <div class="row">
         <div class="col-12">
             <div class="card p-3">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0">Device Registrations</h5>
                         <small class="text-muted">Manage device licenses</small>
@@ -80,9 +80,8 @@
             const options = {
                 url: "{{ route('device_registration.list') }}",
                 createUrl: "{{ route('device_registration.create') }}",
-                title: "Device Registrations",
                 displayLength: 20,
-                is_delete: 1,
+                is_delete: 0,
                 delete_url: "{{ route('device_registration.delete') }}",
                 manuall_create: false,
                 is_export: 0,
