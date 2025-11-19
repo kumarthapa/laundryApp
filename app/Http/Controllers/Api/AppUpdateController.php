@@ -22,26 +22,43 @@ class AppUpdateController extends Controller
             'current_version_code' => 'required|integer',
         ]);
 
-        $device = DeviceRegistration::where('device_id', $request->device_id)->first();
+        $deviceId = $request->input('device_id');
+        $currentVersion = (int) $request->input('current_version_code');
+
+        $device = DeviceRegistration::where('device_id', $deviceId)->first();
 
         if (! $device) {
+            // 404 might be more appropriate; keeping 200 JSON for compatibility if you prefer
             return response()->json([
                 'update_required' => false,
                 'message' => 'Device not registered',
-            ]);
+            ], 404);
         }
 
-        if ($device->is_update_required == 1) {
-            $mustUpdate = true;
-        } else {
-            $mustUpdate = false;
-        }
+        // Log the current version the device reported (useful for debugging)
+        Log::info('Device update check', ['device_id' => $deviceId, 'current_version_code' => $currentVersion]);
+
+        // Only rely on the `is_update_required` flag (as you requested)
+        $mustUpdate = ($device->is_update_required == 1);
 
         if ($mustUpdate) {
+            // Build the APK URL using asset() so it's consistent with app URL configuration.
+            // If your APK is located in public/sleepcompany/assets/apk/rfidapp/galla-rfid-app.apk
+            // asset() will produce the correct absolute URL.
+            $apkRelativePath = 'sleepcompany/assets/apk/rfidapp/galla-rfid-app.apk';
+            $apkUrl = asset($apkRelativePath);
+
+            // Optionally check file existence if APK lives in public/...
+            $apkFileExists = file_exists(public_path($apkRelativePath));
+            if (! $apkFileExists) {
+                Log::warning('APK file not found on server: '.public_path($apkRelativePath));
+                // You may still return update_required true but leave apk_url empty or return an error.
+            }
+
             return response()->json([
                 'update_required' => true,
                 'latest_version_code' => (int) $device->latest_version_code,
-                'apk_url' => 'https://apps.galla.ai/sleepcompany/assets/apk/rfidapp/galla-rfid-app.apk',
+                'apk_url' => $apkUrl,
                 'message' => 'A new update is available. Please update the app.',
             ]);
         } else {
@@ -50,7 +67,6 @@ class AppUpdateController extends Controller
                 'message' => 'Your app is up to date.',
             ]);
         }
-
     }
 
     /**
@@ -65,21 +81,27 @@ class AppUpdateController extends Controller
             'updated_version' => 'required|integer',
         ]);
 
-        $device = DeviceRegistration::where('device_id', $request->device_id)->first();
+        $deviceId = $request->input('device_id');
+        $updatedVersion = (int) $request->input('updated_version');
+
+        $device = DeviceRegistration::where('device_id', $deviceId)->first();
 
         if (! $device) {
-            Log::warning('Attempt to mark update on non-existent device', ['device_id' => $request->device_id]);
+            Log::warning('Attempt to mark update on non-existent device', ['device_id' => $deviceId]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Device not found',
-            ]);
+            ], 404);
         }
 
+        // Update device record
         $device->is_update_required = 0;
-        $device->latest_version_code = $request->updated_version;
+        $device->latest_version_code = $updatedVersion;
         $device->last_updated_at = Carbon::now();
         $device->save();
+
+        Log::info('Device marked updated', ['device_id' => $deviceId, 'updated_version' => $updatedVersion]);
 
         return response()->json([
             'success' => true,
