@@ -36,6 +36,7 @@ class DeviceRegistrationController extends Controller
             ['start_date' => 'Start Date'],
             ['end_date' => 'End Date'],
             ['status' => 'Status'],
+            ['is_update_required' => 'Update Available'],
             ['actions' => 'Actions'],
         ];
 
@@ -122,6 +123,7 @@ class DeviceRegistrationController extends Controller
         $data['start_date'] = $row->start_date ? date('Y-m-d', strtotime($row->start_date)) : '-';
         $data['end_date'] = $row->end_date ? date('Y-m-d', strtotime($row->end_date)) : '-';
         $data['status'] = $statusHTML;
+        $data['is_update_required'] = $row->is_update_required ? '<span class="badge rounded bg-success">Yes</span>' : '<span class="badge rounded bg-secondary">No</span>';
         $data['actions'] = $actions;
 
         return $data;

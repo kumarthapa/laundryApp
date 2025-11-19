@@ -287,18 +287,61 @@ class ProductsApiController extends Controller
     public function getStagesAndStatus(Request $request)
     {
         Log::info('getStagesAndStatus: '.json_encode($request->all()));
-
         try {
             $currentStage = $request->get('current_stage'); // Android sends
             $currentStatus = $request->get('current_status'); // Android sends QC status if any
 
-            $data = UtilityHelper::getProductStagesAndStatus($currentStage, $currentStatus);
-            Log::info('getProductStagesAndStatus response : '.json_encode($data));
+            // $data = UtilityHelper::getProductStagesAndStatus($currentStage, $currentStatus);
+            // Log::info('getProductStagesAndStatus response : '.json_encode($data));
+            // /UtilityHelper::getProductStagesAndStatus(); For all
+            // 11) Get Working Stages ---------- START -------------<<
+
+            $stages = UtilityHelper::getProductStagesAndStatus($currentStage, $currentStatus);
+            $allowed_stages = Auth::user()->working_stage ? json_decode(Auth::user()->working_stage, true) : null;
+            Log::info('getStagesAndStatus allowed_stages: '.json_encode($allowed_stages));
+            // After $stages and $allowed_stages are computed
+            if (! empty($allowed_stages)) {
+                $working_stages = [
+                    'stages' => [],
+                    'defect_points' => [],
+                    'status' => $stages['status'],
+                    // expose allowed stage keys so client can tell which ones are editable
+                    'allowed_stages' => $allowed_stages,
+                ];
+
+                // add allowed stages and defect points
+                foreach ($allowed_stages as $key) {
+                    if (isset($stages['stages'][$key])) {
+                        $working_stages['stages'][$key] = $stages['stages'][$key];
+                    }
+                    if (isset($stages['defect_points'][$key])) {
+                        $working_stages['defect_points'][$key] = $stages['defect_points'][$key];
+                    }
+                }
+
+                // Ensure the CURRENT stage (if any) is included so the client can display it
+                // even when the user doesn't have permission for it.
+                if (! empty($currentStage) && isset($stages['stages'][$currentStage]) && ! isset($working_stages['stages'][$currentStage])) {
+                    $working_stages['stages'][$currentStage] = $stages['stages'][$currentStage];
+
+                    if (isset($stages['defect_points'][$currentStage])) {
+                        $working_stages['defect_points'][$currentStage] = $stages['defect_points'][$currentStage];
+                    }
+                    // Note: we do NOT add currentStage to allowed_stages — that remains the user's permitted list
+                }
+            } else {
+                // user has no restriction: return everything (keep backward-compatible)
+                $working_stages = $stages;
+                // ensure we also include allowed_stages key for consistency (null or empty)
+                $working_stages['allowed_stages'] = [];
+            }
+            Log::info('getStagesAndStatus working_stages: '.json_encode($working_stages));
+            //  Get Working Stages ---------- END ------------- >>
 
             return response()->json([
                 'success' => true,
                 'message' => 'Product stages and status fetched successfully',
-                'data' => $data,
+                'data' => $working_stages,
             ]);
         } catch (Exception $e) {
             Log::error('Error fetching product stages and status: '.$e->getMessage(), [

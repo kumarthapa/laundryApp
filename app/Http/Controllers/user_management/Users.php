@@ -216,6 +216,8 @@ class Users extends Controller
         // Saving working stage if user wise set
         if ($working_stage && count($working_stage) > 0) {
             $saveData['working_stage'] = json_encode($working_stage);
+        } else {
+            $saveData['working_stage'] = null;
         }
 
         // print_r($saveData);

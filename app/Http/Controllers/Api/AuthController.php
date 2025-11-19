@@ -147,6 +147,10 @@ class AuthController extends Controller
             $user_role = Role::select('role_id', 'role_name', 'role_code')->find($user->role_id);
             $locationName = optional(Location::find($user->location_id))->location_name;
 
+            // 11) Get Working Stages ---------- START -------------<<
+            $working_stages = $user->working_stage ? json_decode($user->working_stage, true) : null;
+            //  Get Working Stages ---------- END ------------- >>
+
             $data = [
                 'user' => [
                     'name' => $user->fullname,
@@ -154,13 +158,14 @@ class AuthController extends Controller
                     'user_code' => $user->user_code,
                     'location_id' => $user->location_id,
                     'location_name' => $locationName,
+                    'working_stages' => $working_stages ?? [],
                     'role' => $user_role,
                     'api_key' => $user->api_key,
                 ],
                 'permissions' => $user->getUserPermissions(),
                 'token' => $tokenResult->plainTextToken,
             ];
-
+            Log::info('User login response data', ['user_id' => $user->id, 'data' => $data]);
             Log::info('User login successful', ['user_id' => $user->id, 'license_key' => $licenseKey]);
 
             return response()->json([

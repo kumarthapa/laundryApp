@@ -10,17 +10,26 @@
         var dataTable = $("#DataTables2025").DataTable({
             ajax: {
                 url: options.url,
+                type: "GET", // important: GET only
+                dataSrc: function(json) {
+
+                    // If server returns empty or undefined → show empty table, NOT error
+                    if (!json || !json.data) {
+                        console.warn("No data found — returning empty table.");
+                        return [];
+                    }
+
+                    return json.data;
+                },
                 error: function(jqXHR, textStatus, errorThrown) {
-                    console.error("AJAX Error: ", jqXHR, textStatus, errorThrown);
-                    $('#DataTables2025').html(
-                        `<tr>
-                            <td colspan="100%" class="text-center">
-                                <div class="alert alert-danger" role="alert">Error while loading data!</div>
-                            </td>
-                        </tr>`
-                    );
+                    // Do NOT break table — simply show empty results
+                    console.warn("Request failed, showing empty table instead:", textStatus);
+
+                    // Clear table instead of showing error box
+                    $("#DataTables2025").DataTable().clear().draw();
                 }
             },
+
             columns: tableHeaders,
             order: false,
 

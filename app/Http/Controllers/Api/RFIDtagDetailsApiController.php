@@ -8,6 +8,7 @@ use App\Models\products\ProductProcessHistory;
 use App\Models\products\Products;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -95,6 +96,7 @@ class RFIDtagDetailsApiController extends Controller
                 'tag_id' => $product->rfid_tag,
                 'qa_code' => $product->qa_code,
                 'location_id' => $product->location_id ?? null,
+                'reference_code' => $product->reference_code,
             ];
             Log::info('getProductDetailsByTagId formattedProduct: '.json_encode($formattedProduct));
 
@@ -166,22 +168,17 @@ class RFIDtagDetailsApiController extends Controller
             // 🚫 Prevent skipping mandatory stages
             // if (array_key_exists($stage, $this->stageDependencies)) {
             //     $requiredStages = $this->stageDependencies[$stage];
-
             //     // Log the array of required stages
             //     Log::info('Required stages: ', $requiredStages);
-
             //     // Log the count
             //     Log::info('Required stages count: '.count($requiredStages));
-
             //     // Ensure ALL required stages exist with PASS
             //     $passedCount = ProductProcessHistory::where('product_id', $product->id)
             //         ->whereIn('stages', $requiredStages)
             //         ->where('status', 'PASS')
             //         ->distinct('stages')
             //         ->count('stages');
-
             //     Log::info('Passed stages count: '.$passedCount);
-
             //     if ($passedCount < count($requiredStages)) {
             //         return response()->json([
             //             'success' => false,
@@ -189,6 +186,17 @@ class RFIDtagDetailsApiController extends Controller
             //         ], 422);
             //     }
             // }
+
+            // Cannot update if user does not have access to the working stage
+            $working_stages = Auth::user()->working_stages ? json_decode(Auth::user()->working_stages) : null;
+            if ($working_stages && ! in_array($stage, $working_stages)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have access to update this stage: '.$stage,
+                ], 403);
+            }
+            // exit;
+
             if (array_key_exists($stage, $this->stageDependencies)) {
                 $requiredStages = $this->stageDependencies[$stage];
 
@@ -278,6 +286,7 @@ class RFIDtagDetailsApiController extends Controller
                     'quantity' => $product->quantity,
                     'status' => $qcStatus,
                     'stage' => $stage,
+                    'reference_code' => $product->reference_code,
                     'created_at' => $product->created_at ? $product->created_at->toDateTimeString() : null,
                 ],
             ]);

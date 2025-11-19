@@ -79,28 +79,28 @@ class ProductsController extends Controller
 
     public function index(Request $request)
     {
-        // $stages = UtilityHelper::getProductStagesAndStatus('bonding_qc', 'PASS');
-        // print_r($stages);
-        // exit;
-        // // ✅ which stages to keep
-        // $allowed = ['bonding_qc'];
-        // // OR if it is comma separated from input:  explode(",", $request->stages);
-
-        // $new = [
-        //     'stages' => [],
-        //     'defect_points' => [],
-        //     'status' => $stages['status'],   // keep same
-        // ];
-
-        // // filter stages
-        // foreach ($allowed as $key) {
-        //     if (isset($stages['stages'][$key])) {
-        //         $new['stages'][$key] = $stages['stages'][$key];
+        // $stages = UtilityHelper::getProductStagesAndStatus();
+        // // print_r($stages);
+        // // exit;
+        // // // ✅ which stages to keep
+        // $allowed = Auth::user()->working_stage ? json_decode(Auth::user()->working_stage, true) : null;
+        // if (! empty($allowed)) {
+        //     $new = [
+        //         'stages' => [],
+        //         'defect_points' => [],
+        //         'status' => $stages['status'],   // keep same
+        //     ];
+        //     // filter stages
+        //     foreach ($allowed as $key) {
+        //         if (isset($stages['stages'][$key])) {
+        //             $new['stages'][$key] = $stages['stages'][$key];
+        //         }
+        //         if (isset($stages['defect_points'][$key])) {
+        //             $new['defect_points'][$key] = $stages['defect_points'][$key];
+        //         }
         //     }
-
-        //     if (isset($stages['defect_points'][$key])) {
-        //         $new['defect_points'][$key] = $stages['defect_points'][$key];
-        //     }
+        // } else {
+        //     $new = $stages;
         // }
 
         // print_r($new);

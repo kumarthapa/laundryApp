@@ -123,7 +123,7 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
 
     // ================================= Device registration ROUTES ================================ //
     Route::get('/galla-device-registration', [DeviceRegistrationController::class, 'index'])->name('device_registration');
-    Route::post('/galla-device-registration/list', [DeviceRegistrationController::class, 'list'])->name('device_registration.list');
+    Route::get('/galla-device-registration/list', [DeviceRegistrationController::class, 'list'])->name('device_registration.list');
     Route::get('/galla-device-registration/view/{id?}', [DeviceRegistrationController::class, 'view'])->name('device_registration.view');
     Route::get('/galla-device-registration/create', [DeviceRegistrationController::class, 'create'])->name('device_registration.create');
     Route::get('/galla-device-registration/edit/{id?}', [DeviceRegistrationController::class, 'edit'])->name('device_registration.edit');
