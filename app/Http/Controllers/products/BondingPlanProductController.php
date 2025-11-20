@@ -80,8 +80,8 @@ class BondingPlanProductController extends Controller
 
         $allbondingData = BondingPlanProduct::all();
         $allproductHistory = ProductProcessHistory::all();
-        Log::info('Total bonding data: '.json_encode($allbondingData));
-        Log::info('Total product history data: '.json_encode($allproductHistory));
+        Log::info('Total bonding data: ', $allbondingData->toArray());
+        Log::info('Total product history data: ', $allproductHistory->toArray());
 
         return view('content.bonding.list')
             ->with('pageConfigs', $pageConfigs)
