@@ -416,6 +416,17 @@ class ProductsApiController extends Controller
                 ], 422);
             }
 
+            $existingQAcode = Products::where('qa_code', $qaCode)->first();
+            Log::info('Existing QA Code Check Query: '.json_encode($existingQAcode));
+            if ($existingQAcode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "The QA Code '{$qaCode}' is already exists.",
+                ], 422);
+            }
+
+            Log::info('No duplicates found, proceeding to update.');
+
             // --- Update bonding product ---
             $bondingProduct = BondingPlanProduct::findOrFail($productId);
             $bondingProduct->qa_code = $qaCode;
