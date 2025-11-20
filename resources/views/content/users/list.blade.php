@@ -164,6 +164,10 @@
                         $('#viewRowDetails #role_name').text(user.role_id);
                         $('#viewRowDetails #username').text(user.username);
                         $('#viewRowDetails #created_at').text(user.created_at);
+                        let url = "{{ url('users/activity') }}" + '/' + user.user_code;
+                        $('#viewRowDetails #UserActivity').html(
+                            '<a href="' + url + '" class="btn btn-label-secondary d-none">View Activity</a>'
+                            );
                         if (user.status == "Active") {
                             $('#viewRowDetails #status').html(
                                 '<span class="badge bg-label-success">Active</span>');

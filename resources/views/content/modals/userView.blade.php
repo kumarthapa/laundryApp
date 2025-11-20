@@ -142,7 +142,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    {{-- <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Close</button> --}}
+                    <div id="UserActivity"></div>
                     <button type="button" class="btn btn-label-primary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>

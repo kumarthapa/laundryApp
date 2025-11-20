@@ -1,12 +1,12 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", " Users - Activity")
-@section("page-style")
+@section('title', ' Users - Activity')
+@section('page-style')
     {{-- <link rel="stylesheet" href="{{ asset("assets/vendor/libs/libs/flatpickr.min.css") }}"> --}}
-    <link rel="stylesheet" href="{{ asset("assets/vendor/libs/flatpickr/flatpickr.css") }}">
-    <link rel="stylesheet" href="{{ asset("assets/css/datatables.bootstrap5.css") }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/flatpickr/flatpickr.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
 @endsection
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12">
             <div class="card mb-6">
@@ -42,13 +42,13 @@
     </div>
 @endsection
 
-@section("page-script")
-    <script src="{{ asset("assets/js/fileinput.min.js") }}"></script>
-    <script src="{{ asset("assets/js/custom-js.js") }}"></script>
-    <script src="{{ asset("assets/vendor/libs/flatpickr/flatpickr.js") }}"></script>
-    @include("content.common.scripts.daterangePicker", [
-        "float" => "left",
-        "name" => "userActivityDaterangePicker",
+@section('page-script')
+    <script src="{{ asset('assets/js/fileinput.min.js') }}"></script>
+    <script src="{{ asset('assets/js/custom-js.js') }}"></script>
+    <script src="{{ asset('assets/vendor/libs/flatpickr/flatpickr.js') }}"></script>
+    @include('content.common.scripts.daterangePicker', [
+        'float' => 'left',
+        'name' => 'userActivityDaterangePicker',
     ])
     <script type="text/javascript">
         $(document).ready(function() {
@@ -66,19 +66,19 @@
 
 
                 $.ajax({
-                    url: '{{ route("users.activityLogs") }}',
+                    url: '{{ route('users.activityLogs') }}',
                     type: "POST",
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr(
                             'content')
                     },
                     data: {
-                        id: "{{ $id }}",
+                        user_code: "{{ $user_code }}",
                         date: dateRange.val()
                     },
 
                     success: function(response) {
-                        console.log("response", response);
+                        console.log("response 12", response);
 
                         loadActivity(response.data);
                         if (response?.success) {

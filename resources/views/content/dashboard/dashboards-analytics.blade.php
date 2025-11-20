@@ -6,6 +6,54 @@
     <!-- Vendor CSS for charts and datatable styling -->
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
+
+    <style>
+        /* ============= Gradient Icon Backgrounds ============= */
+        .gradient-warning {
+            background: linear-gradient(135deg, #fbc02d, #ff9800);
+        }
+
+        .gradient-primary {
+            background: linear-gradient(135deg, #4e73df, #1ccaff);
+        }
+
+        .gradient-success {
+            background: linear-gradient(135deg, #00c853, #1de9b6);
+        }
+
+        .gradient-dark {
+            background: linear-gradient(135deg, #616161, #212121);
+        }
+
+        .gradient-danger {
+            background: linear-gradient(135deg, #e53935, #ff1744);
+        }
+
+        /* ============= Glow Effect ============= */
+        .glow {
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+        }
+
+        /* ============= Sneat-style Soft Card Shadow + Border ============= */
+        .metric-card {
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        /* ============= Dark Mode Support ============= */
+        [data-bs-theme="dark"] .metric-card {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        [data-bs-theme="dark"] .glow {
+            box-shadow: 0 0 14px rgba(255, 255, 255, 0.18);
+        }
+    </style>
 @endsection
 
 @section('vendor-script')
@@ -106,21 +154,19 @@
 @endsection
 
 @section('content')
-    <div class="row">
-        <!-- ==== Metric Summary Cards ==== -->
-        <!-- Each card shows quick daily or total counts (last 30 days) -->
-
-        <!-- Daily Bonding count -->
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
+    <div class="row mb-4 g-4">
+        <!-- Daily Bonding -->
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+            <div class="card h-100 metric-card">
                 <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-warning rounded">
-                                <i class="icon-base bx bx-store-alt icon-lg"></i>
+                    <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
+                        <div class="avatar avatar-sm me-3 flex-shrink-0">
+                            <span class="avatar-initial gradient-warning glow rounded">
+                                <i class="icon-base bx bx-store-alt fs-5"></i>
                             </span>
-                        </div> Daily Bonding
-                    </h6>
+                        </div>
+                        <h6 class="mb-0">Daily Bonding</h6>
+                    </div>
                     <h3 id="daily_bonding">{{ $metrics['daily_bonding'] ?? 0 }}</h3>
                     <small class="text-muted">Daily bonding check records</small>
                 </div>
@@ -128,16 +174,17 @@
         </div>
 
         <!-- Daily Tape Edge -->
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+            <div class="card h-100 metric-card">
                 <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-primary rounded">
-                                <i class="icon-base bx bx-cube icon-lg"></i>
+                    <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
+                        <div class="avatar avatar-sm me-3 flex-shrink-0">
+                            <span class="avatar-initial gradient-primary glow rounded">
+                                <i class="icon-base bx bx-cube fs-5"></i>
                             </span>
-                        </div>Daily Tape Edge mattress
-                    </h6>
+                        </div>
+                        <h6 class="mb-0">Daily Tape Edge mattress</h6>
+                    </div>
                     <h3 id="daily_tape_edge_qc">{{ $metrics['daily_tape_edge_qc'] ?? 0 }}</h3>
                     <small class="text-muted">Daily Tape Edge check records</small>
                 </div>
@@ -145,16 +192,17 @@
         </div>
 
         <!-- Daily Zip Cover -->
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+            <div class="card h-100 metric-card">
                 <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-success rounded">
-                                <i class="icon-base bx bx-check-circle icon-lg"></i>
+                    <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
+                        <div class="avatar avatar-sm me-3 flex-shrink-0">
+                            <span class="avatar-initial gradient-success glow rounded">
+                                <i class="icon-base bx bx-check-circle fs-5"></i>
                             </span>
-                        </div> Daily Zip Cover mattress
-                    </h6>
+                        </div>
+                        <h6 class="mb-0">Daily Zip Cover mattress</h6>
+                    </div>
                     <h3 id="daily_zip_cover_qc">{{ $metrics['daily_zip_cover_qc'] ?? 0 }}</h3>
                     <small class="text-muted">Daily Zip Cover check records</small>
                 </div>
@@ -162,33 +210,35 @@
         </div>
 
         <!-- Daily Packaging -->
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+            <div class="card h-100 metric-card">
                 <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-dark rounded">
-                                <i class="icon-base bx bxs-truck icon-lg"></i>
+                    <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
+                        <div class="avatar avatar-sm me-3 flex-shrink-0">
+                            <span class="avatar-initial gradient-dark glow rounded">
+                                <i class="icon-base bx bxs-truck fs-5"></i>
                             </span>
-                        </div> Daily Packing
-                    </h6>
+                        </div>
+                        <h6 class="mb-0">Daily Packing</h6>
+                    </div>
                     <h3 id="daily_packaging">{{ $metrics['daily_packaging'] ?? 0 }}</h3>
                     <small class="text-muted">Daily Packing check records</small>
                 </div>
             </div>
         </div>
 
-        <!-- Total Packaging (last 30 days) -->
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
+        <!-- Total Packaging -->
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+            <div class="card h-100 metric-card">
                 <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-success rounded">
-                                <i class="icon-base bx bxs-truck icon-lg"></i>
+                    <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
+                        <div class="avatar avatar-sm me-3 flex-shrink-0">
+                            <span class="avatar-initial gradient-success glow rounded">
+                                <i class="icon-base bx bxs-truck fs-5"></i>
                             </span>
-                        </div> Total Packing
-                    </h6>
+                        </div>
+                        <h6 class="mb-0">Total Packing</h6>
+                    </div>
                     <h3 id="total_packaging">{{ $metrics['total_packaging'] ?? 0 }}</h3>
                     <small class="text-muted">Total Packing last 30 days</small>
                 </div>
@@ -196,22 +246,27 @@
         </div>
 
         <!-- Reprocessed Products -->
-        <div class="col-sm-6 col-lg-2 mb-4">
-            <div class="card h-100">
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+            <div class="card h-100 metric-card">
                 <div class="card-body">
-                    <h6 class="d-flex align-items-center">
-                        <div class="avatar me-3 flex-shrink-0">
-                            <span class="avatar-initial bg-label-danger rounded">
-                                <i class="icon-base bx bx-error icon-lg"></i>
+                    <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
+                        <div class="avatar avatar-sm me-3 flex-shrink-0">
+                            <span class="avatar-initial gradient-danger glow rounded">
+                                <i class="icon-base bx bx-error fs-5"></i>
                             </span>
-                        </div>Reprocessing mattress
-                    </h6>
+                        </div>
+                        <h6 class="mb-0">Reprocessing mattress</h6>
+                    </div>
                     <h3 id="reprocessed_products">{{ $metrics['reprocessed_products'] ?? 0 }}</h3>
                     <small class="text-muted">Reprocessed Records last 30 days</small>
                 </div>
             </div>
         </div>
     </div>
+
+
+
+
 
     <!-- ==== Charts Section ==== -->
     <div class="row">

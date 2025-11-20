@@ -10,6 +10,7 @@ use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\location\Location;
 use App\Models\products\BondingPlanProduct;
+use App\Models\products\ProductProcessHistory;
 use App\Models\user_management\Role;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -76,6 +77,11 @@ class BondingPlanProductController extends Controller
         // $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
         // Readonly must be false so checkbox column is added
         $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
+
+        $allbondingData = BondingPlanProduct::all();
+        $allproductHistory = ProductProcessHistory::all();
+        Log::info('Total bonding data: '.json_encode($allbondingData));
+        Log::info('Total product history data: '.json_encode($allproductHistory));
 
         return view('content.bonding.list')
             ->with('pageConfigs', $pageConfigs)

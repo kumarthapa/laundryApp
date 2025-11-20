@@ -516,17 +516,16 @@ class Users extends Controller
         return response()->json(['success' => true, 'message' => 'Password updated successfully', 'bg_color' => 'bg-success']);
     }
 
-    public function userActivity(Request $request, $id = null)
+    public function userActivity(Request $request, $user_code = null)
     {
 
-        if (! $id) {
+        if (! $user_code) {
             return view('content.miscellaneous.no-data');
         }
-        $user = User::where('user_code', $id)->first();
-
+        $user = User::where('user_code', $user_code)->first();
         $data = [];
         $data['user'] = $user;
-        $data['id'] = $id;
+        $data['user_code'] = $user_code;
 
         return view('content.users.user-activity', $data);
     }
@@ -545,7 +544,7 @@ class Users extends Controller
 
             // Corrected query
             $activity = UserActivity::whereBetween('datetime', [$startDate, $endDate])
-                ->where('usercode', $post_data['id'])
+                ->where('usercode', $post_data['user_code'])
                 ->get()
                 ->map(function ($item) {
                     $item->header = json_decode($item->header);
