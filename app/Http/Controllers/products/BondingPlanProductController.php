@@ -78,7 +78,7 @@ class BondingPlanProductController extends Controller
         // Readonly must be false so checkbox column is added
         $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
 
-        $allProductsData = Products::with('processHistory');
+        $allProductsData = Products::with('processHistory')->get();
         Log::info('Total products data 12: ', $allProductsData->toArray());
 
         return view('content.bonding.list')
