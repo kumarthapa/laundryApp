@@ -138,8 +138,42 @@
 
 
         // Server delete handler using unified delete system
-        function onDelete(row_id) {
-            unifiedDelete(row_id, "{{ route('device_registration.delete') }}");
+        function onDelete(row_id = '') {
+            delete_url = "{{ route('device_registration.delete') }}";
+
+            if (!row_id || row_id == 0) {
+                alert('Delete Failed Please Contact Support.');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this item ? This action cannot be undone.')) {
+                return;
+            }
+
+            $.ajax({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                url: delete_url,
+                method: 'POST',
+                data: {
+                    id: row_id
+                },
+                success: function(response) {
+                    if (response.success) {
+                        toastr.success(response.message || ('Deleted successfully'));
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        toastr.error(response.message || 'Delete failed');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var msg = xhr.responseJSON?.message || error;
+                    toastr.error("Error: " + msg);
+                }
+            });
         }
     </script>
 

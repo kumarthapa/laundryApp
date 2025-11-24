@@ -429,10 +429,12 @@ class DeviceRegistrationController extends Controller
     public function delete(Request $request, $id = null)
     {
 
+        $id = $request->input('id', $id);
         if (! $id) {
             return response()->json(['success' => false, 'message' => 'Delete Failed!!'], 422);
         }
-
+        // print_r($id);
+        // exit;
         DB::beginTransaction();
         try {
             $models = DeviceRegistration::find($id);
