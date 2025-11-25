@@ -468,13 +468,14 @@ class BondingPlanProductController extends Controller
                 $product->qa_code,
                 $product->is_write,
                 $product->reference_code,
+                $product->products->count() > 0 ? $product->products->first()->rfid_tag : 'N/A',
                 LocaleHelper::formatDateWithTime($product->created_at),
                 LocaleHelper::formatDateWithTime($product->updated_at),
             ];
         })->toArray();
 
         $headers = [
-            'Serial No', 'SKU', 'Product Name', 'Model', 'Size', 'QA Code', 'Is Write', 'Reference Code', 'Created At', 'Updated At',
+            'Serial No', 'SKU', 'Product Name', 'Model', 'Size', 'QA Code', 'Is Write', 'Reference Code', 'RFID Tag', 'Created At', 'Updated At',
         ];
 
         return Excel::download(
