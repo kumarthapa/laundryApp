@@ -29,7 +29,6 @@ class ReportsController extends Controller
 
     public function index(Request $request)
     {
-
         $headers = $this->commonHeader();
 
         // Get the counts overview
@@ -74,17 +73,17 @@ class ReportsController extends Controller
         ];
     }
 
+    /**
+     * Prepare a single table row payload for the front-end.
+     * Prefer history.changed_at (event time) for updated date, then product.updated_at, then product.created_at.
+     */
     protected function tableHeaderRowData($row)
     {
         $data = [];
-        // print_r($row);
-        // exit;
-        // $history = ProductProcessHistory::where('product_id', $row->id)
-        //     ->latest('changed_at')
-        //     ->first();
-        // -------------- QC Status ---------------
+
+        // QC Status badge
         $statusHTML = '';
-        switch ($row->status) {
+        switch (($row->status ?? '')) {
             case 'PASS':
                 $statusHTML = '<span class="badge rounded bg-label-success " title="PASS"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
                 break;
@@ -95,23 +94,23 @@ class ReportsController extends Controller
                 $statusHTML = '<span class="badge rounded bg-label-primary" title="PENDING"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PENDING</span>';
                 break;
         }
-        // -------------- QC Status ---------------
-        // -------------- product stage ---------------
-        $getStageName = LocaleHelper::getStageName($row->stages);
-        $current_stage = $getStageName ?? 'Bonding';
 
+        // product stage display (use LocaleHelper to get readable name)
+        $getStageName = LocaleHelper::getStageName($row->stages ?? null);
+        $current_stage = $getStageName ?? 'Bonding';
         $stageHTML = '<span class="badge rounded bg-label-warning " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.$current_stage.'</span>';
-        // -------------- product stages ---------------
-        $data['updated_at'] = LocaleHelper::formatDateWithTime($row->updated_at);
-        $data['product_name'] = $row->product_name;
-        $data['sku'] = $row->sku;
-        $data['size'] = $row->size;
-        $data['qa_code'] = $row->qa_code;
-        $data['quantity'] = $row->quantity;
+
+        // Choose updated date: prefer history.changed_at, then product.updated_at, then product_created_at
+        $updatedAtValue = $row->changed_at ?? $row->updated_at ?? $row->product_created_at ?? null;
+        $data['updated_at'] = $updatedAtValue ? LocaleHelper::formatDateWithTime($updatedAtValue) : '';
+
+        $data['product_name'] = $row->product_name ?? '';
+        $data['sku'] = $row->sku ?? '';
+        $data['size'] = $row->size ?? '';
+        $data['qa_code'] = $row->qa_code ?? '';
+        $data['quantity'] = $row->quantity ?? '';
         $data['status'] = $statusHTML;
         $data['stage'] = $stageHTML;
-        // print_r($data);
-        // exit;
 
         return $data;
     }
@@ -139,9 +138,6 @@ class ReportsController extends Controller
             $filters['end_date'] = $daterange['end_date'] ?? '';
         }
 
-        // print_r($request->all());
-        // exit;
-
         $data_rows = [];
         $columns = [];
 
@@ -160,12 +156,11 @@ class ReportsController extends Controller
                 $columns[] = ['data' => $data, 'title' => $title];
             }
         }
-        // print_r($filters);
-        // exit;
+
         switch ($reportType) {
             case 'daily_floor_stock_report':
                 $searchData = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
-                $total_rows = $this->reports->get_found_rows($search);
+                $total_rows = $this->reports->get_found_rows($search, $filters);
 
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
@@ -181,10 +176,9 @@ class ReportsController extends Controller
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
+
             case 'all_bonding_report':
                 $filters['stages'] = 'bonding_qc';
-                // $filters['start_date'] = '';
-                // $filters['end_date'] = '';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
 
@@ -192,15 +186,13 @@ class ReportsController extends Controller
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
+
             case 'floor_stock_bonding':
-                // Use latest-history join and only keep products whose latest stage is bonding_qc + PASS
+                // products whose latest history is bonding_qc + PASS
                 $filters['stages'] = 'bonding_qc';
                 $filters['status'] = 'PASS';
 
-                // rows: use daily_floor_stock_report_search which joins the *latest* history row per product
                 $searchData = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
-
-                // total rows: count products whose latest history is bonding_qc + PASS
                 $total_rows = $this->reports->getFloorStockBondingCount($search, $filters);
 
                 foreach ($searchData as $row) {
@@ -209,14 +201,13 @@ class ReportsController extends Controller
                 break;
 
             case 'monthly_yearly_report':
-                // $filters['start_date'] = '';
-                // $filters['end_date'] = '';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
+
             case 'daily_packing_report':
                 $filters['stages'] = 'packaging';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
@@ -225,6 +216,7 @@ class ReportsController extends Controller
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
+
             case 'daily_tapedge_report':
                 $filters['stages'] = 'tape_edge_qc';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
@@ -237,9 +229,7 @@ class ReportsController extends Controller
             case 'daily_zip_cover_report':
                 $filters['stages'] = 'zip_cover_qc';
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
-
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
-
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
@@ -247,15 +237,14 @@ class ReportsController extends Controller
 
             default:
                 $searchData = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
-                $total_rows = $this->reports->get_found_rows($search);
+                $total_rows = $this->reports->get_found_rows($search, $filters);
                 foreach ($searchData as $row) {
                     $data_rows[] = $this->tableHeaderRowData($row);
                 }
                 break;
         }
+
         Log::info('total_rows: '.json_encode($total_rows));
-        // print_r($data_rows);
-        // exit;
 
         return response()->json([
             'data' => $data_rows,
@@ -266,31 +255,36 @@ class ReportsController extends Controller
     }
 
     /**
-     * Example method in Products model to get stock report data
+     * Get stock report data (backwards-compatible helper)
+     * Uses reports model to fetch rows based on filters (latest-history-per-product behavior).
      */
     public function getStockReportData(array $filters)
     {
-        $query = $this->reports->newQuery();
+        $search = '';
+        $limit = 10000;
+        $offset = 0;
+        $sort = 'updated_at';
+        $order = 'desc';
 
-        if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
-            $query->whereBetween('updated_at', [$filters['start_date'], $filters['end_date']]);
-        }
+        // Use daily_floor_stock_report_search which returns latest-history-per-product by default
+        $items = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order);
 
-        if (! empty($filters['status']) && $filters['status'] !== 'all') {
-            $query->where('status', $filters['status']);
-        }
-
-        $rows = $query->get();
-
-        return $rows->map(function ($item) {
-            $history = ProductProcessHistory::where('product_id', $item->id)->first();
+        return collect($items)->map(function ($item) {
+            // if you need latest full history row, you can fetch it; keep lightweight here
+            $history = null;
+            if (! empty($item->history_id)) {
+                $history = ProductProcessHistory::find($item->history_id);
+            } else {
+                // fallback: try to load latest history by product id
+                $history = ProductProcessHistory::where('product_id', $item->id)->latest('id')->first();
+            }
 
             return [
-                'product_name' => $item->product_name,
-                'sku' => $item->sku,
-                'quantity' => $item->quantity,
-                'status' => $history ? $history->status : $item->status,
-                'current_stage' => $history ? $history->stages : '',
+                'product_name' => $item->product_name ?? '',
+                'sku' => $item->sku ?? '',
+                'quantity' => $item->quantity ?? '',
+                'status' => $history ? $history->status : ($item->status ?? ''),
+                'current_stage' => $history ? $history->stages : ($item->stages ?? ''),
             ];
         })->toArray();
     }
@@ -343,7 +337,6 @@ class ReportsController extends Controller
             'Size',
             'QA Code',
             'Quantity',
-            // 'Current Status',
             'Failed Stage',
             'Defect Points',
             'Changed Date',
@@ -355,7 +348,7 @@ class ReportsController extends Controller
             return back()->with('error', 'No defective items found for the selected criteria.');
         }
 
-        // ✅ Group items by date (Y-m-d)
+        // Group items by date (Y-m-d) using last_changed_at
         $groupedData = $defectiveItems->groupBy(function ($item) {
             return \Carbon\Carbon::parse($item->last_changed_at)->format('Y-m-d');
         });
@@ -363,20 +356,16 @@ class ReportsController extends Controller
         $dataRows = [];
 
         foreach ($groupedData as $date => $items) {
-            // ✅ Add a section header row for each date
-            // $dataRows[] = ["Date: $date", '', '', '', '', '', '', '', ''];
-
             foreach ($items as $item) {
-                // Latest history
+                // Latest history for the product & stage
                 $history = ProductProcessHistory::where('product_id', $item->id ?? ($item->product_id ?? null))
                     ->where('stages', $item->stages)
                     ->latest('changed_at')
                     ->first();
 
-                $status = $item->status ?? ($item->status ?? '');
                 $stageName = LocaleHelper::getStageName($history->stages ?? ($item->stages ?? '')) ?? '';
 
-                // ✅ Decode and join defect points
+                // Decode and join defect points
                 $defectPoints = '';
                 if (! empty($item->defects_points)) {
                     $decoded = json_decode($item->defects_points, true);
@@ -398,15 +387,11 @@ class ReportsController extends Controller
                     $item->size ?? '',
                     $item->qa_code ?? '',
                     $item->quantity ?? '',
-                    // $status,
                     $stageName,
                     $defectPoints,
                     $createdAt,
                 ];
             }
-
-            // Blank line between date groups
-            // $dataRows[] = ['', '', '', '', '', '', '', '', ''];
         }
 
         $user = Auth::user();
@@ -416,8 +401,6 @@ class ReportsController extends Controller
         ];
 
         $fileName = 'defects_report_'.now()->format('Ymd_His').'.xlsx';
-        // print_r($dataRows);
-        // exit;
 
         return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), $fileName);
     }
@@ -440,15 +423,12 @@ class ReportsController extends Controller
             'Created At',
         ];
 
-        // empty search / use internal model methods; adapt as needed
         $search = '';
-        $limit = 10000;    // pass 0 or large number depending on model implementation
+        $limit = 10000;
         $offset = 0;
         $sort = 'updated_at';
         $order = 'desc';
 
-        // print_r($filters);
-        // exit;
         switch ($reportType) {
             case 'daily_floor_stock_report':
                 $items = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
@@ -461,15 +441,12 @@ class ReportsController extends Controller
 
             case 'all_bonding_report':
                 $filters['stages'] = 'bonding_qc';
-                // $filters['start_date'] = '';
-                // $filters['end_date'] = '';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
+
             case 'floor_stock_bonding':
-                // Use latest-history join and only keep products whose latest stage is bonding_qc + PASS
                 $filters['stages'] = 'bonding_qc';
                 $filters['status'] = 'PASS';
-                // rows: use daily_floor_stock_report_search which joins the *latest* history row per product
                 $items = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 break;
 
@@ -489,21 +466,18 @@ class ReportsController extends Controller
                 break;
 
             case 'monthly_yearly_report':
-                // $filters['start_date'] = '';
-                // $filters['end_date'] = '';
                 $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
-                // $items = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order);
                 break;
 
             default:
-                // fallback to generic search
                 $items = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 break;
         }
-        // print_r($items);
-        // exit;
-        // Normalize $items (could be Collection or array)
+
         foreach ($items as $item) {
+            // Prefer changed_at (history) for created_at column in export, else product created_at
+            $createdAt = $item->changed_at ?? $item->created_at ?? $item->product_created_at ?? '';
+
             $dataRows[] = [
                 $item->product_name ?? '',
                 $item->sku ?? '',
@@ -512,7 +486,7 @@ class ReportsController extends Controller
                 $item->quantity ?? '',
                 $item->status ?? '',
                 $item->stages ?? '',
-                $item->updated_at ?? '',
+                $createdAt,
             ];
         }
 

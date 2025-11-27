@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\DB;
 class ReportsModel extends Model
 {
     /**
-     * Return all product history rows joined to products, with filtering, sorting & pagination.
+     * Return product rows joined to history.
      *
-     * Note: selects p.created_at as created_at to keep compatibility with controllers/views
-     * that expect $row->created_at to be product created date.
+     * If a stage filter is provided we join to history directly (showing every matching history row).
+     * Otherwise we join to the latest history row per product (avoids duplicates).
      *
      * @param  string  $search
      * @param  array  $filters
@@ -25,31 +25,52 @@ class ReportsModel extends Model
      */
     public function reports_search($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'created_at', $order = 'desc', $reportType = '')
     {
-        // $reportType = 'monthly_yearly_report';
-        // exit;
-        $query = DB::table('products as p')
-            ->join('product_process_history as h', 'h.product_id', '=', 'p.id')
-            ->select(
-                'p.id as id',
-                'p.product_name',
-                'p.sku',
-                'p.reference_code',
-                'p.size',
-                'p.qa_code',
-                'p.quantity',
-                'p.created_at as product_created_at',
-                'h.id as history_id',
-                'h.status',
-                'h.stages',
-                'h.defects_points',
-                'h.created_at as process_date',
-                'h.changed_at',
-                'p.created_at as created_at',
-                'p.updated_at as updated_at',
-            );
-        // Apply location filter (for user)
+        $limit = intval($limit);
+        $offset = intval($offset);
+        $allowedOrders = ['asc', 'desc'];
+        $order = in_array(strtolower($order), $allowedOrders) ? strtolower($order) : 'desc';
+
+        // Decide early if we're filtering by a stage
+        $hasStageFilter = ! empty($filters['stages']) && $filters['stages'] !== 'all';
+
+        // Base select (products + history alias)
+        $select = [
+            'p.id as id',
+            'p.product_name',
+            'p.sku',
+            'p.reference_code',
+            'p.size',
+            'p.qa_code',
+            'p.quantity',
+            'p.created_at as product_created_at',
+            'h.id as history_id',
+            'h.status',
+            'h.stages',
+            'h.defects_points',
+            'h.created_at as process_date',
+            'h.changed_at',
+            'p.created_at as created_at', // keep this for backward compatibility in views
+            'p.updated_at as updated_at',
+        ];
+
+        $query = DB::table('products as p')->select($select);
+
+        if ($hasStageFilter) {
+            // Show all matching history rows for the requested stage
+            $query->join('product_process_history as h', 'h.product_id', '=', 'p.id');
+        } else {
+            // Join to the latest history row per product (by id) to avoid duplicate product rows
+            // Using a scalar subquery that selects the latest history id for the product
+            $subLatestId = '(SELECT ch2.id FROM product_process_history ch2 WHERE ch2.product_id = p.id ORDER BY ch2.id DESC LIMIT 1)';
+            $query->leftJoin('product_process_history as h', function ($join) use ($subLatestId) {
+                $join->on('h.id', '=', DB::raw($subLatestId));
+            });
+        }
+
+        // Apply location filter (scope)
         $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
-        // 🔍 Text search
+
+        // Text search across product & history
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('p.product_name', 'like', "%{$search}%")
@@ -62,64 +83,82 @@ class ReportsModel extends Model
             });
         }
 
-        // 🎯 Stage filter
-        $hasStageFilter = false;
-        if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
+        // Stage filter (only meaningful when hasStageFilter true, but harmless otherwise)
+        if ($hasStageFilter) {
             $query->where('h.stages', $filters['stages']);
-            $hasStageFilter = true;
         }
 
-        // 🎯 Status filter
+        // Status filter (accept 'status' or legacy 'qc_status')
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
-        // print_r($statusFilter);
-        // exit;
         if (! empty($statusFilter) && $statusFilter !== 'all') {
-            $query->where('h.status', strtoupper($statusFilter));
+            $query->where('h.status', strtoupper((string) $statusFilter));
         } else {
-            // Default to exclude 'PASS' if no status filter is set
+            // Default behaviour (same as your previous code): show PASS entries
             $query->where('h.status', 'PASS');
         }
 
-        // 🎯 Defect points filter
+        // Defect points JSON filter
         if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
             $jsonVal = json_encode($filters['defects_points']);
             $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
         }
 
-        // 📅 Date range filter
+        // Date range filtering:
+        // If stage filter: filter by history event time (changed_at)
+        // Otherwise: filter by product creation time (p.created_at)
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             if ($hasStageFilter) {
-                // filter by history date if viewing stage data
-                $query->whereBetween('h.created_at', [$filters['start_date'], $filters['end_date']]);
+                $query->whereBetween('h.changed_at', [$filters['start_date'], $filters['end_date']]);
             } else {
-                // otherwise filter by product creation date
                 $query->whereBetween('p.created_at', [$filters['start_date'], $filters['end_date']]);
             }
         }
 
-        // 🔽 Auto sort based on stage filter
-        $allowedOrders = ['asc', 'desc'];
-        $order = in_array(strtolower($order), $allowedOrders) ? strtolower($order) : 'desc';
-
+        // Sorting: choose sensible defaults based on whether stage filter present
         if ($hasStageFilter) {
-            $query->orderBy('h.created_at', $order);
+            // sort by event time (changed_at) or fallback to history.created_at
+            if ($sort === 'process_date' || $sort === 'changed_at' || $sort === 'last_changed_at') {
+                $query->orderBy('h.changed_at', $order);
+            } else {
+                // allow sorting by a few product columns or history columns
+                $sortable = [
+                    'product_name' => 'p.product_name',
+                    'sku' => 'p.sku',
+                    'size' => 'p.size',
+                    'status' => 'h.status',
+                    'stages' => 'h.stages',
+                    'process_date' => 'h.created_at',
+                    'changed_at' => 'h.changed_at',
+                    'created_at' => 'p.created_at',
+                ];
+                $sortColumn = $sortable[$sort] ?? 'h.changed_at';
+                $query->orderBy($sortColumn, $order);
+            }
         } else {
-            $query->orderBy('p.created_at', $order);
+            // when showing latest-per-product, default to product created_at (for compatibility)
+            $sortable = [
+                'created_at' => 'p.created_at',
+                'product_created_at' => 'p.created_at',
+                'product_name' => 'p.product_name',
+                'sku' => 'p.sku',
+                'size' => 'p.size',
+                'status' => 'h.status',
+                'stages' => 'h.stages',
+                'last_changed_at' => 'h.changed_at',
+            ];
+            $sortColumn = $sortable[$sort] ?? 'p.created_at';
+            $query->orderBy($sortColumn, $order);
         }
-        // print_r($limit);
-        // print_r($offset);
-        // exit;
-        // Apply limit + offset
-        $query->limit(intval($limit))->offset(intval($offset));
-        // print_r($query->get());
-        // exit;
+
+        // Pagination
+        $query->limit($limit)->offset($offset);
 
         return $query->get();
     }
 
     /**
      * Count matching rows for pagination.
-     * When joined to history (one-to-many) each matching history row counts separately.
+     * Behavior mirrors reports_search(): when stage filter is present count history rows; otherwise count products.
      *
      * @param  string  $search
      * @param  array  $filters
@@ -127,12 +166,28 @@ class ReportsModel extends Model
      */
     public function get_found_rows($search = '', $filters = [])
     {
-        $query = DB::table('products as p')
-            ->join('product_process_history as h', 'h.product_id', '=', 'p.id')
-            ->select(DB::raw('COUNT(DISTINCT h.id) as total_rows'));
-        // Apply location filter (for user)
+        $hasStageFilter = ! empty($filters['stages']) && $filters['stages'] !== 'all';
+
+        if ($hasStageFilter) {
+            // Count matching history rows (distinct by history id)
+            $query = DB::table('products as p')
+                ->join('product_process_history as h', 'h.product_id', '=', 'p.id')
+                ->select(DB::raw('COUNT(DISTINCT h.id) as total_rows'));
+        } else {
+            // Count matching products (latest-history-per-product view)
+            // leftJoin to latest history id per product
+            $subLatestId = '(SELECT ch2.id FROM product_process_history ch2 WHERE ch2.product_id = p.id ORDER BY ch2.id DESC LIMIT 1)';
+            $query = DB::table('products as p')
+                ->leftJoin('product_process_history as h', function ($join) use ($subLatestId) {
+                    $join->on('h.id', '=', DB::raw($subLatestId));
+                })
+                ->select(DB::raw('COUNT(DISTINCT p.id) as total_rows'));
+        }
+
+        // Apply location scope
         $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
-        // 🔍 Text search
+
+        // Text search
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('p.product_name', 'like', "%{$search}%")
@@ -145,32 +200,31 @@ class ReportsModel extends Model
             });
         }
 
-        // 🎯 Stage filter
-        $hasStageFilter = false;
-        if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
+        // Stage filter
+        if ($hasStageFilter) {
             $query->where('h.stages', $filters['stages']);
-            $hasStageFilter = true;
         }
 
-        // 🎯 Status filter
+        // Status filter
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
         if (! empty($statusFilter) && $statusFilter !== 'all') {
-            $query->where('h.status', strtoupper($statusFilter));
+            $query->where('h.status', strtoupper((string) $statusFilter));
+        } else {
+            // Default same as reports_search: show PASS
+            $query->where('h.status', 'PASS');
         }
 
-        // 🎯 Defect points filter
+        // Defects JSON filter
         if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
             $jsonVal = json_encode($filters['defects_points']);
             $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
         }
 
-        // 📅 Date range filter
+        // Date range filter
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             if ($hasStageFilter) {
-                // filter by history date if stage filter is applied
-                $query->whereBetween('h.created_at', [$filters['start_date'], $filters['end_date']]);
+                $query->whereBetween('h.changed_at', [$filters['start_date'], $filters['end_date']]);
             } else {
-                // otherwise use product created_at
                 $query->whereBetween('p.created_at', [$filters['start_date'], $filters['end_date']]);
             }
         }
@@ -182,7 +236,6 @@ class ReportsModel extends Model
 
     /**
      * Backwards-compatible alias used in controller for stock reports.
-     * Uses the same behavior as reports_search (all history rows).
      */
     public function getCommonStockReport($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'created_at', $order = 'desc', $reportType = '')
     {
@@ -199,32 +252,17 @@ class ReportsModel extends Model
 
     /**
      * daily_floor_stock_report_search:
-     * - Keeps the original "latest history per product" behavior (correlated subquery)
-     * - Applies the same filtering logic
-     * - Uses safe sort mapping (defaults to product.created_at to match existing UI)
-     *
-     * @param  string  $search
-     * @param  array  $filters
-     * @param  int  $limit
-     * @param  int  $offset
-     * @param  string  $sort
-     * @param  string  $order
-     * @param  string  $reportType
-     * @return \Illuminate\Support\Collection
+     * - Uses correlated subquery to pick the latest history per product (by id)
+     * - Keeps filtering logic consistent
      */
     public function daily_floor_stock_report_search($search = '', $filters = [], $limit = 100, $offset = 0, $sort = 'created_at', $order = 'desc', $reportType = '')
     {
-        // correlated subquery to get the latest changed_at per product
-        $subLatest = '(
-            SELECT MAX(ch2.changed_at)
-            FROM product_process_history ch2
-            WHERE ch2.product_id = p.id
-        )';
+        // Correlated subquery returning latest history id for the product
+        $subLatestId = '(SELECT ch2.id FROM product_process_history ch2 WHERE ch2.product_id = p.id ORDER BY ch2.id DESC LIMIT 1)';
 
         $query = DB::table('products as p')
-            ->leftJoin('product_process_history as h', function ($join) use ($subLatest) {
-                $join->on('h.product_id', '=', 'p.id')
-                    ->whereRaw("h.changed_at = {$subLatest}");
+            ->leftJoin('product_process_history as h', function ($join) use ($subLatestId) {
+                $join->on('h.id', '=', DB::raw($subLatestId));
             })
             ->select(
                 'p.id as id',
@@ -234,15 +272,17 @@ class ReportsModel extends Model
                 'p.size',
                 'p.qa_code',
                 'p.quantity',
-                'p.created_at as created_at', // product created at (used in UI)
+                'p.created_at as created_at',
                 'h.status as status',
                 'h.stages as stages',
                 'h.defects_points as defects_points',
                 'h.changed_at as last_changed_at',
-                'p.updated_at as updated_at',
+                'p.updated_at as updated_at'
             );
-        // Apply location filter (for user)
+
+        // Apply location filter
         $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
+
         // search
         if (! empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -256,29 +296,29 @@ class ReportsModel extends Model
             });
         }
 
-        // stage filter
+        // stage
         if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
             $query->where('h.stages', (string) $filters['stages']);
         }
 
-        // status filter
+        // status
         $statusFilter = $filters['status'] ?? ($filters['qc_status'] ?? null);
         if (! empty($statusFilter) && $statusFilter !== 'all') {
             $query->where('h.status', strtoupper((string) $statusFilter));
         }
 
-        // defects filter
+        // defects
         if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
             $jsonVal = json_encode($filters['defects_points']);
             $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
         }
 
-        // date filter: original behavior used product.created_at — keep that here
+        // date filter: keep original behavior (product.created_at)
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
             $query->whereBetween('p.created_at', [$filters['start_date'], $filters['end_date']]);
         }
 
-        // safe sorting mapping for this method
+        // safe sorting mapping
         $allowedOrders = ['asc', 'desc'];
         $order = in_array(strtolower($order), $allowedOrders) ? strtolower($order) : 'desc';
 
@@ -311,12 +351,10 @@ class ReportsModel extends Model
     }
 
     /**
-     * Get defective products based on filters
+     * Get defective products based on filters (returns history rows that have defects)
      */
     public function getDefectiveProducts(array $filters = [])
     {
-        // print_r($filters);
-        // exit;
         $query = DB::table('products as p')
             ->leftJoin('product_process_history as h', 'h.product_id', '=', 'p.id')
             ->select(
@@ -331,62 +369,53 @@ class ReportsModel extends Model
                 'h.defects_points as defects_points',
                 'h.changed_at as last_changed_at'
             );
-        // Apply location filter (for user)
+
+        // location scope
         $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
-        // Apply filters if any
+
+        // filters
         if (! empty($filters)) {
-            // Stage filter
             if (! empty($filters['stages']) && $filters['stages'] !== 'all') {
                 $query->where('h.stages', $filters['stages']);
             }
 
-            // Defect points filter
             if (! empty($filters['defects_points']) && $filters['defects_points'] !== 'all') {
                 $jsonVal = json_encode($filters['defects_points']);
                 $query->whereRaw('JSON_CONTAINS(h.defects_points, ?)', [$jsonVal]);
             }
 
-            // Date range filter
             if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
                 $query->whereBetween('h.changed_at', [$filters['start_date'], $filters['end_date']]);
             }
         }
+
         $query->whereNotNull('h.defects_points')
             ->where('h.defects_points', '!=', '[]')
-            ->orderBy('h.changed_at', 'desc'); // descending order
+            ->orderBy('h.changed_at', 'desc');
 
         return $query->get();
     }
 
     /**
      * Count products whose latest history row is bonding_qc + PASS.
-     *
-     * @param  string  $search
-     * @param  array  $filters
-     * @return int
+     * Uses correlated subquery that picks latest history id by id DESC.
      */
     public function getFloorStockBondingCount($search = '', $filters = [])
     {
-        // correlated subquery: latest changed_at per product
-        $subLatest = '(
-        SELECT MAX(ch2.changed_at)
-        FROM product_process_history ch2
-        WHERE ch2.product_id = p.id
-    )';
+        $subLatestId = '(SELECT ch2.id FROM product_process_history ch2 WHERE ch2.product_id = p.id ORDER BY ch2.id DESC LIMIT 1)';
 
         $q = DB::table('products as p')
-            ->leftJoin('product_process_history as h', function ($join) use ($subLatest) {
-                $join->on('h.product_id', '=', 'p.id')
-                    ->whereRaw("h.changed_at = {$subLatest}");
+            ->leftJoin('product_process_history as h', function ($join) use ($subLatestId) {
+                $join->on('h.id', '=', DB::raw($subLatestId));
             })
             ->select(DB::raw('COUNT(*) as total_rows'))
             ->where('h.stages', 'bonding_qc')
             ->where('h.status', 'PASS');
 
-        // apply same location scope helper you already use
+        // location scope
         $q = LocaleHelper::commonWhereLocationCheck($q, 'p');
 
-        // apply search filter (optional — same fields as other reports)
+        // search filter
         if (! empty($search)) {
             $q->where(function ($qq) use ($search) {
                 $qq->where('p.product_name', 'like', "%{$search}%")
