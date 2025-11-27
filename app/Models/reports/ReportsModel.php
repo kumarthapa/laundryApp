@@ -45,6 +45,7 @@ class ReportsModel extends Model
                 'h.created_at as process_date',
                 'h.changed_at',
                 'p.created_at as created_at',
+                'p.updated_at as updated_at',
             );
         // Apply location filter (for user)
         $query = LocaleHelper::commonWhereLocationCheck($query, 'p');
@@ -237,7 +238,8 @@ class ReportsModel extends Model
                 'h.status as status',
                 'h.stages as stages',
                 'h.defects_points as defects_points',
-                'h.changed_at as last_changed_at'
+                'h.changed_at as last_changed_at',
+                'p.updated_at as updated_at',
             );
         // Apply location filter (for user)
         $query = LocaleHelper::commonWhereLocationCheck($query, 'p');

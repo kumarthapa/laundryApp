@@ -63,7 +63,7 @@ class ReportsController extends Controller
     public function commonHeader()
     {
         return [
-            ['created_at' => 'Created Date'],
+            ['updated_at' => 'Updated Date'],
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
@@ -102,7 +102,7 @@ class ReportsController extends Controller
 
         $stageHTML = '<span class="badge rounded bg-label-warning " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.$current_stage.'</span>';
         // -------------- product stages ---------------
-        $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
+        $data['updated_at'] = LocaleHelper::formatDateWithTime($row->updated_at);
         $data['product_name'] = $row->product_name;
         $data['sku'] = $row->sku;
         $data['size'] = $row->size;
@@ -125,7 +125,7 @@ class ReportsController extends Controller
         $search = $request->get('search') ?? '';
         $limit = 10000;
         $offset = 0;
-        $sort = $request->get('sort') ?? 'created_at';
+        $sort = $request->get('sort') ?? 'updated_at';
         $order = $request->get('order') ?? 'desc';
 
         $filters = [
@@ -146,7 +146,7 @@ class ReportsController extends Controller
         $columns = [];
 
         $headers = [
-            ['created_at' => 'Created Date'],
+            ['updated_at' => 'Updated Date'],
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
@@ -160,7 +160,8 @@ class ReportsController extends Controller
                 $columns[] = ['data' => $data, 'title' => $title];
             }
         }
-
+        // print_r($filters);
+        // exit;
         switch ($reportType) {
             case 'daily_floor_stock_report':
                 $searchData = $this->reports->daily_floor_stock_report_search($search, $filters, $limit, $offset, $sort, $order, $reportType);
@@ -272,7 +273,7 @@ class ReportsController extends Controller
         $query = $this->reports->newQuery();
 
         if (! empty($filters['start_date']) && ! empty($filters['end_date'])) {
-            $query->whereBetween('created_at', [$filters['start_date'], $filters['end_date']]);
+            $query->whereBetween('updated_at', [$filters['start_date'], $filters['end_date']]);
         }
 
         if (! empty($filters['status']) && $filters['status'] !== 'all') {
@@ -443,10 +444,10 @@ class ReportsController extends Controller
         $search = '';
         $limit = 10000;    // pass 0 or large number depending on model implementation
         $offset = 0;
-        $sort = 'created_at';
+        $sort = 'updated_at';
         $order = 'desc';
 
-        // print_r($reportType);
+        // print_r($filters);
         // exit;
         switch ($reportType) {
             case 'daily_floor_stock_report':
@@ -511,7 +512,7 @@ class ReportsController extends Controller
                 $item->quantity ?? '',
                 $item->status ?? '',
                 $item->stages ?? '',
-                $item->created_at ?? '',
+                $item->updated_at ?? '',
             ];
         }
 
