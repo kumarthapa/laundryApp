@@ -393,6 +393,7 @@
         /* Reports page - corrected DataTable initialization and centered Total Records card */
         let currentReportType = 'daily_floor_stock_report'; // default report on page load
         $(document).ready(function() {
+            let isResettingFilters = false;
             $("#filterQcStatus").select2({
                 allowClear: true
             });
@@ -405,6 +406,7 @@
 
             // Reload data on filter change
             $('#selectedDaterange, #filterQcStatus, #filterCurrentStage').change(function() {
+                if (isResettingFilters) return; // ⛔ skip if resetting
                 if (currentReportType) {
                     commonGenerateReports(currentReportType);
                 }
@@ -553,12 +555,22 @@
             }
 
             currentReportType = reportType || currentReportType;
-
             if (currentReportType === 'daily_floor_stock_report' || currentReportType === 'monthly_yearly_report') {
+
                 $('#filterQcStatus').parent().show();
                 $('#filterCurrentStage').parent().show();
                 $('#downloadButtonsDiv').addClass('col-md-3').removeClass('col-md-9');
+
             } else {
+
+                isResettingFilters = true; // prevent infinite loop
+
+                // Clear Select2 values safely
+                $('#filterQcStatus').val(null).trigger('change.select2');
+                $('#filterCurrentStage').val(null).trigger('change.select2');
+
+                isResettingFilters = false; // restore normal behavior
+
                 $('#filterQcStatus').parent().hide();
                 $('#filterCurrentStage').parent().hide();
                 $('#downloadButtonsDiv').addClass('col-md-9').removeClass('col-md-3');
