@@ -9,6 +9,7 @@ use App\Models\products\Products;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -124,17 +125,23 @@ class RFIDtagDetailsApiController extends Controller
     {
         Log::info('updateProductStage: '.json_encode($request->all()));
 
+        DB::beginTransaction();   // 🔥 START TRANSACTION
+
         try {
-            // Validation
+            // -----------------------------
+            // VALIDATION
+            // -----------------------------
             $validator = Validator::make($request->all(), [
                 'tag_id' => 'required|string',
-                'stage' => 'required|string',  // e.g., bonding_qc, tape_edge_qc, zip_cover_qc, packaging
+                'stage' => 'required|string',
                 'status' => 'nullable|string|in:PASS,FAIL,PENDING,REWORK',
                 'remarks' => 'nullable|string',
                 'defects_points' => 'nullable|array',
             ]);
 
             if ($validator->fails()) {
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation errors',
@@ -146,12 +153,14 @@ class RFIDtagDetailsApiController extends Controller
             $stage = $request->input('stage');
             $qcStatus = $request->input('status', 'PENDING');
             $remarks = $request->input('remarks');
-            $defectsPoints = $request->input('defects_points', []); // default empty array
-
-            // Scope lookup to login user's location if available
+            $defectsPoints = $request->input('defects_points', []);
             $loginLocationId = LocaleHelper::getLoginUserLocationId();
 
+            // -----------------------------
+            // FIND PRODUCT
+            // -----------------------------
             $productQuery = $this->products->where('rfid_tag', $tagId);
+
             if ($loginLocationId) {
                 $productQuery->where('location_id', $loginLocationId);
             }
@@ -159,94 +168,96 @@ class RFIDtagDetailsApiController extends Controller
             $product = $productQuery->first();
 
             if (! $product) {
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Product not found or not accessible from your location',
                 ], 404);
             }
 
-            // 🚫 Prevent skipping mandatory stages
-            // if (array_key_exists($stage, $this->stageDependencies)) {
-            //     $requiredStages = $this->stageDependencies[$stage];
-            //     // Log the array of required stages
-            //     Log::info('Required stages: ', $requiredStages);
-            //     // Log the count
-            //     Log::info('Required stages count: '.count($requiredStages));
-            //     // Ensure ALL required stages exist with PASS
-            //     $passedCount = ProductProcessHistory::where('product_id', $product->id)
-            //         ->whereIn('stages', $requiredStages)
-            //         ->where('status', 'PASS')
-            //         ->distinct('stages')
-            //         ->count('stages');
-            //     Log::info('Passed stages count: '.$passedCount);
-            //     if ($passedCount < count($requiredStages)) {
-            //         return response()->json([
-            //             'success' => false,
-            //             'message' => 'Product cannot move directly to '.$stage.'. Required upstream QC stages not passed.',
-            //         ], 422);
-            //     }
-            // }
+            // -----------------------------
+            // PERMISSION CHECK
+            // -----------------------------
+            $working_stages = Auth::user()->working_stages
+                ? json_decode(Auth::user()->working_stages)
+                : null;
 
-            // Cannot update if user does not have access to the working stage
-            $working_stages = Auth::user()->working_stages ? json_decode(Auth::user()->working_stages) : null;
             if ($working_stages && ! in_array($stage, $working_stages)) {
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'You do not have access to update this stage: '.$stage,
                 ], 403);
             }
-            // exit;
 
+            // -----------------------------
+            // STAGE DEPENDENCY CHECK
+            // -----------------------------
             if (array_key_exists($stage, $this->stageDependencies)) {
                 $requiredStages = $this->stageDependencies[$stage];
 
-                Log::info('Required stages: '.json_encode($requiredStages));
-
-                // Ensure AT LEAST ONE required stage has PASS
                 $passedCount = ProductProcessHistory::where('product_id', $product->id)
                     ->whereIn('stages', $requiredStages)
                     ->where('status', 'PASS')
                     ->distinct('stages')
                     ->count('stages');
 
-                Log::info('Passed stages count: '.$passedCount);
-
                 if ($passedCount === 0) {
+                    DB::rollBack();
+
                     return response()->json([
                         'success' => false,
-                        'message' => 'Product cannot move to '.$stage.' until at least one of these stages is passed: '.implode(', ', $requiredStages),
+                        'message' => 'Product cannot move to '.$stage.
+                                     ' until at least one of these stages is passed: '.
+                                     implode(', ', $requiredStages),
                     ], 422);
                 }
             }
 
-            // 🔍 Check if this stage is already PASS in history
+            // -----------------------------
+            // ALREADY PASS CHECK
+            // -----------------------------
             $existingPass = ProductProcessHistory::where('product_id', $product->id)
                 ->where('stages', $stage)
                 ->where('status', 'PASS')
                 ->first();
 
             if ($existingPass) {
-                // Already passed — don't allow duplicate pass updates
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'This stage is already PASS',
                 ], 409);
-            } else {
-                // bonding qc must be done first for other stages
-                if ($stage !== 'bonding_qc' && $product->processHistory()->where('stages', 'bonding_qc')->where('status', 'PASS')->doesntExist()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Bonding QC is not done yet',
-                    ], 422);
-                }
             }
 
-            // Update product QC meta (who updated & when)
+            // bonding QC must be pass before others
+            if ($stage !== 'bonding_qc' &&
+                $product->processHistory()
+                    ->where('stages', 'bonding_qc')
+                    ->where('status', 'PASS')
+                    ->doesntExist()
+            ) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bonding QC is not done yet',
+                ], 422);
+            }
+
+            // -----------------------------
+            // UPDATE PRODUCT META
+            // -----------------------------
             $product->qc_status_updated_by = auth()->id() ?? null;
             $product->qc_confirmed_at = now();
             $product->save();
 
-            // Log process history with defects points
+            // -----------------------------
+            // CREATE PROCESS HISTORY
+            // -----------------------------
             $product->processHistory()->create([
                 'stages' => $stage,
                 'status' => $qcStatus,
@@ -257,21 +268,22 @@ class RFIDtagDetailsApiController extends Controller
                 'location_id' => $loginLocationId,
             ]);
 
-            // Final stage auto lock tag
-            if ($stage === 'packaging') {
-                if ($product->bondingPlanProduct) {
-                    try {
-                        $product->bondingPlanProduct->update([
-                            'is_locked' => 1,
-                            'locked_by' => auth()->id() ?? null,
-                        ]);
-                    } catch (Exception $e) {
-                        Log::warning('Failed to update bondingPlanProduct lock: '.$e->getMessage(), [
-                            'product_id' => $product->id,
-                        ]);
-                    }
+            // -----------------------------
+            // AUTO LOCK IF PACKAGING
+            // -----------------------------
+            if ($stage === 'packaging' && $product->bondingPlanProduct) {
+                // safe internal try-catch without affecting main transaction
+                try {
+                    $product->bondingPlanProduct->update([
+                        'is_locked' => 1,
+                        'locked_by' => auth()->id() ?? null,
+                    ]);
+                } catch (Exception $e) {
+                    Log::warning('Failed to lock bondingPlanProduct: '.$e->getMessage());
                 }
             }
+
+            DB::commit();   // 🔥 COMMIT TRANSACTION
 
             return response()->json([
                 'success' => true,
@@ -287,11 +299,17 @@ class RFIDtagDetailsApiController extends Controller
                     'status' => $qcStatus,
                     'stage' => $stage,
                     'reference_code' => $product->reference_code,
-                    'created_at' => $product->created_at ? $product->created_at->toDateTimeString() : null,
+                    'created_at' => optional($product->created_at)->toDateTimeString(),
                 ],
             ]);
+
         } catch (Exception $e) {
-            Log::error('Error updating product stage: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            DB::rollBack();   // ❌ ROLLBACK ON FAILURE
+
+            Log::error('Error updating product stage: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -308,8 +326,12 @@ class RFIDtagDetailsApiController extends Controller
     {
         Log::info('updateProductDetails request: '.json_encode($request->all()));
 
+        DB::beginTransaction(); // 🔥 START TRANSACTION
+
         try {
-            // Validation: only require tag_id and product_name for this endpoint
+            // -----------------------------
+            // VALIDATION
+            // -----------------------------
             $validator = Validator::make($request->all(), [
                 'tag_id' => 'required|string',
                 'product_name' => 'nullable|string|max:255',
@@ -317,6 +339,8 @@ class RFIDtagDetailsApiController extends Controller
             ]);
 
             if ($validator->fails()) {
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation errors',
@@ -325,14 +349,12 @@ class RFIDtagDetailsApiController extends Controller
             }
 
             $tagId = trim($request->input('tag_id'));
-            $productName = trim($request->input('product_name') ?? '');
-            $sku = trim($request->input('sku') ?? '');
+            $productName = trim(strip_tags($request->input('product_name') ?? ''));
+            $sku = trim(strip_tags($request->input('sku') ?? ''));
 
-            // basic sanitization (strip HTML tags)
-            $productName = strip_tags($productName);
-            $sku = strip_tags($sku);
-
-            // Scope lookup to login user's location if available
+            // -----------------------------
+            // FIND PRODUCT
+            // -----------------------------
             $loginLocationId = LocaleHelper::getLoginUserLocationId();
 
             $productQuery = $this->products->where('rfid_tag', $tagId);
@@ -343,6 +365,7 @@ class RFIDtagDetailsApiController extends Controller
             $product = $productQuery->first();
 
             if (! $product) {
+                DB::rollBack();
                 Log::warning("updateProductDetails: product not found for tag_id={$tagId}");
 
                 return response()->json([
@@ -351,9 +374,11 @@ class RFIDtagDetailsApiController extends Controller
                 ], 404);
             }
 
-            // If name or sku provided and different, update
-            $needsUpdate = false;
+            // -----------------------------
+            // UPDATE ONLY IF REQUIRED
+            // -----------------------------
             $updateData = [];
+            $needsUpdate = false;
 
             if ($productName && $productName !== $product->product_name) {
                 $updateData['product_name'] = $productName;
@@ -377,7 +402,11 @@ class RFIDtagDetailsApiController extends Controller
                 Log::info("updateProductDetails: no changes for product_id={$product->id}");
             }
 
-            // Return trimmed product payload
+            DB::commit(); // ✅ COMMIT TRANSACTION
+
+            // -----------------------------
+            // RESPONSE
+            // -----------------------------
             return response()->json([
                 'success' => true,
                 'message' => 'Product details updated successfully',
@@ -390,13 +419,18 @@ class RFIDtagDetailsApiController extends Controller
                     'qa_code' => $product->qa_code,
                     'quantity' => $product->quantity,
                     'location_id' => $product->location_id ?? null,
-                    'created_at' => $product->created_at ? $product->created_at->toDateTimeString() : null,
-                    'updated_at' => $product->updated_at ? $product->updated_at->toDateTimeString() : null,
+                    'created_at' => optional($product->created_at)->toDateTimeString(),
+                    'updated_at' => optional($product->updated_at)->toDateTimeString(),
                 ],
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('Error in updateProductDetails: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            DB::rollBack(); // ❌ ROLLBACK ON FAILURE
+
+            Log::error('Error in updateProductDetails: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'success' => false,
