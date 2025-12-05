@@ -153,13 +153,12 @@
                 title: "Products List",
                 createTitle: "Manually Create",
                 displayLength: 30,
-                // is_import: "Upload Products",
+                is_import: "Bulk Create",
                 is_delete: "{{ $deletePermissions ?? '' }}",
                 delete_url: "{{ route('delete.products') }}",
                 importUrl: "{{ route('create.products') }}",
-                is_export: "Export All",
-                is_export2: "Export Stage Wise",
-                manuall_create: false,
+                is_export: "Export",
+                manuall_create: true,
             };
 
             // Get Blade JSON

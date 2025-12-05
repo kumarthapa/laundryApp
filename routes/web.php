@@ -84,22 +84,21 @@ Route::group(['middleware' => ['auth', 'prevent-back-history']], function () {
     Route::post('/products/delete/{id?}', $controller_path.'\products\ProductsController@delete')->name('delete.products')->middleware('permission:products,delete.products');
     Route::post('/products/setlocationid', $controller_path.'\products\ProductsController@setlocationid')->name('products.setlocationid');
 
-    // ================================= BONDING PRODUCTS ROUTES ================================ //
+    // ================================= Inventory PRODUCTS ROUTES ================================ //
 
-    Route::get('/bonding', $controller_path.'\products\BondingPlanProductController@index')->name('bonding')->middleware('permission:bonding,view.bonding');
-    Route::get('/bonding/list', $controller_path.'\products\BondingPlanProductController@list')->name('bonding.list')->middleware('permission:bonding,view.bonding');
-    Route::get('/bonding/create/{id?}', $controller_path.'\products\BondingPlanProductController@create')->name('create.bonding')->middleware('permission:bonding,create.bonding');
-    Route::get('/bonding/edit/{id?}', $controller_path.'\products\BondingPlanProductController@edit')->name('edit.bonding')->middleware('permission:bonding,edit.bonding');
-    Route::get('/bonding/view/{code?}', $controller_path.'\products\BondingPlanProductController@view')->name('view.bonding')->middleware('permission:bonding,view.bonding');
-    Route::post('/bonding/export-bonding', $controller_path.'\products\BondingPlanProductController@exportBonding')->name('bonding.exportBonding');
+    Route::get('/inventory', $controller_path.'\inventory\InventoryController@index')->name('inventory')->middleware('permission:inventory,view.inventory');
+    Route::get('/inventory/list', $controller_path.'\inventory\InventoryController@list')->name('inventory.list')->middleware('permission:inventory,view.inventory');
+    Route::get('/inventory/create/{id?}', $controller_path.'\inventory\InventoryController@create')->name('create.inventory')->middleware('permission:inventory,create.inventory');
+    Route::get('/inventory/edit/{id?}', $controller_path.'\inventory\InventoryController@edit')->name('edit.inventory')->middleware('permission:inventory,edit.inventory');
+    Route::get('/inventory/view/{code?}', $controller_path.'\inventory\InventoryController@view')->name('view.inventory')->middleware('permission:inventory,view.inventory');
+    Route::post('/inventory/export-inventory', $controller_path.'\inventory\InventoryController@exportInventory')->name('inventory.exportInventory');
 
     // AJAX routes
-    Route::post('/bonding/save/{id?}', $controller_path.'\products\BondingPlanProductController@save')->name('bonding.save')->middleware('permission:bonding,create.bonding');
-    Route::post('/bonding/delete/{id?}', $controller_path.'\products\BondingPlanProductController@delete')->name('delete.bonding')->middleware('permission:bonding,delete.bonding');
-
+    Route::post('/inventory/save/{id?}', $controller_path.'\inventory\InventoryController@save')->name('inventory.save')->middleware('permission:inventory,create.inventory');
+    Route::post('/inventory/delete/{id?}', $controller_path.'\inventory\InventoryController@delete')->name('delete.inventory')->middleware('permission:inventory,delete.inventory');
     // bulkBondingPlanUpload routes
-    Route::get('/bonding/bondingPlanImportFormat', $controller_path.'\products\BondingPlanProductController@bondingPlanImportFormat')->name('bonding.bondingPlanImportFormat');
-    Route::post('/bonding/bulkBondingPlanUpload', $controller_path.'\products\BondingPlanProductController@bulkBondingPlanUpload')->name('bonding.bulkBondingPlanUpload')->middleware('permission:bonding,create.bonding');
+    Route::get('/inventory/bondingPlanImportFormat', $controller_path.'\inventory\InventoryController@bondingPlanImportFormat')->name('inventory.bondingPlanImportFormat');
+    Route::post('/inventory/bulkBondingPlanUpload', $controller_path.'\inventory\InventoryController@bulkBondingPlanUpload')->name('inventory.bulkBondingPlanUpload')->middleware('permission:bonding,create.inventory');
 
     // ================================= ALL TYPES OF REPORTS ROUTES ================================ //
 

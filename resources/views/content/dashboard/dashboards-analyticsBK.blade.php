@@ -263,7 +263,7 @@
                                 <tr>
                                     <td>{{ $act->changed_at }}</td>
                                     <td>{{ $act->sku }}</td>
-                                    <td>{{ $act->qa_code }}</td>
+                                    <td>{{ $act->rfid_code }}</td>
                                     <td>{{ $act->stage }}</td>
                                     <td>{{ $act->status }}</td>
                                     <td>{{ Str::limit($act->comments, 80) }}</td>

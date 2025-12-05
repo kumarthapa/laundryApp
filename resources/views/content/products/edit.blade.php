@@ -1,8 +1,8 @@
-@extends("layouts/contentNavbarLayout")
+@extends('layouts/contentNavbarLayout')
 
-@section("title", "Edit Product")
+@section('title', 'Edit Product')
 
-@section("content")
+@section('content')
     <div class="row">
         <div class="col-md-12 col-12">
             <div class="card">
@@ -13,7 +13,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route("products.save", $product->id) }}" id="product-edit-form"
+                    <form method="POST" action="{{ route('products.save', $product->id) }}" id="product-edit-form"
                         enctype="multipart/form-data">
                         @csrf
                         <div class="row">
@@ -23,9 +23,9 @@
                                     <label for="product_name" class="form-label">Product Name <span
                                             class="text-danger">*</span></label>
                                     <input type="text" id="product_name" name="product_name"
-                                        class="form-control @error("product_name") is-invalid @enderror"
-                                        value="{{ old("product_name", $product->product_name) }}" required>
-                                    @error("product_name")
+                                        class="form-control @error('product_name') is-invalid @enderror"
+                                        value="{{ old('product_name', $product->product_name) }}" required>
+                                    @error('product_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -40,43 +40,24 @@
                                 </div>
                             </div>
 
-                            <!-- Reference Code -->
+                            <!-- Description -->
                             <div class="col-md-6 col-12">
                                 <div class="mb-3">
-                                    <label for="reference_code" class="form-label">Reference Code</label>
-                                    <input type="text" id="reference_code" name="reference_code" class="form-control"
-                                        value="{{ old("reference_code", $product->reference_code) }}">
+                                    <label for="description" class="form-label">Description</label>
+                                    <input type="text" id="description" name="description" class="form-control"
+                                        value="{{ old('description', $product->description) }}">
                                 </div>
                             </div>
-
-                            <!-- Size -->
+                            <!-- QC Status -->
                             <div class="col-md-6 col-12">
                                 <div class="mb-3">
-                                    <label for="size" class="form-label">Size <span class="text-danger">*</span></label>
-                                    <input type="text" id="size" name="size"
-                                        class="form-control @error("size") is-invalid @enderror"
-                                        value="{{ old("size", $product->size) }}" required>
-                                    @error("size")
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <!-- Quantity -->
-                            <div class="col-md-6 col-12">
-                                <div class="mb-3">
-                                    <label for="quantity" class="form-label">Quantity</label>
-                                    <input type="number" id="quantity" name="quantity" min="0" class="form-control"
-                                        value="{{ old("quantity", $product->quantity) }}">
-                                </div>
-                            </div>
-
-                            <!-- RFID Tag (readonly) -->
-                            <div class="col-md-6 col-12">
-                                <div class="mb-3">
-                                    <label for="rfid_tag" class="form-label">RFID Tag</label>
-                                    <input type="text" id="rfid_tag" name="rfid_tag" class="form-control"
-                                        value="{{ $product->rfid_tag }}" readonly>
+                                    <label for="qc_status" class="form-label">QC Status</label>
+                                    <select id="qc_status" name="qc_status" class="form-select">
+                                        <option value="1">
+                                            Active</option>
+                                        <option value="0">Inactive
+                                        </option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -92,7 +73,7 @@
     </div>
 @endsection
 
-@section("page-script")
+@section('page-script')
     <script>
         $(document).ready(function() {
             $("#product-edit-form").validate({
@@ -145,7 +126,7 @@
                                 $("#submit-button").text("Saved");
                                 setTimeout(function() {
                                     window.location.href = response.return_url ||
-                                        "{{ route("products") }}";
+                                        "{{ route('products') }}";
                                 }, 1500);
                             } else {
                                 toastr.error(response.message ||

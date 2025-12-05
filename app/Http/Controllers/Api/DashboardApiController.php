@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\LocaleHelper;
 use App\Http\Controllers\Controller;
+use App\Models\products\Product;
 use App\Models\products\ProductProcessHistory;
-use App\Models\products\Products;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,7 +15,7 @@ class DashboardApiController extends Controller
 {
     protected $products;
 
-    public function __construct(Products $products)
+    public function __construct(Product $products)
     {
         $this->products = $products;
     }
@@ -64,7 +64,7 @@ class DashboardApiController extends Controller
                 });
 
             // Apply location filter to latestHistory via product table join
-            $latestHistory->join('bonding_plan_products as p', 'h.product_id', '=', 'p.id');
+            $latestHistory->join('rfid_tags as p', 'h.product_id', '=', 'p.id');
             $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'p');
 
             $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
@@ -152,7 +152,7 @@ class DashboardApiController extends Controller
                     ->on('h.changed_at', '=', 'latest.latest_change');
             })
             // Join with products table to apply location filter
-            ->join('bonding_plan_products as p', 'h.product_id', '=', 'p.id');
+            ->join('rfid_tags as p', 'h.product_id', '=', 'p.id');
 
         // Apply location filter
         $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'h');

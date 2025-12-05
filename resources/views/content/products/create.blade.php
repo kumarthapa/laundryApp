@@ -26,6 +26,7 @@
                                     <label for="product_name" class="form-label">Product Name <span
                                             class="text-danger">*</span></label>
                                     <input type="text" id="product_name" name="product_name"
+                                        placeholder="Enter product name"
                                         class="form-control @error('product_name') is-invalid @enderror" required
                                         value="{{ old('product_name') }}">
                                     @error('product_name')
@@ -38,7 +39,7 @@
                             <div class="col-md-6 col-12">
                                 <div class="mb-3">
                                     <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
-                                    <input type="text" id="sku" name="sku"
+                                    <input type="text" id="sku" name="sku" placeholder="Enter SKU"
                                         class="form-control @error('sku') is-invalid @enderror" required
                                         value="{{ old('sku') }}">
                                     @error('sku')
@@ -47,78 +48,31 @@
                                 </div>
                             </div>
 
-                            <!-- Reference Code -->
+                            <!-- Description -->
                             <div class="col-md-6 col-12">
                                 <div class="mb-3">
-                                    <label for="reference_code" class="form-label">Reference Code</label>
-                                    <input type="text" id="reference_code" name="reference_code" class="form-control"
-                                        value="{{ old('reference_code') }}">
-                                </div>
-                            </div>
-
-                            <!-- Size -->
-                            <div class="col-md-6 col-12">
-                                <div class="mb-3">
-                                    <label for="size" class="form-label">Size <span class="text-danger">*</span></label>
-                                    <input type="text" id="size" name="size"
-                                        class="form-control @error('size') is-invalid @enderror" required
-                                        value="{{ old('size') }}">
-                                    @error('size')
+                                    <label for="description" class="form-label">Description</label>
+                                    <input type="text" id="description" name="description" class="form-control"
+                                        placeholder="Enter description" value="{{ old('description') }}">
+                                    @error('description')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
 
 
-                            <!-- Quantity -->
-                            <div class="col-md-6 col-12">
-                                <div class="mb-3">
-                                    <label for="quantity" class="form-label">Quantity</label>
-                                    <input type="number" id="quantity" name="quantity" min="0" class="form-control"
-                                        value="{{ old('quantity', 0) }}">
-                                </div>
-                            </div>
-
-                            <!-- RFID Tag -->
-                            <div class="col-md-6 col-12">
-                                <div class="mb-3">
-                                    <label for="rfid_tag" class="form-label">RFID Tag <span
-                                            class="text-danger">*</span></label>
-                                    <div class="row">
-                                        <div class="col-md-8 col-12">
-                                            <input type="text" id="rfid_tag" name="rfid_tag"
-                                                class="form-control @error('rfid_tag') is-invalid @enderror" required
-                                                value="{{ old('rfid_tag') }}">
-                                            @error('rfid_tag')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        <div class="col-md-4 col-12">
-                                            <button type="button" class="btn btn-label-primary w-100 mt-md-0 mt-2"
-                                                onclick="autoGenerateRFIDTag()">Auto Generate Tag
-                                            </button>
-                                        </div>
-                                    </div>
-
-
-                                </div>
-                            </div>
-
-
                             <!-- QC Status -->
-                            {{-- <div class="col-md-6 col-12">
+                            <div class="col-md-6 col-12">
                                 <div class="mb-3">
                                     <label for="qc_status" class="form-label">QC Status</label>
                                     <select id="qc_status" name="qc_status" class="form-select">
-                                        <option value="PENDING" {{ old("qc_status") === "PENDING" ? "selected" : "" }}>
-                                            PENDING</option>
-                                        <option value="PASS" {{ old("qc_status") === "PASS" ? "selected" : "" }}>PASS
-                                        </option>
-                                        <option value="FAILED" {{ old("qc_status") === "FAILED" ? "selected" : "" }}>FAILED
+                                        <option value="1">
+                                            Active</option>
+                                        <option value="0">Inactive
                                         </option>
                                     </select>
                                 </div>
-                            </div> --}}
+                            </div>
 
                         </div>
                         <div class="my-3 text-end">

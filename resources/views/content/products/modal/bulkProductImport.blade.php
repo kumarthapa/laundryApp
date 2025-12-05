@@ -4,7 +4,7 @@
         <div class="modal-dialog modal-dialog-centered modal-md">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title" id="modalCenterTitle">Bulk Product Upload</h4>
+                    <h4 class="modal-title" id="modalCenterTitle">Bulk products upload</h4>
                     <button type="button" class="btn btn-label-danger p-2" data-bs-dismiss="modal" aria-label="Close">
                         <i class='bx bx-x'></i>
                     </button>
@@ -15,23 +15,17 @@
                         <input class="form-control" type="file" id="formFile" name="file" required>
                     </div>
                     <div class="mb-3">
-                        <div class="demo-inline-spacing">
-                            <small class="fw-medium d-block">What action would you like to perform?</small>
-
-                            <div class="form-check form-check-inline mt-4">
-                                <input class="form-check-input" type="radio" name="action_type" id="action_upload_new"
-                                    value="upload_new" checked>
-                                <label class="form-check-label" for="action_upload_new">Upload New Products</label>
-                            </div>
-
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="action_type"
-                                    id="action_update_existing" value="update_existing">
-                                <label class="form-check-label" for="action_update_existing">Update Existing
-                                    Products</label>
-                            </div>
-                        </div>
+                        @if (isset($locations_info) && $locations_info)
+                            <select id="user_location_id" name="user_location_id" class="form-select" required>
+                                <option value="">Select Location</option>
+                                @foreach ($locations_info ?? [] as $location)
+                                    <option value="{{ $location->location_id }}">
+                                        {{ $location->location_name }}
+                                    </option>
+                                @endforeach
+                            </select>
                     </div>
+                    @endif
 
                 </div>
                 <div class="modal-footer">
@@ -45,7 +39,6 @@
         </div>
     </div>
 </form>
-
 <script>
     $(document).ready(function() {
         $("#productsImport").validate({
@@ -121,7 +114,10 @@
                 });
             }
         });
-
+        $("#user_location_id").select2({
+            dropdownParent: $('#bulkProductImportModal'),
+            allowClear: true
+        });
         $("#import-format").click(function() {
             window.location.href = "{{ route('products.productImportFormat') }}";
         });

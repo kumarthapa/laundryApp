@@ -150,7 +150,7 @@
     </script>
 
     <!-- Dashboard chart rendering logic -->
-    @include('content.dashboard.script')
+    {{-- @include('content.dashboard.script') --}}
 @endsection
 
 @section('content')
@@ -288,7 +288,7 @@
         <?php
         // Label map for stage-wise chart titles
         $labelString = [
-            'bonding_qc' => 'Bonding',
+            'bonding_qc' => 'inventory',
             'tape_edge_qc' => 'Tape Edge',
             'zip_cover_qc' => 'Zip Cover',
             'packaging' => 'Packing',

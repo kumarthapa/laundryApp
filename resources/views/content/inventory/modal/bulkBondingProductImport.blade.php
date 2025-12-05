@@ -1,4 +1,5 @@
-<form method="POST" action="{{ route('bonding.bulkBondingPlanUpload') }}" enctype="multipart/form-data" id="bondingImport">
+<form method="POST" action="{{ route('inventory.bulkBondingPlanUpload') }}" enctype="multipart/form-data"
+    id="bondingImport">
     @csrf
     <div class="modal fade" id="bulkProductImportModal" tabindex="-1" aria-modal="true" role="dialog">
         <div class="modal-dialog modal-dialog-centered modal-md">
@@ -115,7 +116,7 @@
                             $("#submit-button").attr('disabled', true).html('Uploaded');
                             setTimeout(function() {
                                 window.location.href =
-                                    "{{ route('bonding') }}";
+                                    "{{ route('inventory') }}";
                             }, 2000);
                         }
                     },
@@ -138,7 +139,7 @@
             allowClear: true
         });
         $("#import-format").click(function() {
-            window.location.href = "{{ route('bonding.bondingPlanImportFormat') }}";
+            window.location.href = "{{ route('inventory.bondingPlanImportFormat') }}";
         });
     });
 </script>

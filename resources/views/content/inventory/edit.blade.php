@@ -36,7 +36,7 @@
                                 <div class="mb-3">
                                     <label for="qa_code" class="form-label">QA Code</label>
                                     <input type="text" id="qa_code" name="qa_code" class="form-control"
-                                        value="{{ $product->qa_code }}" readonly>
+                                        value="{{ $product->rfid_code }}" readonly>
                                 </div>
                             </div>
 

@@ -346,11 +346,11 @@ class UtilityHelper
                 'url' => route('products'),
             ],
             [
-                'module' => 'bonding',
-                'permission_id' => 'view.bonding',
-                'title' => 'View Bonding',
+                'module' => 'inventory',
+                'permission_id' => 'view.inventory',
+                'title' => 'View Inventory',
                 'icon' => 'bx bxs-credit-card-front',
-                'url' => route('bonding'),
+                'url' => route('inventory'),
             ],
             [
                 'module' => 'reports',

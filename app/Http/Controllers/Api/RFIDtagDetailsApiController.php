@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\LocaleHelper;
 use App\Http\Controllers\Controller;
+use App\Models\products\Product;
 use App\Models\products\ProductProcessHistory;
-use App\Models\products\Products;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +26,7 @@ class RFIDtagDetailsApiController extends Controller
 
     public function __construct()
     {
-        $this->products = new Products;
+        $this->products = new Product;
     }
 
     /**
@@ -95,7 +95,7 @@ class RFIDtagDetailsApiController extends Controller
                 'latest_defects_points' => $latestDefectsPoints,
                 'created_at' => $product->created_at ? $product->created_at->toDateTimeString() : null,
                 'tag_id' => $product->rfid_tag,
-                'qa_code' => $product->qa_code,
+                'rfid_code' => $product->rfid_code,
                 'location_id' => $product->location_id ?? null,
                 'reference_code' => $product->reference_code,
             ];
@@ -271,15 +271,15 @@ class RFIDtagDetailsApiController extends Controller
             // -----------------------------
             // AUTO LOCK IF PACKAGING
             // -----------------------------
-            if ($stage === 'packaging' && $product->bondingPlanProduct) {
+            if ($stage === 'packaging' && $product->Inventory) {
                 // safe internal try-catch without affecting main transaction
                 try {
-                    $product->bondingPlanProduct->update([
+                    $product->Inventory->update([
                         'is_locked' => 1,
                         'locked_by' => auth()->id() ?? null,
                     ]);
                 } catch (Exception $e) {
-                    Log::warning('Failed to lock bondingPlanProduct: '.$e->getMessage());
+                    Log::warning('Failed to lock Inventory: '.$e->getMessage());
                 }
             }
 
@@ -294,7 +294,7 @@ class RFIDtagDetailsApiController extends Controller
                     'sku' => $product->sku,
                     'size' => $product->size,
                     'tag_id' => $product->rfid_tag,
-                    'qa_code' => $product->qa_code,
+                    'rfid_code' => $product->rfid_code,
                     'quantity' => $product->quantity,
                     'status' => $qcStatus,
                     'stage' => $stage,
@@ -416,7 +416,7 @@ class RFIDtagDetailsApiController extends Controller
                     'sku' => $product->sku,
                     'size' => $product->size,
                     'tag_id' => $product->rfid_tag,
-                    'qa_code' => $product->qa_code,
+                    'rfid_code' => $product->rfid_code,
                     'quantity' => $product->quantity,
                     'location_id' => $product->location_id ?? null,
                     'created_at' => optional($product->created_at)->toDateTimeString(),

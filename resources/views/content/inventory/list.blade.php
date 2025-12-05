@@ -130,7 +130,7 @@
     $is_export = 1;
 @endphp
 @section('page-script')
-    @include('content.bonding.modal.bulkBondingProductImport')
+    @include('content.inventory.modal.bulkBondingProductImport')
     @include('content.partial.datatable')
     @include('content.common.scripts.daterangePicker', [
         'float' => 'right',
@@ -141,17 +141,17 @@
         $(document).ready(function() {
             var tableHeaders = {!! $table_headers !!};
             var options1 = {
-                url: "{{ route('bonding.list') }}",
-                createUrl: '{{ route('create.bonding') }}',
+                url: "{{ route('inventory.list') }}",
+                createUrl: '{{ route('create.inventory') }}',
                 createPermissions: "{{ $createPermissions ?? '' }}",
                 fetchId: "FetchData",
-                title: "Bonding Plan Products",
+                title: "Inventory Management",
                 createTitle: "Manually Create",
                 displayLength: 30,
                 is_import: "Upload Models",
                 is_delete: "{{ $deletePermissions ?? '' }}",
-                delete_url: "{{ route('delete.bonding') }}",
-                importUrl: "{{ route('create.bonding') }}",
+                delete_url: "{{ route('delete.inventory') }}",
+                importUrl: "{{ route('create.inventory') }}",
                 is_export: "Export",
                 manuall_create: false,
             };
@@ -175,12 +175,12 @@
             }
 
             $(".addNewRecordBtn").click(function() {
-                window.location.href = '{{ route('create.bonding') }}';
+                window.location.href = '{{ route('create.inventory') }}';
             });
 
 
             // ========== Export bonding data via POST form submit (works for file download) ============= START ==================
-            let exportUrl = "{{ route('bonding.exportBonding') }}";
+            let exportUrl = "{{ route('inventory.exportInventory') }}";
 
             $(".exportBtn").click(function() {
                 const selectedDaterange = document.getElementById('selectedDaterange')?.value || '';

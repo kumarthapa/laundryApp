@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\Products\BondingPlanProduct;
+use App\Models\Products\Inventory;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -10,7 +10,7 @@ class BondingPlanProductsImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        $product = BondingPlanProduct::create([
+        $product = Inventory::create([
             'sku'            => $row['sku'] ?? null,
             'product_name'   => $row['product_name'] ?? '',
             'size'           => $row['size'] ?? '',
@@ -22,12 +22,12 @@ class BondingPlanProductsImport implements ToModel, WithHeadingRow
             'contractor'     => 'DEFAULT',
             'model'          => 'DEFAULT',
             'rfid_tag'       => strtoupper(uniqid('RFID')),
-            'qa_code'        => 'TEMP', // will update after ID
+            'rfid_code'        => 'TEMP', // will update after ID
         ]);
 
         // Update qa_code after ID is available
         $product->update([
-            'qa_code' => $this->generateQaCode($product->id)
+            'rfid_code' => $this->generateQaCode($product->id)
         ]);
 
         return $product;

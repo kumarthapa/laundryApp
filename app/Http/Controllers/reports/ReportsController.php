@@ -8,7 +8,7 @@ use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
 use App\Models\products\ProductProcessHistory;
-use App\Models\products\Products;
+use App\Models\products\Product;
 use App\Models\reports\ReportsModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +23,7 @@ class ReportsController extends Controller
 
     public function __construct()
     {
-        $this->products = new Products;
+        $this->products = new Product;
         $this->reports = new ReportsModel;
     }
 
@@ -66,7 +66,7 @@ class ReportsController extends Controller
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
-            ['qa_code' => 'Qa Code'],
+            ['rfid_code' => 'Qa Code'],
             ['quantity' => 'Quantity'],
             ['status' => 'QC Status'],
             ['stage' => 'Current Stage'],
@@ -97,7 +97,7 @@ class ReportsController extends Controller
 
         // product stage display (use LocaleHelper to get readable name)
         $getStageName = LocaleHelper::getStageName($row->stages ?? null);
-        $current_stage = $getStageName ?? 'Bonding';
+        $current_stage = $getStageName ?? 'inventory';
         $stageHTML = '<span class="badge rounded bg-label-warning " title="Active"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.$current_stage.'</span>';
 
         // Choose updated date: prefer history.changed_at, then product.updated_at, then product_created_at
@@ -107,7 +107,7 @@ class ReportsController extends Controller
         $data['product_name'] = $row->product_name ?? '';
         $data['sku'] = $row->sku ?? '';
         $data['size'] = $row->size ?? '';
-        $data['qa_code'] = $row->qa_code ?? '';
+        $data['rfid_code'] = $row->rfid_code ?? '';
         $data['quantity'] = $row->quantity ?? '';
         $data['status'] = $statusHTML;
         $data['stage'] = $stageHTML;
@@ -146,7 +146,7 @@ class ReportsController extends Controller
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
             ['size' => 'Size'],
-            ['qa_code' => 'QA Code'],
+            ['rfid_code' => 'QA Code'],
             ['quantity' => 'Quantity'],
             ['status' => 'QC Status'],
             ['stage' => 'Current Stage'],
@@ -201,6 +201,7 @@ class ReportsController extends Controller
                 break;
 
             case 'monthly_yearly_report':
+
                 $searchData = $this->reports->getCommonStockReport($search, $filters, $limit, $offset, $sort, $order, $reportType);
                 $total_rows = $this->reports->getStockReportCount($search, $filters);
                 foreach ($searchData as $row) {
@@ -385,7 +386,7 @@ class ReportsController extends Controller
                     $item->product_name ?? '',
                     $item->sku ?? '',
                     $item->size ?? '',
-                    $item->qa_code ?? '',
+                    $item->rfid_code ?? '',
                     $item->quantity ?? '',
                     $stageName,
                     $defectPoints,
@@ -482,7 +483,7 @@ class ReportsController extends Controller
                 $item->product_name ?? '',
                 $item->sku ?? '',
                 $item->size ?? '',
-                $item->qa_code ?? '',
+                $item->rfid_code ?? '',
                 $item->quantity ?? '',
                 $item->status ?? '',
                 $item->stages ?? '',

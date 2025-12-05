@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\location\Location;
 use App\Models\user_management\Role;
 use App\Models\user_management\UsersModel;
 use Carbon\Carbon;
@@ -250,78 +251,78 @@ class LocaleHelper
         return $state['cities'] ?? [];
     }
 
-    public static function getProductSummaryCounts()
-    {
-        // Load stages & defect points from config
-        $config = UtilityHelper::getProductStagesAndDefectPoints();
-        $stages = collect($config['stages'] ?? []);
-        $defectPoints = collect($config['defect_points'] ?? []);
+    // public static function getProductSummaryCounts()
+    // {
+    //     // Load stages & defect points from config
+    //     $config = UtilityHelper::getProductStagesAndDefectPoints();
+    //     $stages = collect($config['stages'] ?? []);
+    //     $defectPoints = collect($config['defect_points'] ?? []);
 
-        // 🟢 Total products (with location filter)
-        $totalProductsQuery = DB::table('products');
-        $totalProductsQuery = LocaleHelper::commonWhereLocationCheck($totalProductsQuery);
-        $totalProducts = $totalProductsQuery->count();
+    //     // 🟢 Total products (with location filter)
+    //     $totalProductsQuery = DB::table('products');
+    //     $totalProductsQuery = LocaleHelper::commonWhereLocationCheck($totalProductsQuery);
+    //     $totalProducts = $totalProductsQuery->count();
 
-        // 🟢 Total RFID tags (with location filter)
-        $totalRfidQuery = DB::table('products')
-            ->whereNotNull('rfid_tag');
-        $totalRfidQuery = LocaleHelper::commonWhereLocationCheck($totalRfidQuery);
-        $totalRfidTags = $totalRfidQuery->count();
+    //     // 🟢 Total RFID tags (with location filter)
+    //     $totalRfidQuery = DB::table('products')
+    //         ->whereNotNull('rfid_tag');
+    //     $totalRfidQuery = LocaleHelper::commonWhereLocationCheck($totalRfidQuery);
+    //     $totalRfidTags = $totalRfidQuery->count();
 
-        // 🟢 Total QA codes (with location filter)
-        $totalQaQuery = DB::table('products')
-            ->whereNotNull('qa_code');
-        $totalQaQuery = LocaleHelper::commonWhereLocationCheck($totalQaQuery);
-        $totalQaCode = $totalQaQuery->count();
+    //     // 🟢 Total QA codes (with location filter)
+    //     $totalQaQuery = DB::table('products')
+    //         ->whereNotNull('rfid_code');
+    //     $totalQaQuery = LocaleHelper::commonWhereLocationCheck($totalQaQuery);
+    //     $totalQaCode = $totalQaQuery->count();
 
-        // 🟢 Subquery: latest QC + stage per product
-        $latestHistory = DB::table('product_process_history as h')
-            ->select('h.product_id', 'h.status', 'h.stages')
-            ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change 
-                        FROM product_process_history 
-                        GROUP BY product_id) latest'), function ($join) {
-                $join->on('h.product_id', '=', 'latest.product_id')
-                    ->on('h.changed_at', '=', 'latest.latest_change');
-            });
+    //     // 🟢 Subquery: latest QC + stage per product
+    //     $latestHistory = DB::table('product_process_history as h')
+    //         ->select('h.product_id', 'h.status', 'h.stages')
+    //         ->join(DB::raw('(SELECT product_id, MAX(changed_at) as latest_change
+    //                     FROM product_process_history
+    //                     GROUP BY product_id) latest'), function ($join) {
+    //             $join->on('h.product_id', '=', 'latest.product_id')
+    //                 ->on('h.changed_at', '=', 'latest.latest_change');
+    //         });
 
-        // Apply location filter (for user)
-        $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'h');
+    //     // Apply location filter (for user)
+    //     $latestHistory = LocaleHelper::commonWhereLocationCheck($latestHistory, 'h');
 
-        // Wrap subquery
-        $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
-            ->mergeBindings($latestHistory);
+    //     // Wrap subquery
+    //     $latest = DB::table(DB::raw("({$latestHistory->toSql()}) as t"))
+    //         ->mergeBindings($latestHistory);
 
-        // 🟢 QC status counts
-        $totalPassed = (clone $latest)->where('t.status', 'PASS')->count();
-        $totalFailed = (clone $latest)->where('t.status', 'FAIL')->count();
-        $totalRework = (clone $latest)->where('t.status', 'REWORK')->count();
-        $totalPending = (clone $latest)->where('t.status', 'PENDING')->count();
+    //     // 🟢 QC status counts
+    //     $totalPassed = (clone $latest)->where('t.status', 'PASS')->count();
+    //     $totalFailed = (clone $latest)->where('t.status', 'FAIL')->count();
+    //     $totalRework = (clone $latest)->where('t.status', 'REWORK')->count();
+    //     $totalPending = (clone $latest)->where('t.status', 'PENDING')->count();
 
-        // 🟢 Stage-wise counts (from config mapping)
-        $stageCounts = [];
-        foreach ($stages as $stage) {
-            $stageCounts[$stage['value']] = (clone $latest)
-                ->where('t.stages', $stage['value'])
-                ->count();
-        }
+    //     // 🟢 Stage-wise counts (from config mapping)
+    //     $stageCounts = [];
+    //     foreach ($stages as $stage) {
+    //         $stageCounts[$stage['value']] = (clone $latest)
+    //             ->where('t.stages', $stage['value'])
+    //             ->count();
+    //     }
 
-        // ✅ Return all results properly
-        return [
-            'total_products' => $totalProducts,
-            'total_rfid_tags' => $totalRfidTags,
-            'total_qa_code' => $totalQaCode,
-            'total_passed' => $totalPassed,
-            'total_failed' => $totalFailed,
-            'total_rework' => $totalRework,
-            'total_pending' => $totalPending,
-            'stage_counts' => $stageCounts,
-        ];
-    }
+    //     // ✅ Return all results properly
+    //     return [
+    //         'total_products' => $totalProducts,
+    //         'total_rfid_tags' => $totalRfidTags,
+    //         'total_qa_code' => $totalQaCode,
+    //         'total_passed' => $totalPassed,
+    //         'total_failed' => $totalFailed,
+    //         'total_rework' => $totalRework,
+    //         'total_pending' => $totalPending,
+    //         'stage_counts' => $stageCounts,
+    //     ];
+    // }
 
     public static function getBondingProductSummaryCounts()
     {
         // Base query with location filter
-        $baseQuery = DB::table('bonding_plan_products');
+        $baseQuery = DB::table('rfid_tags');
         $baseQuery = LocaleHelper::commonWhereLocationCheck($baseQuery);
 
         // Apply counts
@@ -422,5 +423,18 @@ class LocaleHelper
 
         // Get user location(s)
         return $user->location_id ?? 0;
+    }
+
+    public static function getLocationNameById($location_id = 0)
+    {
+        $location_name = '';
+        if (isset($location_id) && $location_id > 0) {
+            $location = Location::find($location_id);
+            if ($location) {
+                $location_name = $location->location_name;
+            }
+        }
+
+        return $location_name;
     }
 }

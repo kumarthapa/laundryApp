@@ -2,150 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\LocaleHelper;
-use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
-use App\Models\products\BondingPlanProduct;
-use App\Models\products\ProductProcessHistory;
-use App\Models\products\Products;
-use Exception;
+use App\Models\products\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ProductsApiController extends Controller
 {
-    protected $products;
+    protected $product;
 
     public function __construct()
     {
-        $this->products = new Products;
-    }
-
-    /**
-     * Get paginated list of bonding plan products with optional filters.
-     */
-    public function getPlanProducts(Request $request)
-    {
-        Log::info('getPlanProducts: '.json_encode($request->all()));
-
-        try {
-            // Validate incoming request
-            $validator = Validator::make($request->all(), [
-                'search' => 'nullable|string|max:255',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date',
-                'page' => 'nullable|integer|min:1',
-                'limit' => 'nullable|integer|min:1|max:500',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation errors',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $search = $request->input('search', '');
-            $startDate = $request->input('start_date', null);
-            $endDate = $request->input('end_date', null);
-            $page = $request->input('page', 1);
-            $limit = $request->input('limit', 500);
-
-            // Use BondingPlanProduct model query
-            $query = BondingPlanProduct::query();
-
-            // Apply login-user location check to bonding_plan_products
-            $query = LocaleHelper::commonWhereLocationCheck($query, 'bonding_plan_products');
-
-            // Apply search filters on BondingPlanProduct fields
-            if ($search) {
-                if (ctype_digit($search)) {
-                    // If user entered only digits — search by serial_no exactly
-                    $query->where('serial_no', (int) $search);
-                } else {
-                    // Otherwise search text fields using LIKE
-                    $query->where(function ($q) use ($search) {
-                        $q->where('product_name', 'LIKE', "%$search%")
-                            ->orWhere('sku', 'LIKE', "%$search%")
-                            ->orWhere('qa_code', 'LIKE', "%$search%")
-                            ->orWhere('model', 'LIKE', "%$search%")
-                            ->orWhere('size', 'LIKE', "%$search%");
-                    });
-                }
-            }
-
-            // Apply date range filter on created_at (bonding plan created date)
-            if ($startDate && $endDate) {
-                $query->whereBetween('created_at', [$startDate, $endDate]);
-            }
-
-            // Only Non Writed Model will  Write
-            $query->where('is_write', 0);
-
-            // Pagination
-            $pln_products = $query->orderBy('created_at', 'desc')
-                ->paginate($limit, ['*'], 'page', $page);
-
-            $loginLocationId = LocaleHelper::getLoginUserLocationId();
-
-            // Format response data including related latest product info
-            $formattedProducts = $pln_products->getCollection()->map(function ($bondingProduct) use ($loginLocationId) {
-                // Get one related product to get RFID tag if exists (location scoped)
-                $relatedProductQuery = $bondingProduct->products();
-
-                // If products table uses location_id, scope it to login location
-                if ($loginLocationId) {
-                    $relatedProductQuery->where('location_id', $loginLocationId);
-                }
-
-                $relatedProduct = $relatedProductQuery->orderBy('created_at', 'desc')->first();
-
-                return [
-                    'id' => $bondingProduct->id,
-                    'product_name' => $bondingProduct->product_name,
-                    'model' => $bondingProduct->model,
-                    'qa_code' => $bondingProduct->qa_code,
-                    'sku' => $bondingProduct->sku,
-                    'serial_no' => $bondingProduct->serial_no,
-                    'size' => $bondingProduct->size,
-                    'is_write' => $bondingProduct->is_write,
-                    'write_by' => $bondingProduct->write_by,
-                    'write_date' => $bondingProduct->write_date,
-                    'rfid_tag' => $relatedProduct ? $relatedProduct->rfid_tag : null,
-                    'quantity' => $bondingProduct->quantity,
-                    'created_at' => $bondingProduct->created_at ? $bondingProduct->created_at->toDateTimeString() : null,
-                ];
-            });
-
-            Log::info('formattedProducts '.json_encode($formattedProducts));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Products fetched successfully',
-                'data' => [
-                    'products' => $formattedProducts,
-                    'pagination' => [
-                        'total' => $pln_products->total(),
-                        'per_page' => $pln_products->perPage(),
-                        'current_page' => $pln_products->currentPage(),
-                        'last_page' => $pln_products->lastPage(),
-                        'from' => $pln_products->firstItem(),
-                        'to' => $pln_products->lastItem(),
-                    ],
-                ],
-            ]);
-        } catch (Exception $e) {
-            Log::error('Error fetching products: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch products',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        $this->product = new Product;
     }
 
     /**
@@ -154,16 +24,21 @@ class ProductsApiController extends Controller
     public function getProducts(Request $request)
     {
         Log::info('getProducts: '.json_encode($request->all()));
+
         try {
-            // Validate incoming request
+            // ----------------------
+            // VALIDATION
+            // ----------------------
             $validator = Validator::make($request->all(), [
                 'search' => 'nullable|string|max:255',
-                'status' => 'nullable|string|in:PASS,FAILED,PENDING,all',
-                'qa_code' => 'nullable|string',
+                'status' => 'nullable|string|in:active,inactive,all',
+                'rfid_code' => 'nullable|string',
+                'product_code' => 'nullable|string',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'page' => 'nullable|integer|min:1',
-                'limit' => 'nullable|integer|min:1|max:100',
+                'limit' => 'nullable|integer|min:1|max:500',
+                'location_id' => 'nullable|integer',
             ]);
 
             if ($validator->fails()) {
@@ -174,313 +49,174 @@ class ProductsApiController extends Controller
                 ], 422);
             }
 
+            // ------------------------------------------------
+            // READ PARAMETERS
+            // ------------------------------------------------
             $search = $request->input('search', '');
-            $qa_code = $request->input('qa_code', '');
+            $epcFilter = $request->input('rfid_code', '');
+            $prodCode = $request->input('product_code', '');
             $status = $request->input('status', '');
             $startDate = $request->input('start_date', null);
             $endDate = $request->input('end_date', null);
-            $page = $request->input('page', 1);
-            $limit = $request->input('limit', 20);
+            $page = max(1, (int) $request->input('page', 1));
+            $limit = (int) $request->input('limit', 20);
+            $locationId = $request->input('location_id', null);
 
-            $query = $this->products->newQuery();
+            // ------------------------------------------------
+            // SUBQUERY FOR LAST_ACTIVITY
+            // ------------------------------------------------
+            $subMax = DB::table('inventory_activity')
+                ->select('product_id', DB::raw('MAX(trans_id) as max_trans_id'))
+                ->groupBy('product_id');
 
-            // Apply login-user location filter to products table
-            $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
+            $lastActivity = DB::table('inventory_activity as ia')
+                ->joinSub($subMax, 'm', function ($join) {
+                    $join->on('ia.product_id', '=', 'm.product_id')
+                        ->on('ia.trans_id', '=', 'm.max_trans_id');
+                })
+                ->select('ia.*');
 
-            // Apply search filter
-            if ($search) {
+            // ------------------------------------------------
+            // MAIN QUERY WITH ANY_VALUE() FIXES
+            // ------------------------------------------------
+            $query = DB::table('products as p')
+                ->leftJoin('rfid_tags as t', 't.product_id', '=', 'p.id')
+                ->leftJoinSub($lastActivity, 'last_ia', function ($join) {
+                    $join->on('p.id', '=', 'last_ia.product_id');
+                })
+                ->select(
+                    'p.id',
+
+                    DB::raw('ANY_VALUE(p.product_name) as product_name'),
+                    DB::raw('ANY_VALUE(p.sku) as product_code'),
+                    DB::raw('ANY_VALUE(p.category) as category'),
+                    DB::raw('ANY_VALUE(p.price) as price'),
+                    DB::raw('ANY_VALUE(p.expected_life_cycles) as expected_life_cycles'),
+                    DB::raw('ANY_VALUE(p.status) as product_status'),
+
+                    DB::raw('COUNT(t.id) as quantity'),
+
+                    DB::raw('ANY_VALUE(last_ia.trans_type) as last_trans_type'),
+                    DB::raw('ANY_VALUE(last_ia.inward) as last_inward'),
+                    DB::raw('ANY_VALUE(last_ia.outward) as last_outward'),
+                    DB::raw('ANY_VALUE(last_ia.opening_stock) as last_opening_stock'),
+                    DB::raw('ANY_VALUE(last_ia.closing_stock) as last_closing_stock'),
+                    DB::raw('ANY_VALUE(last_ia.created_at) as last_activity_at')
+                )
+                ->groupBy('p.id');
+
+            // ------------------------------------------------
+            // OPTIONAL LOCATION FILTERS
+            // ------------------------------------------------
+            if (class_exists(\App\Helpers\LocaleHelper::class)) {
+                try {
+                    $query = \App\Helpers\LocaleHelper::commonWhereLocationCheck($query, 'p');
+                } catch (\Throwable $t) {
+                }
+            }
+
+            // ------------------------------------------------
+            // FILTERS
+            // ------------------------------------------------
+            if (! empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('product_name', 'LIKE', "%$search%")
-                        ->orWhere('qa_code', 'LIKE', "%$search%")
-                        ->orWhere('size', 'LIKE', "%$search%")
-                        ->orWhere('sku', 'LIKE', "%$search%");
+                    $q->where('p.product_name', 'like', "%{$search}%")
+                        ->orWhere('p.sku', 'like', "%{$search}%")
+                        ->orWhere('p.category', 'like', "%{$search}%");
                 });
             }
 
-            // Apply qa_code filter if provided
-            if ($qa_code) {
-                $query->where('qa_code', $qa_code);
+            if (! empty($prodCode)) {
+                $query->where('p.sku', $prodCode);
             }
 
-            // Apply date range filter
+            if (! empty($epcFilter)) {
+                $query->where('t.epc_code', $epcFilter);
+            }
+
+            if (! empty($status) && $status !== 'all') {
+                $query->where('p.status', $status === 'active' ? 1 : 0);
+            }
+
+            if (! empty($locationId)) {
+                $query->where(function ($q) use ($locationId) {
+                    $q->where('t.location_id', $locationId)
+                        ->orWhereNull('t.location_id');
+                });
+            }
+
             if ($startDate && $endDate) {
-                $query->whereBetween('created_at', [$startDate, $endDate]);
+                $query->whereBetween('p.created_at', [$startDate, $endDate]);
             }
 
-            // Pagination
-            $products = $query->orderBy('created_at', 'desc')
-                ->paginate($limit, ['*'], 'page', $page);
+            // ------------------------------------------------
+            // COUNT DISTINCT PRODUCTS
+            // ------------------------------------------------
+            $total = (clone $query)->get()->count();
 
-            Log::info('Total count before paginate: '.$query->count());
+            // ------------------------------------------------
+            // PAGINATION + SORTING
+            // ------------------------------------------------
+            $allowedSorts = [
+                'p.created_at', 'product_name', 'product_code', 'quantity',
+                'last_activity_at', 'category', 'price',
+            ];
 
-            // Format each product into simple array
-            $formattedCollection = $products->getCollection()->map(function ($product) {
-                $latestHistory = $product->processHistory()->orderBy('changed_at', 'desc')->first();
+            $sort = $request->get('sort', 'p.created_at');
+            if (! in_array($sort, $allowedSorts)) {
+                $sort = 'p.created_at';
+            }
 
+            $order = strtolower($request->get('order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+            $rows = $query
+                ->orderBy($sort, $order)
+                ->offset(($page - 1) * $limit)
+                ->limit($limit)
+                ->get();
+
+            // ------------------------------------------------
+            // FORMAT OUTPUT
+            // ------------------------------------------------
+            $formatted = $rows->map(function ($row) {
                 return [
-                    'id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'sku' => $product->sku,
-                    'size' => $product->size,
-                    'tag_id' => $product->rfid_tag,
-                    'qa_code' => $product->qa_code,
-                    'reference_code' => $product->reference_code,
-                    'quantity' => $product->quantity,
-                    'status' => isset($latestHistory) ? $latestHistory->status : 'PENDING',
-                    'stage' => isset($latestHistory) ? $latestHistory->stages : 'bonding_qc',
-                    'created_at' => $product->created_at ? $product->created_at->toDateTimeString() : null,
+                    'id' => $row->id,
+                    'product_name' => $row->product_name,
+                    'product_code' => $row->product_code,
+                    'category' => $row->category,
+                    'price' => (float) ($row->price ?? 0),
+                    'expected_life_cycles' => $row->expected_life_cycles,
+                    'quantity' => (int) ($row->quantity ?? 0),
+
+                    'last_activity' => [
+                        'trans_type' => $row->last_trans_type,
+                        'inward' => (int) ($row->last_inward ?? 0),
+                        'outward' => (int) ($row->last_outward ?? 0),
+                        'opening_stock' => (int) ($row->last_opening_stock ?? 0),
+                        'closing_stock' => (int) ($row->last_closing_stock ?? 0),
+                        'at' => $row->last_activity_at,
+                    ],
                 ];
             });
+            Log::info('Products fetched response '.json_encode($formatted));
 
-            // Put formatted collection back into paginator so pagination helpers remain correct
-            $products->setCollection($formattedCollection);
-
-            // Build response payload using paginator metadata
             return response()->json([
                 'success' => true,
                 'message' => 'Products fetched successfully',
-                'products' => $products->items(), // array of formatted items
+                'products' => $formatted,
                 'pagination' => [
-                    'total' => $products->total(),
-                    'per_page' => $products->perPage(),
-                    'current_page' => $products->currentPage(),
-                    'last_page' => $products->lastPage(),
-                    'from' => $products->firstItem(),
-                    'to' => $products->lastItem(),
+                    'total' => $total,
+                    'per_page' => $limit,
+                    'current_page' => $page,
+                    'last_page' => ceil($total / $limit),
                 ],
             ]);
-
-        } catch (Exception $e) {
-            Log::error('Error fetching products: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching products: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch products',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    // Fetch product stages
-    public function getProductStages(Request $request)
-    {
-        Log::info('getProductStages: '.json_encode($request->all()));
-        try {
-            $stages = $this->products->getProductStages();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Product stages fetched successfully',
-                'data' => $stages,
-            ]);
-        } catch (Exception $e) {
-            Log::error('Error fetching product stages: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch product stages',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function getStagesAndStatus(Request $request)
-    {
-        Log::info('getStagesAndStatus: '.json_encode($request->all()));
-        try {
-            $currentStage = $request->get('current_stage'); // Android sends
-            $currentStatus = $request->get('current_status'); // Android sends QC status if any
-
-            // $data = UtilityHelper::getProductStagesAndStatus($currentStage, $currentStatus);
-            // Log::info('getProductStagesAndStatus response : '.json_encode($data));
-            // /UtilityHelper::getProductStagesAndStatus(); For all
-            // 11) Get Working Stages ---------- START -------------<<
-
-            $stages = UtilityHelper::getProductStagesAndStatus($currentStage, $currentStatus);
-            $allowed_stages = Auth::user()->working_stage ? json_decode(Auth::user()->working_stage, true) : null;
-            Log::info('getStagesAndStatus allowed_stages: '.json_encode($allowed_stages));
-            // After $stages and $allowed_stages are computed
-            if (! empty($allowed_stages)) {
-                $working_stages = [
-                    'stages' => [],
-                    'defect_points' => [],
-                    'status' => $stages['status'],
-                    // expose allowed stage keys so client can tell which ones are editable
-                    'allowed_stages' => $allowed_stages,
-                ];
-
-                // add allowed stages and defect points
-                foreach ($allowed_stages as $key) {
-                    if (isset($stages['stages'][$key])) {
-                        $working_stages['stages'][$key] = $stages['stages'][$key];
-                    }
-                    if (isset($stages['defect_points'][$key])) {
-                        $working_stages['defect_points'][$key] = $stages['defect_points'][$key];
-                    }
-                }
-
-                // Ensure the CURRENT stage (if any) is included so the client can display it
-                // even when the user doesn't have permission for it.
-                if (! empty($currentStage) && isset($stages['stages'][$currentStage]) && ! isset($working_stages['stages'][$currentStage])) {
-                    $working_stages['stages'][$currentStage] = $stages['stages'][$currentStage];
-
-                    if (isset($stages['defect_points'][$currentStage])) {
-                        $working_stages['defect_points'][$currentStage] = $stages['defect_points'][$currentStage];
-                    }
-                    // Note: we do NOT add currentStage to allowed_stages — that remains the user's permitted list
-                }
-            } else {
-                // user has no restriction: return everything (keep backward-compatible)
-                $working_stages = $stages;
-                // ensure we also include allowed_stages key for consistency (null or empty)
-                $working_stages['allowed_stages'] = [];
-            }
-            Log::info('getStagesAndStatus working_stages: '.json_encode($working_stages));
-            //  Get Working Stages ---------- END ------------- >>
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Product stages and status fetched successfully',
-                'data' => $working_stages,
-            ]);
-        } catch (Exception $e) {
-            Log::error('Error fetching product stages and status: '.$e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch product stages and status',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Update QA Code for a bonding plan product
-     */
-    public function updateQaCode(Request $request)
-    {
-        $user = Auth::user();
-        Log::info('updateQaCode: '.json_encode($request->all()));
-
-        try {
-            // Basic validation first
-            $validator = Validator::make($request->all(), [
-                'product_id' => 'required|integer|exists:bonding_plan_products,id',
-                'qa_code' => 'required|string|max:255',
-                'rfid_tag' => 'required|string|max:255',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation errors',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $productId = $request->input('product_id');
-            $qaCode = $request->input('qa_code');
-            $rfidTag = $request->input('rfid_tag');
-
-            $loginLocationId = LocaleHelper::getLoginUserLocationId();
-
-            // --- Duplicate checks scoped to location ---
-            $existingQaQuery = BondingPlanProduct::where('qa_code', $qaCode)
-                ->where('id', '<>', $productId);
-
-            if ($loginLocationId) {
-                $existingQaQuery->where('location_id', $loginLocationId);
-            }
-
-            $existingQa = $existingQaQuery->first();
-
-            if ($existingQa) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "The QA Code '{$qaCode}' is already in use at your location.",
-                ], 422);
-            }
-
-            $existingRfidQuery = Products::where('rfid_tag', $rfidTag);
-            if ($loginLocationId) {
-                $existingRfidQuery->where('location_id', $loginLocationId);
-            }
-            $existingRfid = $existingRfidQuery->first();
-
-            if ($existingRfid) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "The RFID Tag '{$rfidTag}' is already in use at your location.",
-                ], 422);
-            }
-
-            $existingQAcode = Products::where('qa_code', $qaCode)->first();
-            Log::info('Existing QA Code Check Query: '.json_encode($existingQAcode));
-            if ($existingQAcode) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "The QA Code '{$qaCode}' is already exists.",
-                ], 422);
-            }
-
-            Log::info('No duplicates found, proceeding to update.');
-
-            // --- Update bonding product ---
-            $bondingProduct = BondingPlanProduct::findOrFail($productId);
-            $bondingProduct->qa_code = $qaCode;
-            $bondingProduct->quantity = 1;
-            $bondingProduct->is_write = 1;
-            $bondingProduct->write_by = $user->id ?? 0;
-            $bondingProduct->write_date = now();
-            $bondingProduct->save();
-
-            // --- Insert into products (include location_id if available) ---
-            $productData = [
-                'bonding_plan_product_id' => $bondingProduct->id,
-                'product_name' => $bondingProduct->product_name,
-                'qa_code' => $qaCode,
-                'rfid_tag' => $rfidTag,
-                'sku' => $bondingProduct->sku ?? null,
-                'size' => $bondingProduct->size,
-                'quantity' => $bondingProduct->quantity ?? 0,
-                'reference_code' => $bondingProduct->reference_code ?? null,
-            ];
-
-            if ($loginLocationId) {
-                $productData['location_id'] = $loginLocationId;
-            }
-
-            $product = Products::create($productData);
-
-            // --- Insert into history ---
-            ProductProcessHistory::create([
-                'product_id' => $product->id,   // products.id
-                'stages' => 'bonding_qc',
-                'status' => 'PENDING',
-                'defects_points' => null,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'QA Code updated successfully',
-                'data' => [
-                    'id' => $bondingProduct->id,
-                    'product_name' => $bondingProduct->product_name,
-                    'qa_code' => $qaCode,
-                    'rfid_tag' => $rfidTag,
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error updating QA code: '.$e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update QA code',
                 'error' => $e->getMessage(),
             ], 500);
         }

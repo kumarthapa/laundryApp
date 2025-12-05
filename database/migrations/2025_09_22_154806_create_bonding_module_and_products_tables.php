@@ -10,14 +10,14 @@ return new class extends Migration
     public function up(): void
     {
         // ----------------------------
-        // Create bonding_plan_products
+        // Create rfid_tags
         // ----------------------------
-        Schema::create('bonding_plan_products', function (Blueprint $table) {
+        Schema::create('rfid_tags', function (Blueprint $table) {
             $table->id();
             $table->string('sku', 150)->nullable();
             $table->string('product_name', 200);
             $table->string('model', 100);
-            $table->string('qa_code', 200);
+            $table->string('rfid_code', 200);
             $table->string('size', 100);
             $table->integer('date')->default(0);
             $table->integer('month')->default(0);
@@ -40,12 +40,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('bonding_plan_product_id')
                 ->nullable()
-                ->constrained('bonding_plan_products')
+                ->constrained('rfid_tags')
                 ->nullOnDelete()
                 ->cascadeOnUpdate();
             $table->string('product_name', 200);
             $table->string('rfid_tag', 200)->unique();
-            $table->string('qa_code', 200)->unique();
+            $table->string('rfid_code', 200)->unique();
             $table->string('sku', 100)->nullable();
             $table->string('size', 150);
             $table->integer('quantity')->default(0);
@@ -82,8 +82,8 @@ return new class extends Migration
 
         // Insert bonding module at the end
         DB::table('modules')->insert([
-            'module_id' => 'bonding',
-            'slug' => 'bonding',
+            'module_id' => 'inventory',
+            'slug' => 'inventory',
             'icon' => 'bx bx-spreadsheet',
             'is_active' => 1,
             'is_menu' => 1,
@@ -95,12 +95,12 @@ return new class extends Migration
 
         // Insert permissions
         $permissions = [
-            ['permission_name' => 'View Bonding Products', 'permission_id' => 'view.bonding', 'module_id' => 'bonding'],
-            ['permission_name' => 'Create Bonding Products', 'permission_id' => 'create.bonding', 'module_id' => 'bonding'],
-            ['permission_name' => 'Edit Bonding Products', 'permission_id' => 'edit.bonding', 'module_id' => 'bonding'],
-            ['permission_name' => 'Delete Bonding Products', 'permission_id' => 'delete.bonding', 'module_id' => 'bonding'],
-            ['permission_name' => 'Write Tags', 'permission_id' => 'write.bonding', 'module_id' => 'bonding'],
-            ['permission_name' => 'Lock Tags', 'permission_id' => 'lock.bonding', 'module_id' => 'bonding'],
+            ['permission_name' => 'View Bonding Products', 'permission_id' => 'view.inventory', 'module_id' => 'inventory'],
+            ['permission_name' => 'Create Bonding Products', 'permission_id' => 'create.inventory', 'module_id' => 'inventory'],
+            ['permission_name' => 'Edit Bonding Products', 'permission_id' => 'edit.inventory', 'module_id' => 'inventory'],
+            ['permission_name' => 'Delete Bonding Products', 'permission_id' => 'delete.inventory', 'module_id' => 'inventory'],
+            ['permission_name' => 'Write Tags', 'permission_id' => 'write.inventory', 'module_id' => 'inventory'],
+            ['permission_name' => 'Lock Tags', 'permission_id' => 'lock.inventory', 'module_id' => 'inventory'],
         ];
 
         DB::table('permissions')->insert($permissions);
@@ -109,11 +109,11 @@ return new class extends Migration
     public function down(): void
     {
         // Delete bonding module and permissions
-        DB::table('permissions')->where('module_id', 'bonding')->delete();
-        DB::table('modules')->where('module_id', 'bonding')->delete();
+        DB::table('permissions')->where('module_id', 'inventory')->delete();
+        DB::table('modules')->where('module_id', 'inventory')->delete();
 
         Schema::dropIfExists('product_process_history');
         Schema::dropIfExists('products');
-        Schema::dropIfExists('bonding_plan_products');
+        Schema::dropIfExists('rfid_tags');
     }
 };

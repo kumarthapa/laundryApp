@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers\products;
 
-use App\Exports\ProductExport;
-use App\Helpers\FileImportHelper;
 use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
-use App\Models\products\ProductProcessHistory;
-use App\Models\products\Products;
-use App\Models\user_management\UsersModel;
+use App\Models\location\Location;
+use App\Models\products\Product;
+use App\Models\user_management\Role;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,298 +19,182 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductsController extends Controller
 {
-    protected $products;
-
-    protected $stageMap = [];
-
-    protected $defectPointMap = [];
-
-    protected $statusMap = [];
+    protected Product $product;
 
     public function __construct()
     {
-        $this->products = new Products;
-
-        // Load config maps once for reuse (value => label)
-        $configData = UtilityHelper::getProductStagesAndDefectPoints() ?? [];
-
-        // stages: array of {name, value}
-        $stages = $configData['stages'] ?? [];
-        $this->stageMap = collect($stages)->mapWithKeys(function ($s) {
-            $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
-
-            return [$s['value'] => $label];
-        })->toArray();
-
-        // status: array of {name, value} OR keyed map
-        $status = $configData['status'] ?? [];
-        if (is_array($status) && array_values($status) !== $status) {
-            // already associative map value=>label
-            $this->statusMap = $status;
-        } else {
-            $this->statusMap = collect($status)->mapWithKeys(function ($s) {
-                $label = $s['name'] ?? ($s['label'] ?? $s['value'] ?? '');
-
-                return [$s['value'] => $label];
-            })->toArray();
-        }
-
-        // defect_points: object keyed by stage => array[{name,value}]
-        $defects = $configData['defect_points'] ?? [];
-        $flatDefects = [];
-        if (is_array($defects)) {
-            foreach ($defects as $stageKey => $points) {
-                if (! is_array($points)) {
-                    continue;
-                }
-                foreach ($points as $p) {
-                    $val = $p['value'] ?? null;
-                    $name = $p['name'] ?? ($p['label'] ?? $val);
-                    if ($val) {
-                        $flatDefects[$val] = $name;
-                    }
-                }
-            }
-        }
-        $this->defectPointMap = $flatDefects;
+        $this->product = new Product;
     }
 
+    /**
+     * Show products list page
+     */
     public function index(Request $request)
     {
-        // $stages = UtilityHelper::getProductStagesAndStatus();
-        // // print_r($stages);
-        // // exit;
-        // // // ✅ which stages to keep
-        // $allowed = Auth::user()->working_stage ? json_decode(Auth::user()->working_stage, true) : null;
-        // if (! empty($allowed)) {
-        //     $new = [
-        //         'stages' => [],
-        //         'defect_points' => [],
-        //         'status' => $stages['status'],   // keep same
-        //     ];
-        //     // filter stages
-        //     foreach ($allowed as $key) {
-        //         if (isset($stages['stages'][$key])) {
-        //             $new['stages'][$key] = $stages['stages'][$key];
-        //         }
-        //         if (isset($stages['defect_points'][$key])) {
-        //             $new['defect_points'][$key] = $stages['defect_points'][$key];
-        //         }
-        //     }
-        // } else {
-        //     $new = $stages;
-        // }
+        $authUser = Auth::user();
+        $role_info = Role::find($authUser->role_id);
 
-        // print_r($new);
-        // exit;
         $headers = [
             ['created_at' => 'Created Date'],
             ['product_name' => 'Product Name'],
             ['sku' => 'SKU'],
-            ['size' => 'Size'],
-            // ['rfid_tag' => 'RFID Tag'],
-            ['qa_code' => 'QA Code'],
+            ['category' => 'Category'],
+            ['expected_life_cycles' => 'Expected Life Cycles'],
             ['quantity' => 'Quantity'],
-            ['qc_status' => 'QC Status'],
-            ['current_stage' => 'Current Stage'],
-            // ['actions' => 'Actions'],
+            ['status' => 'Status'],
         ];
-        $role_id = Auth::user()->role_id ?? null;
-        $productsOverview = LocaleHelper::getProductSummaryCounts();
+        // Fetch locations for admins
+        $locations_info = [];
+        if ($role_info->role_type == 'super_role' || $role_info->role_type == 'admin_role') {
+            $locations_info = Location::all();
+        }
 
-        $productsOverview = [
-            'total_products' => $productsOverview['total_products'] ?? 0,
-            'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
-            // 'total_tags' => $productsOverview['total_rfid_tags'] ?? 0,
-            'total_pass_products' => $productsOverview['total_passed'] ?? 0,
-            'total_fail_products' => $productsOverview['total_failed'] ?? 0,
-            'total_rework_products' => $productsOverview['total_rework'] ?? 0,
-            'total_pending_products' => $productsOverview['total_pending'] ?? 0,
-        ];
+        // $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
+
+        // $productsOverview = [
+        //     'total_model' => $productsOverview['total_model'] ?? 0,
+        //     'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
+        //     'total_writted' => $productsOverview['total_writted'] ?? 0,
+        //     'total_pending' => $productsOverview['total_pending'] ?? 0,
+        // ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('products', 'create.products');
         $deletePermissions = $UtilityHelper::CheckModulePermissions('products', 'delete.products');
+        // $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
+        // Readonly must be false so checkbox column is added
         $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
 
-        $configData = UtilityHelper::getProductStagesAndDefectPoints();
+        // $allProductsData = Product::with('processHistory')->get();
+        // Log::info('Total products data 12: ', $allProductsData->toArray());
 
         return view('content.products.list')
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
-            ->with('productsOverview', $productsOverview)
-            ->with('stages', $configData['stages'] ?? [])
-            ->with('defect_points', $configData['defect_points'] ?? [])
-            ->with('status', $configData['status'] ?? [])
-            ->with('deletePermissions', $deletePermissions)
-            ->with('role_id', $role_id)
-            ->with('createPermissions', $createPermissions);
+            // ->with('productsOverview', $productsOverview)
+            ->with('createPermissions', $createPermissions)
+            ->with('locations_info', $locations_info)
+            ->with('deletePermissions', $deletePermissions);
     }
 
     /**
      * Build a single row for datatable from DB row/stdClass
      */
-    protected function tableHeaderRowData($row)
+    protected function tableHeaderRowData($row, array $tagCounts = [])
     {
         $data = [];
-        $view = route('view.products', ['code' => $row->id]);
-        $edit = route('edit.products', ['id' => $row->id]);
-        $delete = route('delete.products', ['id' => $row->id]);
 
-        // get latest history if present
-        $history = ProductProcessHistory::where('product_id', $row->id)
-            ->latest('changed_at')
-            ->first();
-
-        // QC status: prefer history.status, fallback to DB column (if exists)
-        $statusRaw = $history->status ?? null;
-        $statusNormalized = strtoupper(trim((string) ($statusRaw ?? '')));
-
-        // normalize fail term variations
-        if ($statusNormalized === 'FAIL') {
-            $statusNormalized = 'FAIL';
+        $createdAt = $row->created_at ? (string) $row->created_at : null;
+        try {
+            $createdAt = $createdAt ? Carbon::parse($createdAt)->format('d-m-Y H:i') : '';
+        } catch (\Throwable $t) {
+            $createdAt = $row->created_at;
         }
 
-        $statusHTML = '';
-        switch ($statusNormalized) {
-            case 'PASS':
-                $statusHTML = '<span class="badge rounded bg-label-success " title="PASS"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>PASS</span>';
-                break;
-            case 'FAIL':
-                $statusHTML = '<span class="badge rounded bg-label-danger " title="FAIL"><i class="icon-base bx bx-x-circle icon-lg me-1"></i>FAIL</span>';
-                break;
-            case 'REWORK':
-                $statusHTML = '<span class="badge rounded bg-label-warning " title="REWORK"><i class="icon-base bx bx-refresh icon-lg me-1"></i>REWORK</span>';
-                break;
-            case 'PENDING':
-            default:
-                $statusHTML = '<span class="badge rounded bg-label-primary" title="PENDING"><i class="icon-base bx bx-time icon-lg me-1"></i>PENDING</span>';
-                break;
-        }
+        $qty = $tagCounts[$row->id] ?? 0;
 
-        // Stage name: prefer history.stages (value), map to friendly name if available
-        $stageValue = $history->stages ?? null;
-        $stageLabel = $this->stageMap[$stageValue] ?? $stageValue;
-        $stageHTML = $stageLabel ? '<span class="badge rounded bg-label-secondary " title="Stage"><i class="icon-base bx bx-message-alt-detail me-1"></i>'.e($stageLabel).'</span>' : '';
+        $statusLabel = (isset($row->status) && intval($row->status) === 1) ? '<span class="badge rounded bg-label-success">Active</span>' : '<span class="badge rounded bg-label-secondary">Inactive</span>';
 
-        // Defect points (history.defects_points stored JSON array) -> display small badges or count
-        // $defectsHtml = '';
-        // $defectsCount = 0;
-        // $defectsRaw = $history->defects_points ?? null;
-        // if (! empty($defectsRaw)) {
-        //     // try decode JSON safely
-        //     $decoded = null;
-        //     if (is_string($defectsRaw)) {
-        //         $decoded = @json_decode($defectsRaw, true);
-        //     } elseif (is_array($defectsRaw)) {
-        //         $decoded = $defectsRaw;
-        //     }
-        //     if (is_array($decoded) && count($decoded) > 0) {
-        //         $defectsCount = count($decoded);
-        //         $pieces = [];
-        //         foreach ($decoded as $d) {
-        //             $label = $this->defectPointMap[$d] ?? $d;
-        //             $pieces[] = '<span class="badge rounded bg-label-info me-1" title="'.e($label).'">'.e($label).'</span>';
-        //         }
-        //         $defectsHtml = implode(' ', $pieces);
-        //     }
-        // }
-        // Checkbox column (first cell) with data-id
         $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
+        $data['created_at'] = $createdAt;
+        $data['product_name'] = $row->product_name ?? '';
+        $data['sku'] = $row->sku ?? '';
+        $data['category'] = $row->category ?? '';
+        // $data['price'] = isset($row->price) ? number_format($row->price, 2) : '';
+        $data['expected_life_cycles'] = $row->expected_life_cycles ?? '';
+        $data['quantity'] = $qty;
+        $data['status'] = $statusLabel;
 
-        $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
-        $data['product_name'] = $row->product_name;
-        $data['sku'] = $row->sku;
-        $data['size'] = $row->size;
-        $data['qa_code'] = $row->qa_code;
-        $data['quantity'] = $row->quantity;
-        $data['qc_status'] = $statusHTML;
-        $data['current_stage'] = $stageHTML;
-        // $data['current_stage'] = $stageHTML.($defectsHtml ? '<div class="mt-1">'.$defectsHtml.'</div>' : '');
+        // Actions (view/edit/delete)
+        $viewUrl = route('view.products', ['code' => $row->id]);
+        $editUrl = route('edit.products', ['id' => $row->id]);
+        $deleteUrl = route('delete.products', ['id' => $row->id]);
 
-        // $data['actions'] = '<div class="d-inline-block">
-        //     <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></a>
-        //     <ul class="dropdown-menu dropdown-menu-end">
-        //         <li><a href="javascript:;" onclick="deleteRow(\''.$delete.'\');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
-        //     <div class="dropdown-divider"></div>
-        //     </ul>
-        // </div>';
+        $actions = '<div class="btn-group">';
+        $actions .= '<a href="'.e($viewUrl).'" class="btn btn-sm btn-outline-primary">View</a>';
+        $actions .= '<a href="'.e($editUrl).'" class="btn btn-sm btn-outline-secondary">Edit</a>';
+        $actions .= '<a href="javascript:;" onclick="deleteRow(\''.e($deleteUrl).'\');" class="btn btn-sm btn-outline-danger">Delete</a>';
+        $actions .= '</div>';
 
-        // <li><a href="'.$view.'" class="dropdown-item text-primary"><i class="bx bx-file me-1"></i>View Details</a></li>
-        // <li><a href="'.$edit.'" class="dropdown-item text-primary item-edit"><i class="bx bxs-edit me-1"></i>Edit</a></li>
+        $data['actions'] = $actions;
+
         return $data;
     }
 
-    /* AJAX: return table rows */
+    /**
+     * AJAX: return table rows (datatables style)
+     */
     public function list(Request $request)
     {
-        $search = $request->get('search') ?? '';
-        $limit = intval($request->get('length', 10000));
+        $search = (string) $request->get('search', '');
+        $limit = intval($request->get('length', 50));
         $offset = intval($request->get('start', 0));
-        $sort = $request->get('sort') ?? 'p.created_at';
-        $order = $request->get('order') ?? 'desc';
+        $sort = $request->get('sort', 'products.created_at');
+        $order = $request->get('order', 'desc');
 
-        // Normalize incoming filter keys: support both old and new param names
+        // Filters: status and category and sku
         $filters = [
-            // qc status may come as qc_status or status
-            'status' => $request->get('qc_status') ?? $request->get('status') ?? '',
-            // stage may come as current_stage or stages
-            'stages' => $request->get('current_stage') ?? $request->get('stages') ?? '',
-            // defect points param name might be defect_points (frontend) or defects_points (legacy/backward)
-            'defects_points' => $request->get('defect_points') ?? $request->get('defects_points') ?? '',
+            'status' => $request->get('status', ''),
+            'category' => $request->get('category', ''),
+            'sku' => $request->get('sku', ''),
         ];
 
-        // normalize "ALL" to empty (no filter)
-        foreach (['status', 'stages', 'defects_points'] as $k) {
-            if (is_string($filters[$k]) && strtolower($filters[$k]) === 'all') {
-                $filters[$k] = '';
-            }
+        // Date range (optional)
+        $startDate = $request->get('start_date', null);
+        $endDate = $request->get('end_date', null);
+        if ($startDate && $endDate) {
+            $filters['start_date'] = $startDate;
+            $filters['end_date'] = $endDate;
         }
 
-        // If defect points sent as comma-separated string (from multi-select), convert to array
-        if (! empty($filters['defects_points']) && is_string($filters['defects_points']) && strpos($filters['defects_points'], ',') !== false) {
-            // trim values
-            $arr = array_filter(array_map('trim', explode(',', $filters['defects_points'])));
-            $filters['defects_points'] = array_values($arr);
+        // Get products using Product::search (returns collection of stdClass or arrays)
+        $searchData = $this->product->search($search, $filters, $limit, $offset, $sort, $order);
+        $totalRows = $this->product->get_found_rows($search, $filters);
+
+        // Collect IDs to compute tag counts in one query (avoid N+1)
+        $ids = array_map(fn ($r) => $r->id, $searchData->toArray() ?: []);
+        $tagCounts = [];
+        if (! empty($ids)) {
+            $counts = DB::table('rfid_tags')
+                ->select('product_id', DB::raw('COUNT(*) as cnt'))
+                ->whereIn('product_id', $ids)
+                ->groupBy('product_id')
+                ->get()
+                ->pluck('cnt', 'product_id')
+                ->toArray();
+
+            $tagCounts = $counts;
         }
 
-        // Date range
-        $selectedDate = $request->get('selectedDaterange') ?? $request->get('default_dateRange');
-        $daterange = LocaleHelper::dateRangeDateInputFormat($selectedDate);
-
-        $filters['start_date'] = isset($daterange['start_date']) ? $daterange['start_date'] : Carbon::today()->startOfDay();
-        $filters['end_date'] = isset($daterange['end_date']) ? $daterange['end_date'] : Carbon::today()->endOfDay();
-
-        // print_r($filters);
-        // exit;
-        $searchData = $this->products->search($search, $filters, $limit, $offset, $sort, $order);
-        $total_rows = $this->products->get_found_rows($search, $filters);
-
-        $data_rows = [];
+        $dataRows = [];
         foreach ($searchData as $row) {
-            $data_rows[] = $this->tableHeaderRowData($row);
+            $dataRows[] = $this->tableHeaderRowData($row, $tagCounts);
         }
 
-        $response = [
-            'data' => $data_rows,
-            'recordsTotal' => $total_rows,
-            'recordsFiltered' => $total_rows,
-        ];
-
-        return response()->json($response);
+        return response()->json([
+            'data' => $dataRows,
+            'recordsTotal' => $totalRows,
+            'recordsFiltered' => $totalRows,
+        ]);
     }
 
+    /**
+     * Create view
+     */
     public function create(Request $request)
     {
-        return view('content.products.create', []);
+        return view('content.products.create');
     }
 
+    /**
+     * Edit view
+     */
     public function edit(Request $request, $id)
     {
-        $product = Products::find($id);
+        $product = Product::find($id);
         if (! $product) {
             return view('content.miscellaneous.no-data');
         }
@@ -320,95 +202,87 @@ class ProductsController extends Controller
         return view('content.products.edit', ['product' => $product]);
     }
 
-    // public function save(Request $request, $id = null)
-    // {
-    //     // Validation base rules
-    //     $rules = [
-    //         'product_name' => 'required|string|max:200',
-    //         'sku' => 'required|string|max:100',
-    //         'reference_code' => 'nullable|string|max:200',
-    //         'size' => 'required|string|max:150',
-    //         'rfid_tag' => 'required|string|max:200',
-    //         'quantity' => 'nullable|integer|min:0',
-    //     ];
+    /**
+     * Save (create/update) product
+     */
+    public function save(Request $request, $id = null)
+    {
+        $rules = [
+            'product_name' => 'required|string|max:255',
+            'sku' => 'required|string|max:255',
+            'expected_life_cycles' => 'nullable|integer|min:0',
+            'description' => 'nullable|string',
+            'status' => 'nullable|in:0,1',
+        ];
 
-    //     // Unique rules
-    //     if ($id) {
-    //         $rules['sku'] .= '|unique:products,sku,'.intval($id);
-    //         $rules['rfid_tag'] .= '|unique:products,rfid_tag,'.intval($id);
-    //     } else {
-    //         $rules['sku'] .= '|unique:products,sku';
-    //         $rules['rfid_tag'] .= '|unique:products,rfid_tag';
-    //     }
+        // Unique sku rule
+        if ($id) {
+            $rules['sku'] .= '|unique:products,sku,'.$id;
+        } else {
+            $rules['sku'] .= '|unique:products,sku';
+        }
 
-    //     $messages = [
-    //         'rfid_tag.unique' => 'The RFID Tag has already been taken.',
-    //         'sku.unique' => 'The SKU has already been taken.',
-    //     ];
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
 
-    //     $validator = Validator::make($request->all(), $rules, $messages);
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Validation fail',
-    //             'errors' => $validator->errors(),
-    //         ], 422);
-    //     }
+        $data = $request->only([
+            'product_name',
+            'sku',
+            'category',
+            'price',
+            'expected_life_cycles',
+            'description',
+            'status',
+        ]);
 
-    //     $data = $request->only([
-    //         'product_name',
-    //         'sku',
-    //         'reference_code',
-    //         'size',
-    //         'rfid_tag',
-    //         'quantity',
-    //     ]);
+        // Normalize status to 0/1
+        if (isset($data['status'])) {
+            $data['status'] = intval($data['status']);
+        } else {
+            $data['status'] = 1;
+        }
 
-    //     $user = Auth::user();
-    //     $data['qc_status_updated_by'] = $user->id ?? null;
+        DB::beginTransaction();
+        try {
+            if ($id) {
+                $product = Product::findOrFail($id);
+                $product->update($data);
+                $action = 'update';
+            } else {
+                $product = Product::create($data);
+                $action = 'create';
+            }
 
-    //     DB::beginTransaction();
-    //     try {
-    //         if ($id) {
-    //             $product = Products::findOrFail($id);
-    //             $product->update($data);
-    //             $action = 'update';
-    //         } else {
-    //             $product = Products::create($data);
-    //             $action = 'create';
-    //         }
+            DB::commit();
 
-    //         // Log activity
-    //         $this->UserActivityLog($request, [
-    //             'module' => 'products',
-    //             'activity_type' => $action,
-    //             'message' => ucfirst($action).'d product: '.$product->product_name,
-    //             'application' => 'web',
-    //             'data' => $data,
-    //         ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Product successfully '.($action === 'create' ? 'created' : 'updated').'.',
+                'product_id' => $product->id,
+                'return_url' => route('products'),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Product save error: '.$e->getMessage());
 
-    //         DB::commit();
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred: '.$e->getMessage(),
+            ], 500);
+        }
+    }
 
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Product successfully '.($action === 'create' ? 'created' : 'updated').'.',
-    //             'return_url' => route('products'),
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         Log::error('Product '.($id ? 'update' : 'create').' error: '.$e->getMessage());
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An error occurred: '.$e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    /* Delete */
+    /**
+     * Delete single or multiple products
+     */
     public function delete(Request $request, $id = null)
     {
-        // Collect ids from multiple possible sources: route param $id, request 'id', or request 'ids' (array)
         $inputIds = $request->input('ids', null);
         $singleId = $id ?: $request->input('id', null);
 
@@ -425,77 +299,32 @@ class ProductsController extends Controller
 
         DB::beginTransaction();
         try {
-            // print_r($ids);
-            // exit;
-            $query = Products::with('processHistory')->whereIn('id', $ids);
-            $models = LocaleHelper::commonWhereLocationCheck($query, 'products');
-            $models = $models->get();
-            if ($models->isEmpty()) {
+            // Optional: prevent deletion if product has tags
+            $productsWithTags = DB::table('rfid_tags')->whereIn('product_id', $ids)->pluck('product_id')->unique()->toArray();
+
+            if (! empty($productsWithTags)) {
+                // return error listing product codes which have tags
+                $problemSkus = Product::whereIn('id', $productsWithTags)->pluck('sku')->toArray();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'No matching records found.',
-                ], 404);
+                    'message' => 'Cannot delete product(s) which have mapped RFID tags. Unassign tags first.',
+                    'products_with_tags' => $problemSkus,
+                ], 400);
             }
 
-            $deletedCount = 0;
-            $skipped = [];
-
-            foreach ($models as $model) {
-                // example rule: skip if written/locked
-                if ($model->is_written ?? false) {
-                    $skipped[] = $model->id;
-
-                    continue;
-                }
-
-                // delete histories
-                if (method_exists($model, 'processHistory')) {
-                    $model->processHistory()->delete();
-                }
-
-                // delete related products if relation exists
-                if (method_exists($model, 'products')) {
-                    $model->products()->delete();
-                }
-
-                $model->delete();
-                $deletedCount++;
-            }
+            $deleted = Product::whereIn('id', $ids)->delete();
 
             DB::commit();
 
-            // build message
-            $message = $deletedCount.' item(s) deleted successfully.';
-            if (! empty($skipped)) {
-                $message .= ' Written items cannot be deleted: '.count($skipped).' item(s) skipped ['.implode(',', $skipped).'].';
-            }
-
-            // log user activity
-            try {
-                $user = Auth::user();
-                $this->UserActivityLog($request, [
-                    'module' => 'products',
-                    'activity_type' => 'delete',
-                    'message' => 'Delete action by: '.($user->fullname ?? 'Unknown'),
-                    'application' => 'web',
-                    'data' => [
-                        'deleted_count' => $deletedCount,
-                        'skipped' => $skipped,
-                    ],
-                ]);
-            } catch (\Throwable $t) {
-                Log::warning('UserActivityLog failed: '.$t->getMessage());
-            }
-
             return response()->json([
                 'success' => true,
-                'message' => $message,
-                'deleted' => $deletedCount,
-                'skipped' => $skipped,
+                'message' => "{$deleted} product(s) deleted successfully.",
+                'deleted' => $deleted,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Delete exception: '.$e->getMessage());
+            Log::error('Product delete error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -504,18 +333,15 @@ class ProductsController extends Controller
         }
     }
 
-    /* Product import format (same as before) */
+    /**
+     * Download sample product import template
+     */
     public function productImportFormat(Request $request)
     {
-        $data = [];
         try {
+            $data = [];
             $header = [
-                'SKU',
-                'Product Name',
-                'Size',
-                'Quantity',
-                'RFID Tag',
-                'Reference Code',
+                'sku', 'product_name', 'category', 'expected_life_cycles', 'description',
             ];
             $data[] = $header;
             $data[] = [];
@@ -533,341 +359,93 @@ class ProductsController extends Controller
                 {
                     return $this->data;
                 }
-            }, 'productImportFormat.xlsx');
+            }, 'product_import_template.xlsx');
         } catch (\Exception $e) {
-            return back()->with('error', 'There was an error generating the report: '.$e->getMessage());
+            Log::error('productImportFormat error: '.$e->getMessage());
+
+            return back()->with('error', 'There was an error generating the template: '.$e->getMessage());
         }
     }
 
-    /* Bulk upload - simplified & robust */
+    /**
+     * Bulk upload simple implementation (insert new or update existing)
+     * Expected columns: sku, product_name, category, price, expected_life_cycles, description
+     */
     public function bulkProductUpload(Request $request)
     {
+        // print_r($request->all());
+        // exit;
         $validator = Validator::make($request->all(), [
-            'file' => 'required|mimes:xlsx,xls',
-            'action_type' => 'required|in:upload_new,update_existing',
+            'file' => 'required|file|mimes:xlsx,xls,csv',
+            'user_location_id' => 'required|integer',
         ]);
 
         if ($validator->fails()) {
-            Log::error('Product bulk upload fail: '.$validator->errors());
-
-            return response()->json(['success' => false, 'errors' => $validator->errors(), 'message' => 'Invalid format for upload file or action type.']);
+            return response()->json(['success' => false, 'errors' => $validator->errors(), 'message' => 'Invalid upload parameters.']);
         }
 
-        $actionType = $request->input('action_type');
         $file = $request->file('file');
 
         DB::beginTransaction();
         try {
-            $formattedData = FileImportHelper::getFileData($file);
-            if (! $formattedData || ! isset($formattedData['header']) || ! isset($formattedData['body']) || count($formattedData['body']) < 1) {
-                return response()->json(['success' => false, 'message' => 'No product data found to upload.']);
+            $collection = Excel::toCollection(null, $file)->first();
+            if (! $collection || $collection->count() < 1) {
+                return response()->json(['success' => false, 'message' => 'No rows found in the uploaded file.']);
             }
 
-            $actualHeaders = $formattedData['header'];
-            $missingHeaders = array_diff(['Product Name', 'SKU', 'Size'], $actualHeaders);
-            if (count($missingHeaders) > 0) {
-                return response()->json(['success' => false, 'message' => 'Missing mandatory header(s): '.implode(', ', $missingHeaders)]);
+            // First row as header
+            $header = $collection->first()->map(fn ($h) => strtolower(trim((string) $h)))->toArray();
+            $rows = $collection->slice(1);
+
+            // Map header indexes
+            $indexMap = array_flip($header);
+
+            $required = ['sku', 'product_name'];
+            foreach ($required as $r) {
+                if (! isset($indexMap[$r])) {
+                    return response()->json(['success' => false, 'message' => "Missing required column: {$r}"]);
+                }
             }
 
-            // Preload existing keys
-            $existingSkus = Products::pluck('sku')->toArray();
-            $existingRfids = Products::pluck('rfid_tag')->toArray();
-
-            $fileSkus = [];
-            $fileRfids = [];
-            $importData = [];
-
-            foreach ($formattedData['body'] as $rowIndex => $row) {
-                if (empty($row) || (count(array_filter($row)) === 0)) {
-                    continue; // skip empty rows
-                }
-                $productName = trim($row['Product Name'] ?? '');
-                $sku = trim($row['SKU'] ?? '');
-                $size = trim($row['Size'] ?? '');
-                $rfidTag = trim($row['RFID Tag'] ?? '');
-                $referenceCode = $row['Reference Code'] ?? null;
-                $quantity = isset($row['Quantity']) ? (int) $row['Quantity'] : 0;
-
-                if (empty($productName) || empty($sku) || empty($size)) {
-                    return response()->json(['success' => false, 'message' => 'Missing required fields at row '.($rowIndex + 1).'. Product Name, SKU, and Size are mandatory.']);
+            $processed = 0;
+            foreach ($rows as $row) {
+                $row = $row->toArray();
+                $productCode = $row[$indexMap['sku']] ?? null;
+                $productName = $row[$indexMap['product_name']] ?? null;
+                if (! $productCode || ! $productName) {
+                    continue;
                 }
 
-                if ($actionType === 'upload_new') {
-                    if (in_array($sku, $existingSkus)) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row ".($rowIndex + 1).' already exists in database.']);
-                    }
-                    if ($rfidTag !== '' && in_array($rfidTag, $existingRfids)) {
-                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row ".($rowIndex + 1).' already exists in database.']);
-                    }
-                    if (in_array($sku, $fileSkus)) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row ".($rowIndex + 1).' is duplicated in the upload file.']);
-                    }
-                    if ($rfidTag !== '' && in_array($rfidTag, $fileRfids)) {
-                        return response()->json(['success' => false, 'message' => "RFID Tag '{$rfidTag}' at row ".($rowIndex + 1).' is duplicated in the upload file.']);
-                    }
-
-                    $fileSkus[] = $sku;
-                    if ($rfidTag !== '') {
-                        $fileRfids[] = $rfidTag;
-                    }
-                } elseif ($actionType === 'update_existing') {
-                    if (! Products::where('sku', $sku)->exists()) {
-                        return response()->json(['success' => false, 'message' => "SKU '{$sku}' at row ".($rowIndex + 1).' does not exist for update.']);
-                    }
-                }
-
-                $productData = [
-                    'product_name' => $productName,
-                    'sku' => $sku,
-                    'reference_code' => $referenceCode,
-                    'size' => $size,
-                    'rfid_tag' => $rfidTag ?: null,
-                    'quantity' => $quantity,
-                    'qc_confirmed_at' => null,
-                    'qc_status_updated_by' => null,
-                    'updated_at' => now(),
+                $payload = [
+                    'sku' => trim((string) $productCode),
+                    'product_name' => trim((string) $productName),
+                    'category' => isset($indexMap['category']) ? ($row[$indexMap['category']] ?? null) : null,
+                    'price' => isset($indexMap['price']) ? ($row[$indexMap['price']] ?? null) : null,
+                    'expected_life_cycles' => isset($indexMap['expected_life_cycles']) ? ($row[$indexMap['expected_life_cycles']] ?? null) : null,
+                    'description' => isset($indexMap['description']) ? ($row[$indexMap['description']] ?? null) : null,
+                    'status' => 1,
+                    'location_id' => $request->input('user_location_id'),
                 ];
 
-                if ($actionType === 'upload_new') {
-                    $productData['created_at'] = now();
-                }
+                $existing = Product::where('sku', $payload['sku'])->first();
 
-                $importData[] = $productData;
-            }
-
-            // Persist
-            if (! empty($importData)) {
-                if ($actionType === 'upload_new') {
-                    Products::insert($importData);
+                if ($existing) {
+                    $existing->update($payload);
                 } else {
-                    foreach ($importData as $p) {
-                        Products::where('sku', $p['sku'])->update($p);
-                    }
+                    Product::create($payload);
                 }
+                $processed++;
 
-                $this->UserActivityLog($request, [
-                    'module' => 'products',
-                    'activity_type' => $actionType === 'upload_new' ? 'bulk_upload_new' : 'bulk_update_existing',
-                    'message' => $actionType === 'upload_new' ? 'Bulk upload of new products completed' : 'Bulk update of existing products completed',
-                    'application' => 'web',
-                    'data' => $importData,
-                ]);
             }
 
             DB::commit();
 
-            return response()->json(['success' => true, 'message' => 'Product data processed successfully.']);
+            return response()->json(['success' => true, 'message' => "Bulk upload processed. Rows handled: {$processed}"]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Product bulk upload error: '.$e->getMessage());
+            Log::error('bulkProductUpload error: '.$e->getMessage());
 
-            return response()->json(['success' => false, 'message' => 'Bulk upload fail: '.$e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Bulk upload failed.']);
         }
     }
-
-    public function exportProducts(Request $request)
-    {
-        $user = Auth::user();
-        $daterange = $request->query('daterange'); // from query string
-        $startDate = null;
-        $endDate = null;
-
-        if (! empty($daterange)) {
-            try {
-                // Example: "08/09/2025 - 08/10/2025"
-                [$start, $end] = array_map('trim', explode('-', $daterange));
-                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
-                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Invalid date range format. Expected 'DD/MM/YYYY - DD/MM/YYYY'.",
-                ]);
-            }
-        }
-
-        $metaInfo = [
-            'date_range' => $daterange ?: 'All time',
-            'generated_by' => $user->fullname ?? 'System',
-        ];
-
-        // Eager load latestHistory (we store stages/status as strings)
-        $query = Products::with('latestHistory');
-        $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
-        $products = $query->get();
-
-        // Filter by date range if provided
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        }
-        $products = $query->get();
-
-        $dataRows = $products->map(function ($product) {
-            $latest = $product->latestHistory;
-            $latestStage = $latest ? ($latest->stages ?? '') : '';
-            $latestStatus = $latest ? ($latest->status ?? '') : '';
-            // normalize FAIL -> FAIL in export as well
-            $latestStatusNormalized = strtoupper(trim((string) $latestStatus));
-            if ($latestStatusNormalized === 'FAIL') {
-                $latestStatusNormalized = 'FAIL';
-            }
-
-            return [
-                $product->product_name,
-                $product->sku,
-                $product->reference_code,
-                $product->size,
-                $product->qa_code,
-                $product->quantity,
-                $latestStatusNormalized,
-                $latestStage,
-                $product->qc_confirmed_at ? LocaleHelper::formatDateWithTime($product->qc_confirmed_at) : '',
-                LocaleHelper::formatDateWithTime($product->created_at),
-                LocaleHelper::formatDateWithTime($product->updated_at),
-            ];
-        })->toArray();
-
-        $headers = [
-            'Product Name',
-            'SKU',
-            'Reference Code',
-            'Size',
-            'QA Code',
-            'Quantity',
-            'QC Status',
-            'Current Stage',
-            'QC Confirmed At',
-            'Created At',
-            'Updated At',
-        ];
-
-        return Excel::download(new ProductExport($dataRows, $metaInfo, $headers), 'products_export_'.now()->format('Ymd_His').'.xlsx');
-    }
-
-    public function exportProductsStageWise(Request $request)
-    {
-        $user = Auth::user();
-        $daterange = $request->query('daterange'); // from query string
-        $startDate = null;
-        $endDate = null;
-
-        if (! empty($daterange)) {
-            try {
-                // Example: "08/09/2025 - 08/10/2025"
-                [$start, $end] = array_map('trim', explode('-', $daterange));
-                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
-                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Invalid date range format. Expected 'DD/MM/YYYY - DD/MM/YYYY'.",
-                ]);
-            }
-        }
-
-        $metaInfo = [
-            'date_range' => $daterange ?: 'All time',
-            'generated_by' => $user->fullname ?? 'System',
-        ];
-
-        // Fetch stages dynamically from config
-        $configData = UtilityHelper::getProductStagesAndDefectPoints();
-        $stages = $configData['stages'] ?? [];
-
-        // Base product headers (static part)
-        $baseHeaders = [
-            'SKU',
-            'Product Name',
-            'Size',
-            'QA Code',
-            'Reference Code',
-        ];
-
-        // Append stage-wise headers dynamically
-        $stageHeaders = array_map(fn ($stage) => $stage['name'], $stages);
-
-        // Meta/product info headers (could also be dynamic if needed)
-        $extraHeaders = [
-            // 'QC Confirmed At',
-            'Created At',
-            'Updated At',
-        ];
-
-        // Final headers
-        $headers = array_merge($baseHeaders, $stageHeaders, $extraHeaders);
-
-        // Fetch products with histories
-        $query = Products::with('latestHistory');
-
-        $query = LocaleHelper::commonWhereLocationCheck($query, 'products');
-
-        // Filter by date range if provided
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        }
-        $products = $query->get();
-
-        $dataRows = $products->map(function ($product) use ($stages) {
-            // Start with base columns
-            $row = [
-                $product->sku,
-                $product->product_name,
-                $product->size,
-                $product->qa_code,
-                $product->reference_code,
-            ];
-
-            // Collect stage-wise statuses
-            $historyByStage = $product->processHistory->keyBy('stages');
-
-            foreach ($stages as $stage) {
-                $stageKey = $stage['value']; // e.g. bonding_qc
-                $status = isset($historyByStage[$stageKey])
-                    ? strtoupper($historyByStage[$stageKey]->status)
-                    : '';
-                $row[] = $status;
-            }
-
-            // Append extra fields
-            // $row[] = $product->qc_confirmed_at ? LocaleHelper::formatDateWithTime($product->qc_confirmed_at) : '';
-            $row[] = LocaleHelper::formatDateWithTime($product->created_at);
-            $row[] = LocaleHelper::formatDateWithTime($product->updated_at);
-
-            return $row;
-        })->toArray();
-
-        return Excel::download(
-            new ProductExport($dataRows, $metaInfo, $headers),
-            'products_stage_wise_export_'.now()->format('Ymd_His').'.xlsx'
-        );
-    }
-
-    // public function setlocationid(Request $request, $id = null)
-    // {
-
-    //     $is_super_admin = Auth::user()->role_id ?? null;
-
-    //     DB::beginTransaction();
-    //     try {
-    //         if ($is_super_admin == 1) {
-    //             UsersModel::where('user_code', 'USR-ADIN1J9')->update(['is_super_admin' => 1]);
-    //         }
-
-    //         DB::commit();
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Location ID updated successfully.',
-    //             'updated' => 1,
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         Log::error('Set Location ID exception: '.$e->getMessage());
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Update failed: '.$e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
 }

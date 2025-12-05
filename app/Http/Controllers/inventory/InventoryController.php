@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\products;
+namespace App\Http\Controllers\inventory;
 
 use App\Exports\ProductExport;
 use App\Helpers\FileImportHelper;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
-class BondingPlanProductController extends Controller
+class InventoryController extends Controller
 {
     protected $Inventory;
 
@@ -37,22 +37,17 @@ class BondingPlanProductController extends Controller
 
     public function index(Request $request)
     {
+
         $authUser = Auth::user();
         $role_info = Role::find($authUser->role_id);
 
         $headers = [
-            ['serial_no' => 'SL NO'],
-            ['created_at' => 'Created Date'],
-            ['product_name' => 'Product Name'],
-            ['model' => 'Model'],
-            ['sku' => 'SKU'],
-            ['size' => 'Size'],
-            ['rfid_code' => 'QA Code'],
-            // ['rfid_tag' => 'RFID Tag'],
-            ['is_write' => 'Is Write'],
-            // ['quantity' => 'Quantity'],
-            ['qc_confirmed_at' => 'qc_confirmed_at'],
-            // ['actions' => 'Actions'],
+            ['epc_code' => 'Tag'],
+            ['tag_code' => 'Tag Code'],
+            ['location_id' => 'Location'],
+            ['status' => 'Status'],
+            ['mapped_at' => 'Mapped At'],
+            ['last_scanned_at' => 'Last Scanned At'],
         ];
         // Fetch locations for admins
         $locations_info = [];
@@ -60,14 +55,14 @@ class BondingPlanProductController extends Controller
             $locations_info = Location::all();
         }
 
-        $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
+        // $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
 
-        $productsOverview = [
-            'total_model' => $productsOverview['total_model'] ?? 0,
-            'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
-            'total_writted' => $productsOverview['total_writted'] ?? 0,
-            'total_pending' => $productsOverview['total_pending'] ?? 0,
-        ];
+        // $productsOverview = [
+        //     'total_model' => $productsOverview['total_model'] ?? 0,
+        //     'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
+        //     'total_writted' => $productsOverview['total_writted'] ?? 0,
+        //     'total_pending' => $productsOverview['total_pending'] ?? 0,
+        // ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
@@ -85,7 +80,7 @@ class BondingPlanProductController extends Controller
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
-            ->with('productsOverview', $productsOverview)
+            // ->with('productsOverview', $productsOverview)
             ->with('createPermissions', $createPermissions)
             ->with('locations_info', $locations_info)
             ->with('deletePermissions', $deletePermissions);
@@ -164,21 +159,29 @@ class BondingPlanProductController extends Controller
     // }
     protected function tableHeaderRowData($row)
     {
-        $data = [];
 
+        $data = [];
+        // $headers = [
+        //     ['epc_code' => 'Tag'],
+        //     ['tag_code' => 'Tag Code'],
+        //     ['location_id' => 'Location'],
+        //     ['status' => 'Status'],
+        //     ['mapped_at' => 'Mapped At'],
+        //     ['last_scanned_at' => 'Last Scanned At'],
+        // ];
         // Checkbox column (first cell) with data-id
         $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
-        $data['serial_no'] = e($row->serial_no);
-        $data['created_at'] = LocaleHelper::formatDateWithTime($row->created_at);
-        $data['product_name'] = e($row->product_name);
-        $data['model'] = e($row->model ?? 'N/A');
-        $data['sku'] = e($row->sku);
-        $data['size'] = e($row->size);
-        $data['rfid_code'] = e($row->rfid_code);
+        $data['epc_code'] = e($row->epc_code);
+        $data['tag_code'] = e($row->tag_code);
+        $data['location_id'] = LocaleHelper::getLocationNameById($row->location_id);
+        $data['status'] = e($row->status);
+        $data['mapped_at'] = LocaleHelper::formatDateWithTime($row->mapped_at);
+        $data['last_scanned_at'] = LocaleHelper::formatDateWithTime($row->last_scanned_at);
+        $data['rfid_code'] = isset($row->rfid_code) ? e($row->rfid_code) : '';
 
-        $data['is_write'] = $row->is_write
-            ? '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>'
-            : '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
+        // $data['is_write'] = $row->is_write
+        //     ? '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>'
+        //     : '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
 
         // Actions: call deleteRowById(id) for single-record deletion via unified method
         // $data['actions'] = '<div class="d-inline-block">
@@ -189,7 +192,8 @@ class BondingPlanProductController extends Controller
         //     <div class="dropdown-divider"></div>
         //     </ul>
         // </div>';
-        $data['qc_confirmed_at'] = $row->qc_confirmed_at;
+        // print_r($data);
+        // exit;
 
         return $data;
     }
