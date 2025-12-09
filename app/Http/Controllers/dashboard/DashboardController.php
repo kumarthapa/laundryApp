@@ -7,12 +7,13 @@ use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
+use App\Models\inventory\Inventory;
 use App\Models\products\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log; // Assuming this is where getProductStagesAndDefectPoints is defined
+use Illuminate\Support\Facades\DB; // Assuming this is where getProductStagesAndDefectPoints is defined
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
@@ -30,13 +31,26 @@ class DashboardController extends Controller
             ['outward' => 'Outward'],
             ['adjust_qty' => 'Adjust'],
             ['closing_stock' => 'Closing'],
-            // ['comments' => 'Remarks'],
         ];
 
         $table_headers = TableHelper::get_manage_table_headers($headers, false, true, false, false, false);
 
+        // ================================
+        // 📌 INVENTORY METRICS
+        // ================================
+        $metrics = [
+            'total_inventory' => Inventory::count(),
+            'total_products' => Product::count(),
+
+            // Status-wise inventory counts
+            'total_new_products' => Inventory::where('status', 'new')->count(),
+            'total_clean_products' => Inventory::where('status', 'clean')->count(),
+            'total_dirty_products' => Inventory::where('status', 'dirty')->count(),
+            'total_damaged_products' => Inventory::where('status', 'damaged')->count(),
+        ];
+
         return view('content.dashboard.dashboards-analytics', [
-            'metrics' => [],
+            'metrics' => $metrics,
             'table_headers' => $table_headers,
         ]);
     }

@@ -85,7 +85,7 @@
                 url: "{{ route('dashboard.list') }}", // API route to fetch table data
                 createPermissions: '', // not used here
                 fetchId: "FetchData",
-                title: "Recent Process Events", // table title
+                title: "Recent Inventory Activity", // table title
                 displayLength: 30,
             };
 
@@ -165,10 +165,10 @@
                                 <i class="icon-base bx bx-store-alt fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Daily Bonding</h6>
+                        <h6 class="mb-0">Total Inventory</h6>
                     </div>
-                    <h3 id="daily_bonding">{{ $metrics['daily_bonding'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily bonding check records</small>
+                    <h3 id="daily_bonding">{{ $metrics['total_inventory'] ?? 0 }}</h3>
+                    <small class="text-muted">Total inventory tags count</small>
                 </div>
             </div>
         </div>
@@ -183,10 +183,10 @@
                                 <i class="icon-base bx bx-cube fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Daily Tape Edge mattress</h6>
+                        <h6 class="mb-0">Total Products</h6>
                     </div>
-                    <h3 id="daily_tape_edge_qc">{{ $metrics['daily_tape_edge_qc'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Tape Edge check records</small>
+                    <h3 id="daily_tape_edge_qc">{{ $metrics['total_products'] ?? 0 }}</h3>
+                    <small class="text-muted">Total products count</small>
                 </div>
             </div>
         </div>
@@ -201,10 +201,10 @@
                                 <i class="icon-base bx bx-check-circle fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Daily Zip Cover mattress</h6>
+                        <h6 class="mb-0">Clean Products</h6>
                     </div>
-                    <h3 id="daily_zip_cover_qc">{{ $metrics['daily_zip_cover_qc'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Zip Cover check records</small>
+                    <h3 id="daily_zip_cover_qc">{{ $metrics['total_clean_products'] ?? 0 }}</h3>
+                    <small class="text-muted">Total clean products count</small>
                 </div>
             </div>
         </div>
@@ -216,13 +216,13 @@
                     <div class="d-flex align-items-center flex-nowrap flex-sm-wrap flex-md-nowrap mb-2">
                         <div class="avatar avatar-sm me-3 flex-shrink-0">
                             <span class="avatar-initial gradient-dark glow rounded">
-                                <i class="icon-base bx bxs-truck fs-5"></i>
+                                <i class="icon-base bx bx-book-open fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Daily Packing</h6>
+                        <h6 class="mb-0">Dirty Products</h6>
                     </div>
-                    <h3 id="daily_packaging">{{ $metrics['daily_packaging'] ?? 0 }}</h3>
-                    <small class="text-muted">Daily Packing check records</small>
+                    <h3 id="daily_packaging">{{ $metrics['total_dirty_products'] ?? 0 }}</h3>
+                    <small class="text-muted">Total dirty products count</small>
                 </div>
             </div>
         </div>
@@ -237,10 +237,10 @@
                                 <i class="icon-base bx bxs-truck fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Total Packing</h6>
+                        <h6 class="mb-0">New Products</h6>
                     </div>
-                    <h3 id="total_packaging">{{ $metrics['total_packaging'] ?? 0 }}</h3>
-                    <small class="text-muted">Total Packing last 30 days</small>
+                    <h3 id="total_packaging">{{ $metrics['total_new_products'] ?? 0 }}</h3>
+                    <small class="text-muted">Total new products count</small>
                 </div>
             </div>
         </div>
@@ -255,10 +255,10 @@
                                 <i class="icon-base bx bx-error fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Reprocessing mattress</h6>
+                        <h6 class="mb-0">Damaged Products</h6>
                     </div>
-                    <h3 id="reprocessed_products">{{ $metrics['reprocessed_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Reprocessed Records last 30 days</small>
+                    <h3 id="damaged_products">{{ $metrics['total_damaged_products'] ?? 0 }}</h3>
+                    <small class="text-muted">Total damaged products count</small>
                 </div>
             </div>
         </div>
@@ -266,65 +266,13 @@
 
 
 
-
-
-    <!-- ==== Charts Section ==== -->
-    <div class="row">
-        <!-- Overall stage distribution donut chart -->
-        <div class="col-sm-6 col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Mattress Stage Distribution (last 30 days)</h5>
-                </div>
-                <div class="card-body">
-                    <div id="stageDonut"></div>
-                    <div class="mt-2 py-2">
-                        <h6 class="text-muted text-center py-1">Production Process Stages Breakdown</h6>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <?php
-        // Label map for stage-wise chart titles
-        $labelString = [
-            'bonding_qc' => 'inventory',
-            'tape_edge_qc' => 'Tape Edge',
-            'zip_cover_qc' => 'Zip Cover',
-            'packaging' => 'Packing',
-        ];
-        ?>
-
-        <!-- Dynamic QC stage charts -->
-        @if (isset($metrics['qc_stage_series']) && count($metrics['qc_stage_series']) > 0)
-            @foreach ($metrics['qc_stage_series'] as $stage => $series)
-                <div class="col-sm-6 col-lg-4 mb-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>{{ $labelString[$stage] ?? $stage }} (last 30 days)</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="qc-{{ \Illuminate\Support\Str::slug($stage, '_') }}" style="min-height:320px"></div>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-        @else
-            <!-- Message when no chart data is available -->
-            <div class="col-sm-6 col-lg-4 mb-4">
-                <div class="alert alert-info">
-                    No QC data available to display charts.
-                </div>
-            </div>
-        @endif
-    </div>
 
     <!-- ==== DataTable Section ==== -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <!-- Filters -->
-                <div class="card-header border-bottom">
+                {{-- <div class="card-header border-bottom">
                     <div class="d-md-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
                         <div class="input-group date">
                             <input class="form-control filter-selected-data" type="text"
@@ -334,7 +282,7 @@
                             </span>
                         </div>
                     </div>
-                </div>
+                </div> --}}
 
                 <!-- DataTable displaying process history -->
                 <div class="card-datatable table-responsive pt-0">

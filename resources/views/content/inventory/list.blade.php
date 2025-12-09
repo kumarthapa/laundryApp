@@ -1,6 +1,6 @@
 @extends('layouts/contentNavbarLayout')
 
-@section('title', 'Bonding Plan Products List')
+@section('title', 'Inventory Management')
 @section('page-style')
     <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
     <style>
@@ -28,9 +28,9 @@
                                     class="d-flex justify-content-between align-items-start card-widget-1 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_model'] ?? '0' }}
+                                            {{ $inventoryOverview['total_inventory'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Model</p>
+                                        <p class="mb-0">Total Inventory</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-store-alt bx-sm"></i>
@@ -43,9 +43,9 @@
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_qa_code'] ?? '0' }}
+                                            {{ $inventoryOverview['total_new'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total QA Code</p>
+                                        <p class="mb-0">Total New</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
                                         <i class="bx bx-crown bx-sm"></i>
@@ -58,9 +58,9 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_writted'] ?? '0' }}
+                                            {{ $inventoryOverview['total_clean'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Writted</p>
+                                        <p class="mb-0">Total Clean</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-check-circle bx-sm"></i>
@@ -72,9 +72,9 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_pending'] ?? '0' }}
+                                            {{ $inventoryOverview['total_dirty'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Pending Tag</p>
+                                        <p class="mb-0">Total Dirty </p>
                                     </div>
                                     <span class="badge bg-label-danger me-sm-4 rounded p-2">
                                         <i class="bx bx-error bx-sm"></i>
@@ -104,7 +104,8 @@
                         </div>
                     </div>
                 </div> --}}
-                <div class="card-header border-bottom">
+                {{-- // Use later --}}
+                {{-- <div class="card-header border-bottom">
                     <h6>Search By Filters</h6>
                     <div class="d-md-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
                         <div class="input-group date">
@@ -115,7 +116,7 @@
                             </span>
                         </div>
                     </div>
-                </div>
+                </div> --}}
                 <!--- Filters ------------ END ---------------->
                 <div class="card-datatable table-responsive pt-0">
                     <table class="datatables-basic border-top table" id="DataTables2025">

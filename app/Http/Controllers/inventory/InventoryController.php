@@ -37,7 +37,6 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
-
         $authUser = Auth::user();
         $role_info = Role::find($authUser->role_id);
 
@@ -49,38 +48,33 @@ class InventoryController extends Controller
             ['mapped_at' => 'Mapped At'],
             ['last_scanned_at' => 'Last Scanned At'],
         ];
-        // Fetch locations for admins
+
         $locations_info = [];
         if ($role_info->role_type == 'super_role' || $role_info->role_type == 'admin_role') {
             $locations_info = Location::all();
         }
-
-        // $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
-
-        // $productsOverview = [
-        //     'total_model' => $productsOverview['total_model'] ?? 0,
-        //     'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
-        //     'total_writted' => $productsOverview['total_writted'] ?? 0,
-        //     'total_pending' => $productsOverview['total_pending'] ?? 0,
-        // ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
         $UtilityHelper = new UtilityHelper;
         $createPermissions = $UtilityHelper::CheckModulePermissions('inventory', 'create.inventory');
         $deletePermissions = $UtilityHelper::CheckModulePermissions('inventory', 'delete.inventory');
-        // $table_headers = TableHelper::get_manage_table_headers($headers, true, true, true);
-        // Readonly must be false so checkbox column is added
+
         $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
 
-        // $allProductsData = Product::with('processHistory')->get();
-        // Log::info('Total products data 12: ', $allProductsData->toArray());
+        // --- INVENTORY METRICS ---
+        $inventoryOverview = [
+            'total_inventory' => Inventory::count(),
+            'total_new' => Inventory::where('status', 'new')->count(),
+            'total_clean' => Inventory::where('status', 'clean')->count(),
+            'total_dirty' => Inventory::where('status', 'dirty')->count(),
+        ];
 
         return view('content.inventory.list')
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
-            // ->with('productsOverview', $productsOverview)
+            ->with('inventoryOverview', $inventoryOverview)
             ->with('createPermissions', $createPermissions)
             ->with('locations_info', $locations_info)
             ->with('deletePermissions', $deletePermissions);
@@ -159,43 +153,50 @@ class InventoryController extends Controller
     // }
     protected function tableHeaderRowData($row)
     {
-
         $data = [];
-        // $headers = [
-        //     ['epc_code' => 'Tag'],
-        //     ['tag_code' => 'Tag Code'],
-        //     ['location_id' => 'Location'],
-        //     ['status' => 'Status'],
-        //     ['mapped_at' => 'Mapped At'],
-        //     ['last_scanned_at' => 'Last Scanned At'],
-        // ];
-        // Checkbox column (first cell) with data-id
-        $data['checkbox'] = '<div class="form-check"><input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'"></div>';
+
+        // Checkbox column
+        $data['checkbox'] =
+            '<div class="form-check">
+            <input type="checkbox" class="row-checkbox form-check-input" data-id="'.e($row->id).'">
+        </div>';
+
+        // Basic fields
         $data['epc_code'] = e($row->epc_code);
         $data['tag_code'] = e($row->tag_code);
         $data['location_id'] = LocaleHelper::getLocationNameById($row->location_id);
-        $data['status'] = e($row->status);
+
+        // Status badge formatting
+        $data['status'] = $this->getStatusBadge($row->status);
+
+        // Dates
         $data['mapped_at'] = LocaleHelper::formatDateWithTime($row->mapped_at);
         $data['last_scanned_at'] = LocaleHelper::formatDateWithTime($row->last_scanned_at);
-        $data['rfid_code'] = isset($row->rfid_code) ? e($row->rfid_code) : '';
 
-        // $data['is_write'] = $row->is_write
-        //     ? '<span class="badge rounded bg-label-success " title="WRITTEN"><i class="icon-base bx bx-check-circle icon-lg me-1"></i>WRITTEN</span>'
-        //     : '<span class="badge rounded bg-label-warning " title="PENDING"><i class="icon-base bx bx-refresh icon-lg me-1"></i>PENDING</span>';
-
-        // Actions: call deleteRowById(id) for single-record deletion via unified method
-        // $data['actions'] = '<div class="d-inline-block">
-        //     <a href="javascript:;" class="btn btn-sm text-primary btn-icon dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-        //     <i class="bx bx-dots-vertical-rounded"></i></a>
-        //     <ul class="dropdown-menu dropdown-menu-end">
-        //         <li><a href="javascript:;" onclick="deleteRowById('.e($row->id).');" class="dropdown-item text-danger delete-record"><i class="bx bx-trash me-1"></i>Delete</a></li>
-        //     <div class="dropdown-divider"></div>
-        //     </ul>
-        // </div>';
-        // print_r($data);
-        // exit;
+        // rfid_code (fallback empty)
+        $data['rfid_code'] = e($row->rfid_code ?? '');
 
         return $data;
+    }
+
+    /**
+     * Format status as colored badge.
+     */
+    protected function getStatusBadge($status)
+    {
+        $colors = [
+            'new' => 'success',
+            'clean' => 'success',
+            'dirty' => 'danger',
+            'out' => 'dark',
+            'lost' => 'secondary',
+            'damaged' => 'danger',
+        ];
+
+        $label = ucfirst($status);
+        $color = $colors[$status] ?? 'primary';
+
+        return '<span class="badge bg-label-'.$color.'">'.$label.'</span>';
     }
 
     /* AJAX: return table rows */
@@ -416,23 +417,26 @@ class InventoryController extends Controller
         }
     }
 
-    public function exportBonding(Request $request)
+    public function exportInventory(Request $request)
     {
         $user = Auth::user();
 
-        // Use input() so it works for both POST body and query string
+        // Accept from POST body or query string
         $daterange = $request->input('daterange');
         $status = $request->input('status');
 
         $startDate = null;
         $endDate = null;
 
+        // -----------------------------
+        // Parse Date Range (DD/MM/YYYY - DD/MM/YYYY)
+        // -----------------------------
         if (! empty($daterange)) {
             try {
-                // Expected format "DD/MM/YYYY - DD/MM/YYYY"
                 [$start, $end] = array_map('trim', explode('-', $daterange));
-                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($start)))->startOfDay();
-                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', str_replace('-', '/', trim($end)))->endOfDay();
+
+                $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', $start)->startOfDay();
+                $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', $end)->endOfDay();
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
@@ -441,50 +445,76 @@ class InventoryController extends Controller
             }
         }
 
+        // -----------------------------
+        // Meta info for export sheet
+        // -----------------------------
         $metaInfo = [
             'date_range' => $daterange ?: 'All time',
             'generated_by' => $user->fullname ?? 'System',
         ];
 
-        // Base query
+        // -----------------------------
+        // Build Query
+        // -----------------------------
         $query = Inventory::with('products');
-        $query = LocaleHelper::commonWhereLocationCheck($query, 'rfid_tags');
+        $query = LocaleHelper::commonWhereLocationCheck($query, 'rfid_tags'); // location filter
 
         // Date filter
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
         }
 
-        // Status filter (ensure you treat 'all' or empty)
+        // Status filter
         if ($status !== null && $status !== '' && $status !== 'all') {
-            $query->where('is_write', $status);
+            $query->where('status', $status);
         }
 
-        $bondingProducts = $query->get();
+        $inventoryList = $query->get();
 
-        $dataRows = $bondingProducts->map(function ($product) {
+        // -----------------------------
+        // Prepare export rows
+        // -----------------------------
+        $dataRows = $inventoryList->map(function ($tag) {
             return [
-                $product->serial_no,
-                $product->sku,
-                $product->product_name,
-                $product->model,
-                $product->size,
-                $product->rfid_code,
-                $product->is_write,
-                $product->reference_code,
-                $product->products->count() > 0 ? $product->products->first()->rfid_tag : 'N/A',
-                LocaleHelper::formatDateWithTime($product->created_at),
-                LocaleHelper::formatDateWithTime($product->updated_at),
+                $tag->epc_code,
+                $tag->reader_type,
+                $tag->reader_code,
+                $tag->product_id,
+                $tag->products->product_name ?? 'N/A',
+                $tag->products->sku ?? 'N/A',
+                LocaleHelper::getLocationNameById($tag->location_id),
+                $tag->status,
+                LocaleHelper::formatDateWithTime($tag->mapped_at),
+                LocaleHelper::formatDateWithTime($tag->last_scanned_at),
+                LocaleHelper::formatDateWithTime($tag->created_at),
+                LocaleHelper::formatDateWithTime($tag->updated_at),
             ];
         })->toArray();
 
+        // -----------------------------
+        // Headers
+        // -----------------------------
         $headers = [
-            'Serial No', 'SKU', 'Product Name', 'Model', 'Size', 'QA Code', 'Is Write', 'Reference Code', 'RFID Tag', 'Created At', 'Updated At',
+            'Tag',
+            'Reader Type',
+            'Reader Code',
+            'Product ID',
+            'Product Name',
+            'SKU',
+            'Location ID',
+            'Status',
+            'Mapped At',
+            'Last Scanned At',
+            'Created At',
+            'Updated At',
         ];
 
+        // -----------------------------
+        // Download Excel
+        // -----------------------------
         return Excel::download(
             new ProductExport($dataRows, $metaInfo, $headers),
-            'bonding_export_'.now()->format('Ymd_His').'.xlsx'
+            'inventory_export_'.now()->format('Ymd_His').'.xlsx'
         );
     }
 

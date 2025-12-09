@@ -29,6 +29,8 @@ class Inventory extends Model
         'status',
         'mapped_at',
         'last_scanned_at',
+        'reader_code',
+        'reader_type',
     ];
 
     protected $casts = [

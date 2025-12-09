@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Validator;
 class InventoryApiController extends Controller
 {
     /**
-     * Map one or many EPC tags to a product.
+     * Map one or many EPC tags to a product. (From Hand Reader)
      *
      * Accepts both:
      *  - Compact: { product_id: 12, epc_codes: ["E1","E2"] }
@@ -27,49 +27,39 @@ class InventoryApiController extends Controller
         $payload = $request->all();
         Log::info('tagMapping raw payload: '.json_encode($payload));
 
-        // Build unified mappings array
+        // Build unified mapping array
         $mappings = [];
 
-        // Compact form: { product_id, epc_codes: [...] }
+        // New compact format
         if (! empty($payload['product_id']) && ! empty($payload['epc_codes']) && is_array($payload['epc_codes'])) {
-            $productIdTop = $payload['product_id'];
             foreach ($payload['epc_codes'] as $epc) {
-                if (! is_string($epc)) {
-                    continue;
-                }
                 $epc = trim($epc);
-                if ($epc === '') {
+                if (! $epc) {
                     continue;
                 }
 
                 $mappings[] = [
-                    'product_id' => $productIdTop,
+                    'product_id' => $payload['product_id'],
                     'epc_code' => $epc,
                     'tag_code' => $payload['tag_code'] ?? null,
                     'trolley_id' => $payload['trolley_id'] ?? null,
-                    'status' => $payload['status'] ?? null,
-                    'last_scanned_at' => $payload['last_scanned_at'] ?? null,
                 ];
             }
         }
 
-        // Legacy form
-        if (isset($payload['mappings']) && is_array($payload['mappings'])) {
+        // Legacy format
+        if (! empty($payload['mappings']) && is_array($payload['mappings'])) {
             foreach ($payload['mappings'] as $m) {
-                if (! is_array($m)) {
-                    continue;
-                }
-                if (empty($m['epc_code'])) {
+                $epc = trim($m['epc_code'] ?? '');
+                if (! $epc) {
                     continue;
                 }
 
                 $mappings[] = [
                     'product_id' => $m['product_id'] ?? null,
-                    'epc_code' => trim($m['epc_code']),
+                    'epc_code' => $epc,
                     'tag_code' => $m['tag_code'] ?? null,
                     'trolley_id' => $m['trolley_id'] ?? null,
-                    'status' => $m['status'] ?? null,
-                    'last_scanned_at' => $m['last_scanned_at'] ?? null,
                 ];
             }
         }
@@ -89,68 +79,47 @@ class InventoryApiController extends Controller
         try {
             foreach ($mappings as $map) {
 
-                $epc = trim($map['epc_code'] ?? '');
-                if ($epc === '') {
-                    $results[] = [
-                        'epc_code' => null,
-                        'success' => false,
-                        'message' => 'Missing epc_code',
-                    ];
+                $epc = $map['epc_code'];
 
-                    continue;
-                }
-
-                // Skip duplicates within same request
+                // Skip duplicate EPC in same request
                 if (isset($seenEpcs[$epc])) {
                     $results[] = [
                         'epc_code' => $epc,
                         'success' => false,
-                        'message' => 'Duplicate epc in request - skipped',
+                        'message' => 'Duplicate epc in request',
                     ];
 
                     continue;
                 }
                 $seenEpcs[$epc] = true;
 
-                // Resolve product
-                if (empty($map['product_id'])) {
-                    $results[] = [
-                        'epc_code' => $epc,
-                        'success' => false,
-                        'message' => 'Missing product_id',
-                    ];
-
-                    continue;
-                }
-
+                // Validate product ID
                 $product = Product::find($map['product_id']);
                 if (! $product) {
                     $results[] = [
                         'epc_code' => $epc,
                         'success' => false,
-                        'message' => 'Mapping failed! Product not found.',
+                        'message' => 'Product not found',
                     ];
 
                     continue;
                 }
 
-                $resolvedLocationId = $product->location_id;
+                $locationId = $product->location_id;
 
-                // Check existing tag
+                // Existing tag?
                 $tag = Inventory::where('epc_code', $epc)->first();
                 $isNewTag = false;
                 $previousProductId = null;
 
-                // Duplicate-safe check → DO NOT perform activity
+                // If tag already mapped to same product → skip
                 if ($tag && intval($tag->product_id) === intval($product->id)) {
                     $results[] = [
                         'epc_code' => $epc,
                         'tag_id' => $tag->id,
                         'product_id' => $product->id,
-                        'location_id' => $tag->location_id,
                         'success' => false,
-                        'message' => 'Duplicate tag — already mapped to this product (skipped)',
-                        'movement' => null,
+                        'message' => 'Already mapped to same product',
                     ];
 
                     continue;
@@ -160,34 +129,36 @@ class InventoryApiController extends Controller
                 if (! $tag) {
                     $tag = Inventory::create([
                         'epc_code' => $epc,
-                        'tag_code' => $map['tag_code'] ?? null,
+                        'tag_code' => $map['tag_code'],
                         'product_id' => $product->id,
-                        'location_id' => $resolvedLocationId,
-                        'trolley_id' => $map['trolley_id'] ?? null,
-                        'status' => 1,
+                        'location_id' => $locationId,
+                        'trolley_id' => $map['trolley_id'],
+                        'status' => 'new',                   // ALWAYS new
                         'mapped_at' => Carbon::now(),
                         'last_scanned_at' => Carbon::now(),
                     ]);
                     $isNewTag = true;
                 }
-                // REASSIGN TAG
+
+                // UPDATE existing tag (reassignment)
                 else {
                     $previousProductId = $tag->product_id;
 
                     $tag->update([
                         'product_id' => $product->id,
                         'tag_code' => $map['tag_code'] ?? $tag->tag_code,
-                        'location_id' => $resolvedLocationId,
+                        'location_id' => $locationId,
                         'trolley_id' => $map['trolley_id'] ?? $tag->trolley_id,
-                        'status' => $tag->status,
+                        // status remains SAME — DO NOT CHANGE HERE
                         'last_scanned_at' => Carbon::now(),
                     ]);
                 }
 
-                // MOVEMENT
+                // MOVEMENTS
                 $movementInfo = [];
 
                 if ($isNewTag) {
+                    // New tag → INWARD
                     $activity = InventoryActivity::create([
                         'product_id' => $product->id,
                         'inventory_id' => $tag->id,
@@ -196,16 +167,18 @@ class InventoryApiController extends Controller
                         'outward' => 0,
                         'trans_type' => 'tag_mapping',
                         'remarks' => 'Tag created & assigned',
-                        'status' => 1,
-                        'location_id' => $resolvedLocationId,
+                        'status' => 'new',
+                        'location_id' => $locationId,
                         'created_by' => $userId,
                         'updated_by' => $userId,
                     ]);
                     $movementInfo['assign'] = $activity->toArray();
+                }
 
-                } elseif ($previousProductId !== $product->id) {
+                // REASSIGN TAG
+                elseif ($previousProductId !== $product->id) {
 
-                    // OUT from previous
+                    // OUT from previous product
                     $outAct = InventoryActivity::create([
                         'product_id' => $previousProductId,
                         'inventory_id' => $tag->id,
@@ -213,9 +186,9 @@ class InventoryApiController extends Controller
                         'inward' => 0,
                         'outward' => 1,
                         'trans_type' => 'tag_reassign_out',
-                        'remarks' => 'Tag reassigned - removed from previous product',
-                        'status' => 1,
-                        'location_id' => $resolvedLocationId,
+                        'remarks' => 'Tag removed from previous product',
+                        'status' => 'new',
+                        'location_id' => $locationId,
                         'created_by' => $userId,
                         'updated_by' => $userId,
                     ]);
@@ -229,9 +202,9 @@ class InventoryApiController extends Controller
                         'inward' => 1,
                         'outward' => 0,
                         'trans_type' => 'tag_reassign_in',
-                        'remarks' => 'Tag reassigned - assigned to new product',
-                        'status' => 1,
-                        'location_id' => $resolvedLocationId,
+                        'remarks' => 'Tag assigned to new product',
+                        'status' => 'new',
+                        'location_id' => $locationId,
                         'created_by' => $userId,
                         'updated_by' => $userId,
                     ]);
@@ -242,29 +215,17 @@ class InventoryApiController extends Controller
                     'epc_code' => $epc,
                     'tag_id' => $tag->id,
                     'product_id' => $product->id,
-                    'location_id' => $resolvedLocationId,
+                    'location_id' => $locationId,
                     'success' => true,
-                    'message' => $isNewTag ? 'Tag created and mapped' : 'Tag mapped/updated',
+                    'message' => $isNewTag ? 'Tag created' : 'Tag reassigned',
                     'movement' => $movementInfo,
                 ];
             }
 
             DB::commit();
 
-            // -----------------------------
-            // DETERMINE OVERALL SUCCESS
-            // -----------------------------
-            $hasSuccess = false;
-            foreach ($results as $r) {
-                if (! empty($r['success']) && $r['success'] === true) {
-                    $hasSuccess = true;
-                    break;
-                }
-            }
-
             return response()->json([
-                'success' => $hasSuccess,
-                'message' => $hasSuccess ? 'Mapping completed' : 'All tags were duplicates or failed',
+                'success' => true,
                 'results' => $results,
             ], 200);
 
@@ -298,8 +259,8 @@ class InventoryApiController extends Controller
             'adjust_qty' => 'nullable|integer',
             'location_id' => 'nullable|integer',
             'remarks' => 'nullable|string|max:255',
-            'update_tag_status' => 'nullable|string',
-            'status' => 'nullable|integer', // allow explicit status override
+            'update_tag_status' => 'nullable|string',   // clean / dirty / out / lost / damaged
+            'status' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -314,13 +275,17 @@ class InventoryApiController extends Controller
             $inventoryId = $request->inventory_id ? intval($request->inventory_id) : null;
             $inward = intval($request->inward ?? 0);
             $outward = intval($request->outward ?? 0);
-            $adjustQty = $request->filled('adjust_qty') ? intval($request->adjust_qty) : ($inward > 0 ? $inward : ($outward > 0 ? $outward : 0));
+
+            $adjustQty = $request->filled('adjust_qty')
+                ? intval($request->adjust_qty)
+                : ($inward > 0 ? $inward : ($outward > 0 ? $outward : 0));
+
             $type = $request->trans_type;
             $remarks = $request->remarks ?? null;
             $locationId = $request->location_id ?? null;
             $status = $request->has('status') ? intval($request->status) : 1;
 
-            // Create InventoryActivity - opening/closing set by model boot()
+            // Create Inventory Activity
             $activity = InventoryActivity::create([
                 'product_id' => $productId,
                 'inventory_id' => $inventoryId,
@@ -335,17 +300,42 @@ class InventoryApiController extends Controller
                 'updated_by' => $userId,
             ]);
 
-            // Update tag status / location if inventory_id provided
+            // Update tag status if tag exists
             if ($inventoryId) {
                 $tag = Inventory::find($inventoryId);
+
                 if ($tag) {
                     $updateTag = [];
+
+                    /** ----------------------------
+                     * 🚦 STATUS CYCLE LOGIC HERE
+                     * -----------------------------
+                     * new → clean
+                     * clean → dirty
+                     * dirty → clean
+                     */
                     if ($request->filled('update_tag_status')) {
-                        $updateTag['status'] = $request->get('update_tag_status');
+
+                        $current = $tag->status;
+                        $input = $request->get('update_tag_status');
+
+                        if ($current === 'new') {
+                            $updateTag['status'] = 'clean';
+                        } elseif ($current === 'clean') {
+                            $updateTag['status'] = 'dirty';
+                        } elseif ($current === 'dirty') {
+                            $updateTag['status'] = 'clean';
+                        } else {
+                            // override for special cases (out / lost / damaged)
+                            $updateTag['status'] = $input;
+                        }
                     }
+
+                    // update location if given
                     if (! is_null($locationId)) {
                         $updateTag['location_id'] = $locationId;
                     }
+
                     $updateTag['last_scanned_at'] = Carbon::now();
 
                     if (! empty($updateTag)) {
@@ -361,11 +351,16 @@ class InventoryApiController extends Controller
                 'message' => 'Movement recorded',
                 'data' => $activity,
             ], 201);
+
         } catch (\Throwable $e) {
+
             DB::rollBack();
             Log::error('recordStockMovement error: '.$e->getMessage(), ['exception' => $e]);
 
-            return response()->json(['success' => false, 'message' => 'Failed to record movement: '.$e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record movement: '.$e->getMessage(),
+            ], 500);
         }
     }
 
@@ -373,50 +368,6 @@ class InventoryApiController extends Controller
      * Fetch full details of an EPC tag: inventory record, mapped product,
      * and last 10 inventory activities.
      */
-    // public function tagDetailsByEpc($epc)
-    // {
-    //     try {
-    //         $epc = trim($epc);
-
-    //         // Load tag + product relation
-    //         $tag = Inventory::with('product')
-    //             ->where('epc_code', $epc)
-    //             ->first();
-
-    //         if (! $tag) {
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'Tag not found',
-    //                 'inventory' => null,
-    //                 'product' => null,
-    //                 'history' => [],
-    //             ], 200);
-    //         }
-
-    //         // Get history of last 10 activities
-    //         $history = InventoryActivity::where('inventory_id', $tag->id)
-    //             ->orderBy('created_at', 'desc')
-    //             ->limit(10)
-    //             ->get();
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Tag details loaded',
-    //             'inventory' => $tag,
-    //             'product' => $tag->product,
-    //             'history' => $history,
-    //         ], 200);
-
-    //     } catch (\Throwable $e) {
-    //         Log::error('tagDetailsByEpc error: '.$e->getMessage(), ['exception' => $e]);
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Server error: '.$e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
     public function tagDetailsByEpc($epc)
     {
         Log::info('Fetching tag details for EPC: '.$epc);
@@ -493,6 +444,399 @@ class InventoryApiController extends Controller
 
         } catch (\Throwable $e) {
             Log::error('tagDetailsByEpc error: '.$e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Receive scans from a fixed reader device (multiple tags).
+     *
+     * Payload:
+     * {
+     *   "reader_code": "GATE_A_01",
+     *   "movement": "inward",           // optional, default = inward (allowed: inward|outward)
+     *   "reads": [
+     *     {"epc":"E2003412ABC...", "read_time":"2025-12-09 10:12:55", "qty":1, "movement":"outward"},
+     *     {"epc":"E2003412DEF...", "read_time":"2025-12-09 10:12:56"}
+     *   ]
+     * }
+     */
+    // public function fixedReaderScan(Request $request)
+    // {
+    //     Log::info('fixedReaderScan called'.json_encode($request->all()));
+    //     $validator = Validator::make($request->all(), [
+    //         'reader_code' => 'required|string|max:100',
+    //         'movement' => 'nullable|in:inward,outward',
+    //         'reads' => 'required|array|min:1',
+    //         'reads.*.epc' => 'required|string',
+    //         'reads.*.read_time' => 'nullable|date',
+    //         'reads.*.qty' => 'nullable|integer|min:1',
+    //         'reads.*.movement' => 'nullable|in:inward,outward',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    //     }
+
+    //     $payload = $request->all();
+    //     Log::info('fixedReaderScan payload: '.json_encode($payload));
+
+    //     $reads = $payload['reads'];
+    //     $readerCode = $payload['reader_code'];
+    //     $globalMovement = 'outward'; // $payload['movement'] ?? 'inward'; // default movement
+
+    //     // Hard-coded user id for created_by / updated_by (route is public).
+    //     // Uses env value FIXED_READER_USER_ID if set, otherwise falls back to 2.
+    //     $userId = 3; // intval(env('FIXED_READER_USER_ID', 2));
+
+    //     $now = Carbon::now();
+
+    //     $results = [];
+    //     $seen = [];
+
+    //     DB::beginTransaction();
+    //     try {
+    //         foreach ($reads as $r) {
+
+    //             $epc = trim($r['epc'] ?? '');
+    //             if ($epc === '') {
+    //                 $results[] = [
+    //                     'epc' => null,
+    //                     'success' => false,
+    //                     'message' => 'Empty EPC provided',
+    //                 ];
+
+    //                 continue;
+    //             }
+
+    //             // skip duplicates in same request
+    //             if (isset($seen[$epc])) {
+    //                 $results[] = [
+    //                     'epc' => $epc,
+    //                     'success' => false,
+    //                     'message' => 'Duplicate EPC in payload - skipped',
+    //                 ];
+
+    //                 continue;
+    //             }
+    //             $seen[$epc] = true;
+
+    //             // find tag
+    //             $tag = Inventory::where('epc_code', $epc)->first();
+
+    //             if (! $tag) {
+    //                 $results[] = [
+    //                     'epc' => $epc,
+    //                     'success' => false,
+    //                     'message' => 'Tag not mapped',
+    //                 ];
+
+    //                 continue;
+    //             }
+
+    //             // determine read time
+    //             $readTime = $now;
+    //             if (! empty($r['read_time'])) {
+    //                 try {
+    //                     $readTime = Carbon::parse($r['read_time']);
+    //                 } catch (\Throwable $e) {
+    //                     $readTime = $now;
+    //                 }
+    //             }
+
+    //             // update tag record: last_scanned_at, reader_code, reader_type
+    //             $tag->update([
+    //                 'last_scanned_at' => $readTime,
+    //                 'reader_code' => $readerCode,
+    //                 'reader_type' => 'fixed_reader',
+    //             ]);
+
+    //             // decide movement and qty: per-read overrides global
+    //             $movement = $r['movement'] ?? $globalMovement ?? 'inward';
+    //             $qty = isset($r['qty']) ? intval($r['qty']) : 1;
+    //             if ($qty <= 0) {
+    //                 $qty = 1;
+    //             }
+
+    //             // If tag has no mapped product, skip creating InventoryActivity
+    //             if (empty($tag->product_id)) {
+    //                 $results[] = [
+    //                     'epc' => $epc,
+    //                     'tag_id' => $tag->id,
+    //                     'product_id' => null,
+    //                     'location_id' => $tag->location_id,
+    //                     'success' => false,
+    //                     'message' => 'Tag has no product mapping - movement skipped',
+    //                 ];
+
+    //                 continue;
+    //             }
+
+    //             // Prepare inward/outward fields
+    //             $inward = $movement === 'inward' ? $qty : 0;
+    //             $outward = $movement === 'outward' ? $qty : 0;
+    //             $transType = $movement === 'inward' ? 'fixed_reader_inward' : 'fixed_reader_outward';
+
+    //             // create inventory activity (stock movement)
+    //             $activity = InventoryActivity::create([
+    //                 'product_id' => $tag->product_id,
+    //                 'inventory_id' => $tag->id,
+    //                 'adjust_qty' => $qty,
+    //                 'inward' => $inward,
+    //                 'outward' => $outward,
+    //                 'trans_type' => $transType,
+    //                 'remarks' => 'Scanned by fixed reader: '.$readerCode,
+    //                 'status' => 1,
+    //                 'location_id' => $tag->location_id,
+    //                 'created_by' => $userId,
+    //                 'updated_by' => $userId,
+    //             ]);
+
+    //             $results[] = [
+    //                 'epc' => $epc,
+    //                 'tag_id' => $tag->id,
+    //                 'product_id' => $tag->product_id,
+    //                 'location_id' => $tag->location_id,
+    //                 'success' => true,
+    //                 'message' => 'Scan recorded and movement logged',
+    //                 'movement' => $movement,
+    //                 'qty' => $qty,
+    //                 'activity_id' => $activity->trans_id ?? null,
+    //             ];
+    //         }
+
+    //         DB::commit();
+
+    //         // overall success if any true
+    //         $hasSuccess = collect($results)->contains(fn ($r) => ! empty($r['success']) && $r['success'] === true);
+
+    //         return response()->json([
+    //             'success' => $hasSuccess,
+    //             'message' => $hasSuccess ? 'Scans recorded' : 'All reads failed or were skipped',
+    //             'results' => $results,
+    //         ], 200);
+
+    //     } catch (\Throwable $e) {
+
+    //         DB::rollBack();
+    //         Log::error('fixedReaderScan error: '.$e->getMessage(), ['exception' => $e]);
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Server error: '.$e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
+    public function fixedReaderScan(Request $request)
+    {
+        Log::info('fixedReaderScan called '.json_encode($request->all()));
+
+        $validator = Validator::make($request->all(), [
+            'reader_code' => 'required|string|max:100',
+            'movement' => 'nullable|in:inward,outward',
+            'reads' => 'required|array|min:1',
+            'reads.*.epc' => 'required|string',
+            'reads.*.read_time' => 'nullable|date',
+            'reads.*.qty' => 'nullable|integer|min:1',
+            'reads.*.movement' => 'nullable|in:inward,outward',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $payload = $request->all();
+        Log::info('fixedReaderScan payload: '.json_encode($payload));
+
+        $reads = $payload['reads'];
+        $readerCode = $payload['reader_code'];
+
+        // Default movement used ONLY when inventory movement is required
+        $globalMovement = $payload['movement'] ?? 'inward';
+
+        // Hard-coded user ID
+        $userId = 3;
+
+        $now = Carbon::now();
+        $results = [];
+        $seen = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($reads as $r) {
+
+                $epc = trim($r['epc'] ?? '');
+                if ($epc === '') {
+                    $results[] = [
+                        'epc' => null,
+                        'success' => false,
+                        'message' => 'Empty EPC provided',
+                    ];
+
+                    continue;
+                }
+
+                // Prevent duplicate EPCs within same request
+                if (isset($seen[$epc])) {
+                    $results[] = [
+                        'epc' => $epc,
+                        'success' => false,
+                        'message' => 'Duplicate EPC in payload - skipped',
+                    ];
+
+                    continue;
+                }
+                $seen[$epc] = true;
+
+                // Find tag
+                $tag = Inventory::where('epc_code', $epc)->first();
+
+                if (! $tag) {
+                    $results[] = [
+                        'epc' => $epc,
+                        'success' => false,
+                        'message' => 'Tag not mapped',
+                    ];
+
+                    continue;
+                }
+
+                // determine read time
+                $readTime = $now;
+                if (! empty($r['read_time'])) {
+                    try {
+                        $readTime = Carbon::parse($r['read_time']);
+                    } catch (\Throwable $e) {
+                        $readTime = $now;
+                    }
+                }
+
+                // -----------------------------------------------------------------------------------------
+                // STATUS FLOW LOGIC
+                // new → clean → dirty → clean → dirty ...
+                // NO INVENTORY MOVEMENT IS RECORDED FOR STATUS CYCLING
+                // -----------------------------------------------------------------------------------------
+
+                $currentStatus = $tag->status;
+                $nextStatus = null;
+
+                if ($currentStatus === 'new') {
+                    $nextStatus = 'clean';
+                } elseif ($currentStatus === 'clean') {
+                    $nextStatus = 'dirty';
+                } elseif ($currentStatus === 'dirty') {
+                    $nextStatus = 'clean';
+                }
+
+                if ($nextStatus !== null) {
+
+                    // Update status only
+                    $tag->update([
+                        'status' => $nextStatus,
+                        'last_scanned_at' => $readTime,
+                        'reader_code' => $readerCode,
+                        'reader_type' => 'fixed_reader',
+                    ]);
+
+                    $results[] = [
+                        'epc' => $epc,
+                        'tag_id' => $tag->id,
+                        'product_id' => $tag->product_id,
+                        'location_id' => $tag->location_id,
+                        'success' => true,
+                        'message' => "Status changed: {$currentStatus} → {$nextStatus}",
+                        'status' => $nextStatus,
+                    ];
+
+                    // SKIP movement creation entirely
+                    continue;
+                }
+
+                // -----------------------------------------------------------------------------------------
+                // MOVEMENT LOGIC (ONLY RUNS WHEN NO STATUS CHANGE IS DONE)
+                // -----------------------------------------------------------------------------------------
+
+                $movement = $r['movement'] ?? $globalMovement;
+                $qty = isset($r['qty']) ? intval($r['qty']) : 1;
+                if ($qty <= 0) {
+                    $qty = 1;
+                }
+
+                // If no product mapped, skip
+                if (empty($tag->product_id)) {
+                    $results[] = [
+                        'epc' => $epc,
+                        'tag_id' => $tag->id,
+                        'product_id' => null,
+                        'location_id' => $tag->location_id,
+                        'success' => false,
+                        'message' => 'Tag has no product mapping - movement skipped',
+                    ];
+
+                    continue;
+                }
+
+                // update tag before movement
+                $tag->update([
+                    'last_scanned_at' => $readTime,
+                    'reader_code' => $readerCode,
+                    'reader_type' => 'fixed_reader',
+                ]);
+
+                $inward = $movement === 'inward' ? $qty : 0;
+                $outward = $movement === 'outward' ? $qty : 0;
+
+                $transType = $movement === 'inward'
+                    ? 'fixed_reader_inward'
+                    : 'fixed_reader_outward';
+
+                // Create inventory activity entry
+                $activity = InventoryActivity::create([
+                    'product_id' => $tag->product_id,
+                    'inventory_id' => $tag->id,
+                    'adjust_qty' => $qty,
+                    'inward' => $inward,
+                    'outward' => $outward,
+                    'trans_type' => $transType,
+                    'remarks' => 'Scanned by fixed reader: '.$readerCode,
+                    'status' => 1,
+                    'location_id' => $tag->location_id,
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+
+                $results[] = [
+                    'epc' => $epc,
+                    'tag_id' => $tag->id,
+                    'product_id' => $tag->product_id,
+                    'location_id' => $tag->location_id,
+                    'success' => true,
+                    'message' => 'Scan recorded with movement',
+                    'movement' => $movement,
+                    'qty' => $qty,
+                    'activity_id' => $activity->trans_id ?? null,
+                ];
+            }
+
+            DB::commit();
+
+            $hasSuccess = collect($results)->contains(fn ($r) => $r['success'] === true);
+
+            return response()->json([
+                'success' => $hasSuccess,
+                'message' => $hasSuccess ? 'Scans recorded' : 'All scans failed',
+                'results' => $results,
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+            Log::error('fixedReaderScan error: '.$e->getMessage(), ['exception' => $e]);
 
             return response()->json([
                 'success' => false,

@@ -30,7 +30,7 @@
                                         <h3 class="mb-1">
                                             {{ $productsOverview['total_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Mattress</p>
+                                        <p class="mb-0">Total Products</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-store-alt bx-sm"></i>
@@ -38,14 +38,29 @@
                                 </div>
                                 <hr class="d-none d-sm-block d-lg-none me-4">
                             </div>
+
+                            <div class="col-sm-6 col-lg-3">
+                                <div
+                                    class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
+                                    <div>
+                                        <h3 class="mb-1">
+                                            {{ $productsOverview['total_mapped_products'] ?? '0' }}
+                                        </h3>
+                                        <p class="mb-0">Total Mapped Products</p>
+                                    </div>
+                                    <span class="badge bg-label-success me-sm-4 rounded p-2">
+                                        <i class="bx bx-check-circle bx-sm"></i>
+                                    </span>
+                                </div>
+                            </div>
                             <div class="col-sm-6 col-lg-3">
                                 <div
                                     class="d-flex justify-content-between align-items-start card-widget-2 border-end pb-sm-0 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_pending'] ?? '0' }}
+                                            {{ $productsOverview['total_unmapped_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Pending</p>
+                                        <p class="mb-0">Total Unmapped Products</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
                                         <i class="bx bx-crown bx-sm"></i>
@@ -58,23 +73,9 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_pass_products'] ?? '0' }}
+                                            {{ $productsOverview['total_inactive_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">PASS Products</p>
-                                    </div>
-                                    <span class="badge bg-label-success me-sm-4 rounded p-2">
-                                        <i class="bx bx-check-circle bx-sm"></i>
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="col-sm-6 col-lg-3">
-                                <div
-                                    class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
-                                    <div>
-                                        <h3 class="mb-1">
-                                            {{ $productsOverview['total_fail_products'] ?? '0' }}
-                                        </h3>
-                                        <p class="mb-0">FAIL Products</p>
+                                        <p class="mb-0">Inactive Products</p>
                                     </div>
                                     <span class="badge bg-label-danger me-sm-4 rounded p-2">
                                         <i class="bx bx-error bx-sm"></i>
@@ -107,7 +108,10 @@
                         </div>
                     </div>
                 </div> --}}
-                <div class="card-header border-bottom">
+
+
+                {{-- // Use later --}}
+                {{-- <div class="card-header border-bottom">
                     <h6>Search By Filters</h6>
                     <div class="d-md-flex justify-content-between align-items-center gap-3 pt-3" id="filter-container">
                         <div class="input-group date">
@@ -118,7 +122,7 @@
                             </span>
                         </div>
                     </div>
-                </div>
+                </div> --}}
 
                 <!--- Filters ------------ END ---------------->
                 <div class="card-datatable table-responsive pt-0">

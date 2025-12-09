@@ -51,10 +51,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ------------- New Routes for Inventory Management End------------- //
 
-    // Route::get('inventory/tag-details/{epc}', [InventoryApiController::class, 'tagDetailsByEpc']);
-
 });
-// routes/api.php
+
 // Public route — anyone can call with license key
 Route::post('device/verify-license', [DeviceRegistrationApiController::class, 'verifyLicense'])
     ->name('device.verifyLicense');
@@ -68,3 +66,7 @@ Route::post('device/check', [DeviceRegistrationApiController::class, 'checkDevic
 
 Route::post('device/check-update', [AppUpdateController::class, 'checkUpdate']);
 Route::post('device/mark-updated', [AppUpdateController::class, 'markUpdated']);
+
+// ⭐ NEW PUBLIC: Inventory: Fixed Reader - Multi Tag Scan (no auth)
+Route::post('inventory/fixed-scan', [InventoryApiController::class, 'fixedReaderScan'])
+    ->name('inventory.fixedScan');

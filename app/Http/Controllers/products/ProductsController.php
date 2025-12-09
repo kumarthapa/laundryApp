@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\products;
 
-use App\Helpers\LocaleHelper;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
@@ -49,14 +48,21 @@ class ProductsController extends Controller
             $locations_info = Location::all();
         }
 
-        // $productsOverview = LocaleHelper::getBondingProductSummaryCounts();
+        // --- PRODUCT OVERVIEW METRICS ---
+        $totalProducts = Product::count();
 
-        // $productsOverview = [
-        //     'total_model' => $productsOverview['total_model'] ?? 0,
-        //     'total_qa_code' => $productsOverview['total_qa_code'] ?? 0,
-        //     'total_writted' => $productsOverview['total_writted'] ?? 0,
-        //     'total_pending' => $productsOverview['total_pending'] ?? 0,
-        // ];
+        $totalMappedProducts = Product::whereHas('inventory')->count();
+
+        $totalUnmappedProducts = Product::whereDoesntHave('inventory')->count();
+
+        $totalInactiveProducts = Product::where('status', 0)->count();
+
+        $productsOverview = [
+            'total_products' => $totalProducts,
+            'total_mapped_products' => $totalMappedProducts,
+            'total_unmapped_products' => $totalUnmappedProducts,
+            'total_inactive_products' => $totalInactiveProducts,
+        ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
         $currentUrl = $request->url();
@@ -67,14 +73,11 @@ class ProductsController extends Controller
         // Readonly must be false so checkbox column is added
         $table_headers = TableHelper::get_manage_table_headers($headers, true, false, true, true, true);
 
-        // $allProductsData = Product::with('processHistory')->get();
-        // Log::info('Total products data 12: ', $allProductsData->toArray());
-
         return view('content.products.list')
             ->with('pageConfigs', $pageConfigs)
             ->with('table_headers', $table_headers)
             ->with('currentUrl', $currentUrl)
-            // ->with('productsOverview', $productsOverview)
+            ->with('productsOverview', $productsOverview)
             ->with('createPermissions', $createPermissions)
             ->with('locations_info', $locations_info)
             ->with('deletePermissions', $deletePermissions);
