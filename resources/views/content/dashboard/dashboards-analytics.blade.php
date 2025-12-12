@@ -165,7 +165,7 @@
                                 <i class="icon-base bx bx-store-alt fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Total Inventory</h6>
+                        <h6 class="mb-0">Total Items</h6>
                     </div>
                     <h3 id="daily_bonding">{{ $metrics['total_inventory'] ?? 0 }}</h3>
                     <small class="text-muted">Total inventory tags count</small>
@@ -183,10 +183,10 @@
                                 <i class="icon-base bx bx-cube fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Total Products</h6>
+                        <h6 class="mb-0">Total Items Category</h6>
                     </div>
                     <h3 id="daily_tape_edge_qc">{{ $metrics['total_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Total products count</small>
+                    <small class="text-muted">Total Items Types</small>
                 </div>
             </div>
         </div>
@@ -201,10 +201,10 @@
                                 <i class="icon-base bx bx-check-circle fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Clean Products</h6>
+                        <h6 class="mb-0">Clean Items</h6>
                     </div>
                     <h3 id="daily_zip_cover_qc">{{ $metrics['total_clean_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Total clean products count</small>
+                    <small class="text-muted">Total clean items count</small>
                 </div>
             </div>
         </div>
@@ -219,10 +219,10 @@
                                 <i class="icon-base bx bx-book-open fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Dirty Products</h6>
+                        <h6 class="mb-0">Used Items</h6>
                     </div>
                     <h3 id="daily_packaging">{{ $metrics['total_dirty_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Total dirty products count</small>
+                    <small class="text-muted">Total used items count</small>
                 </div>
             </div>
         </div>
@@ -237,10 +237,10 @@
                                 <i class="icon-base bx bxs-truck fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">New Products</h6>
+                        <h6 class="mb-0">Unused Items</h6>
                     </div>
                     <h3 id="total_packaging">{{ $metrics['total_new_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Total new products count</small>
+                    <small class="text-muted">Total unused items count</small>
                 </div>
             </div>
         </div>
@@ -255,10 +255,10 @@
                                 <i class="icon-base bx bx-error fs-5"></i>
                             </span>
                         </div>
-                        <h6 class="mb-0">Damaged Products</h6>
+                        <h6 class="mb-0">Damaged Items</h6>
                     </div>
                     <h3 id="damaged_products">{{ $metrics['total_damaged_products'] ?? 0 }}</h3>
-                    <small class="text-muted">Total damaged products count</small>
+                    <small class="text-muted">Total damaged items count</small>
                 </div>
             </div>
         </div>

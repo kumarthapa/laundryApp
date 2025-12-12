@@ -1,6 +1,6 @@
 @extends('layouts/contentNavbarLayout')
 
-@section('title', 'Products List')
+@section('title', 'Items List')
 @section('page-style')
     <link rel="stylesheet" href="{{ asset('assets/css/datatables.bootstrap5.css') }}">
     <style>
@@ -30,7 +30,7 @@
                                         <h3 class="mb-1">
                                             {{ $productsOverview['total_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Products</p>
+                                        <p class="mb-0">Total Items</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-store-alt bx-sm"></i>
@@ -46,7 +46,7 @@
                                         <h3 class="mb-1">
                                             {{ $productsOverview['total_mapped_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Mapped Products</p>
+                                        <p class="mb-0">Total Mapped Items</p>
                                     </div>
                                     <span class="badge bg-label-success me-sm-4 rounded p-2">
                                         <i class="bx bx-check-circle bx-sm"></i>
@@ -60,7 +60,7 @@
                                         <h3 class="mb-1">
                                             {{ $productsOverview['total_unmapped_products'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Total Unmapped Products</p>
+                                        <p class="mb-0">Total Unmapped Items</p>
                                     </div>
                                     <span class="badge bg-label-warning me-lg-4 rounded p-2">
                                         <i class="bx bx-crown bx-sm"></i>
@@ -73,12 +73,12 @@
                                     class="d-flex justify-content-between align-items-start border-end pb-sm-0 card-widget-3 pb-3">
                                     <div>
                                         <h3 class="mb-1">
-                                            {{ $productsOverview['total_inactive_products'] ?? '0' }}
+                                            {{ $productsOverview['total_tags'] ?? '0' }}
                                         </h3>
-                                        <p class="mb-0">Inactive Products</p>
+                                        <p class="mb-0">Total Tags</p>
                                     </div>
                                     <span class="badge bg-label-danger me-sm-4 rounded p-2">
-                                        <i class="bx bx-error bx-sm"></i>
+                                        <i class="bx bx-copy bx-sm"></i>
                                     </span>
                                 </div>
                             </div>
@@ -154,7 +154,7 @@
                 createUrl: '{{ route('create.products') }}',
                 createPermissions: "{{ $createPermissions ?? '' }}",
                 fetchId: "FetchData",
-                title: "Products List",
+                title: "Items And Categories List",
                 createTitle: "Manually Create",
                 displayLength: 30,
                 is_import: "Bulk Create",

@@ -118,14 +118,14 @@ class AuthController extends Controller
             }
 
             // 7) Prevent super-admin on mobile (policy)
-            // if (! empty($user->is_super_admin) && $user->is_super_admin) {
-            //     Log::info('Super admin login attempt blocked', ['user_id' => $user->id]);
+            if (! empty($user->is_super_admin) && $user->is_super_admin) {
+                Log::info('Super admin login attempt blocked', ['user_id' => $user->id]);
 
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'Invalid account details!',
-            //     ], Response::HTTP_FORBIDDEN);
-            // }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid account details!',
+                ], Response::HTTP_FORBIDDEN);
+            }
 
             if (empty($user->location_id) || $user->location_id == 0) {
                 Log::info('Location Is Not Assigned!', ['user_id' => $user->id, 'location_id' => $user->location_id]);

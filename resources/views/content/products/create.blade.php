@@ -7,7 +7,7 @@
         <div class="col-md-12 col-12">
             <div class="card">
                 <div class="card-header">
-                    <h4 class="d-flex mb-1">Create New Product</h4>
+                    <h4 class="d-flex mb-1">Create New Items</h4>
                     <div class="d-flex justify-content-start form-label-class">
                         <p class="card-subtitle text-warning my-0">Fields marked with <span class="text-danger">*</span> are
                             mandatory</p>
@@ -20,13 +20,13 @@
                         @csrf
                         <div class="row">
 
-                            <!-- Product Name -->
+                            <!-- Items Name -->
                             <div class="col-md-6 col-12">
                                 <div class="mb-3">
-                                    <label for="product_name" class="form-label">Product Name <span
+                                    <label for="product_name" class="form-label">Items Name <span
                                             class="text-danger">*</span></label>
                                     <input type="text" id="product_name" name="product_name"
-                                        placeholder="Enter product name"
+                                        placeholder="Enter Items name"
                                         class="form-control @error('product_name') is-invalid @enderror" required
                                         value="{{ old('product_name') }}">
                                     @error('product_name')
@@ -60,11 +60,41 @@
                                 </div>
                             </div>
 
-
-                            <!-- QC Status -->
+                            <!-- Selected Location -->
                             <div class="col-md-6 col-12">
                                 <div class="mb-3">
-                                    <label for="qc_status" class="form-label">QC Status</label>
+                                    <label for="location" class="form-label">Selected Location</label>
+                                    <select id="location_id" name="location_id" class="form-select">
+                                        <option value="">Select Location</option>
+                                        @foreach ($locations_info ?? [] as $location)
+                                            <option value="{{ $location->location_id }}"
+                                                {{ isset($loginuser_location_id) && $loginuser_location_id == $location->location_id ? 'selected' : '' }}>
+                                                {{ $location->location_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Expected Life Cycles -->
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                    <label for="expected_life_cycles" class="form-label">Expected Life Cycles</label>
+                                    <input type="number" id="expected_life_cycles" name="expected_life_cycles"
+                                        class="form-control" placeholder="Enter expected life cycles"
+                                        value="{{ old('expected_life_cycles') }}">
+                                    @error('expected_life_cycles')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+
+
+                            <!-- Status -->
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                    <label for="qc_status" class="form-label">Status</label>
                                     <select id="qc_status" name="qc_status" class="form-select">
                                         <option value="1">
                                             Active</option>

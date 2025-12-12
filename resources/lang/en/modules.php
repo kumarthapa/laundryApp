@@ -7,7 +7,7 @@ return [
     'roles' => 'Roles',
     'config_settings' => 'Config Settings',
     'locations' => 'Location',
-    'products' => 'Products',
+    'products' => 'Items',
     'inventory' => 'Inventory',
     'reports' => 'Reports',
     'locations' => 'Location',

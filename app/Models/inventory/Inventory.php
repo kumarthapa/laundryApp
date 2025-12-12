@@ -31,6 +31,7 @@ class Inventory extends Model
         'last_scanned_at',
         'reader_code',
         'reader_type',
+        'life_cycles',
     ];
 
     protected $casts = [

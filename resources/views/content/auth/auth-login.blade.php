@@ -82,14 +82,14 @@
 
                             <tbody>
                                 <tr>
-                                    <td class="text-truncate">
+                                    <td class="text-truncate px-0">
                                         <i class='bx bx-sm bx-user-pin'></i>
                                         <span class="text-heading">Download RFID APP</span>
                                     </td>
-                                    <td class="text-truncate">
-                                        <a class="btn btn-primary"
+                                    <td class="text-truncate px-0 text-end">
+                                        <a class="btn btn-primary btn-sm"
                                             href="{{ asset('assets/apk/rfidapp/galla-rfid-app.apk') }}">
-                                            <span>Download</span>
+                                            <span><i class="icon-base bx bx-file"></i> Download</span>
                                         </a>
                                     </td>
                                 </tr>

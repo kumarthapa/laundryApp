@@ -42,9 +42,10 @@ class InventoryController extends Controller
 
         $headers = [
             ['epc_code' => 'Tag'],
-            ['tag_code' => 'Tag Code'],
+            // ['tag_code' => 'Tag Code'],
             ['location_id' => 'Location'],
             ['status' => 'Status'],
+            ['life_cycles' => 'Life Cycles'],
             ['mapped_at' => 'Mapped At'],
             ['last_scanned_at' => 'Last Scanned At'],
         ];
@@ -163,12 +164,12 @@ class InventoryController extends Controller
 
         // Basic fields
         $data['epc_code'] = e($row->epc_code);
-        $data['tag_code'] = e($row->tag_code);
+        // $data['tag_code'] = e($row->tag_code);
         $data['location_id'] = LocaleHelper::getLocationNameById($row->location_id);
 
         // Status badge formatting
         $data['status'] = $this->getStatusBadge($row->status);
-
+        $data['life_cycles'] = e($row->life_cycles);
         // Dates
         $data['mapped_at'] = LocaleHelper::formatDateWithTime($row->mapped_at);
         $data['last_scanned_at'] = LocaleHelper::formatDateWithTime($row->last_scanned_at);

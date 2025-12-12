@@ -4,7 +4,7 @@
         <div class="modal-dialog modal-dialog-centered modal-md">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title" id="modalCenterTitle">Bulk products upload</h4>
+                    <h4 class="modal-title" id="modalCenterTitle">Bulk items upload</h4>
                     <button type="button" class="btn btn-label-danger p-2" data-bs-dismiss="modal" aria-label="Close">
                         <i class='bx bx-x'></i>
                     </button>

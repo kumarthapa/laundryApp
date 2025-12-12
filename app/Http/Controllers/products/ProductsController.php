@@ -5,6 +5,7 @@ namespace App\Http\Controllers\products;
 use App\Helpers\TableHelper;
 use App\Helpers\UtilityHelper;
 use App\Http\Controllers\Controller;
+use App\Models\inventory\Inventory;
 use App\Models\location\Location;
 use App\Models\products\Product;
 use App\Models\user_management\Role;
@@ -61,7 +62,7 @@ class ProductsController extends Controller
             'total_products' => $totalProducts,
             'total_mapped_products' => $totalMappedProducts,
             'total_unmapped_products' => $totalUnmappedProducts,
-            'total_inactive_products' => $totalInactiveProducts,
+            'total_tags' => Inventory::count(),
         ];
 
         $pageConfigs = ['pageHeader' => true, 'isFabButton' => true];
@@ -189,7 +190,10 @@ class ProductsController extends Controller
      */
     public function create(Request $request)
     {
-        return view('content.products.create');
+        $locations_info = Location::all();
+        $loginuser_location_id = auth()->user()->location_id ?? null;
+
+        return view('content.products.create', ['locations_info' => $locations_info, 'loginuser_location_id' => $loginuser_location_id]);
     }
 
     /**
@@ -216,6 +220,7 @@ class ProductsController extends Controller
             'expected_life_cycles' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
             'status' => 'nullable|in:0,1',
+            'location_id' => 'required|integer|exists:locations,location_id',
         ];
 
         // Unique sku rule
@@ -242,6 +247,7 @@ class ProductsController extends Controller
             'expected_life_cycles',
             'description',
             'status',
+            'location_id',
         ]);
 
         // Normalize status to 0/1
@@ -258,6 +264,12 @@ class ProductsController extends Controller
                 $product->update($data);
                 $action = 'update';
             } else {
+                if ($request->input('category')) {
+                    $data['category'] = $request->input('category', null);
+                } else {
+                    $data['category'] = $request->input('product_name', null);
+                }
+                $data['location_id'] = $request->input('location_id', null);
                 $product = Product::create($data);
                 $action = 'create';
             }
